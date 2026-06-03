@@ -1,0 +1,67 @@
+namespace Rpom.Application.Access;
+
+/// <summary>
+/// Permission catalog — source of truth for permission codes.
+/// <para>
+/// Convention: <c>{aggregate}:{action}</c> colon-namespaced (e.g. <c>ticket:open</c>).
+/// Strings used as policy names in <c>.RequireAuthorization("...")</c> AND
+/// as <c>Permission.Code</c> column values seeded into DB by AccessSeeder.
+/// </para>
+/// <para>
+/// To add a new permission: add a const here, then add a row in AccessSeeder
+/// with the matching PermissionGroup. No DB migration needed.
+/// </para>
+/// </summary>
+public static class Permissions
+{
+    // ============ Common ============
+    public const string StaffLogin = "staff:login";
+
+    // ============ Master Data (Owner/Manager via NextERP) ============
+    public const string MasterDataView = "master_data:view";
+    public const string MasterDataManage = "master_data:manage";
+
+    // ============ POS — Order Staff + Cashier ============
+    public const string TicketOpen = "ticket:open";
+    public const string TicketViewDetail = "ticket:view_detail";
+    public const string TicketTransfer = "ticket:transfer";
+    public const string TicketMerge = "ticket:merge";
+    public const string TicketCancel = "ticket:cancel";
+    public const string OrderAddItems = "order:add_items";
+    public const string OrderSendKitchen = "order:send_kitchen";
+    public const string OrderItemCancelPending = "order_item:cancel_pending";
+    public const string OrderItemRefundLine = "order_item:refund_line";
+    public const string ReservationCreate = "reservation:create";
+    public const string ReservationCancel = "reservation:cancel";
+
+    // ============ KDS — Kitchen Staff ============
+    public const string KdsView = "kds:view";
+    public const string OrderItemStartCooking = "order_item:start_cooking";
+    public const string OrderItemMarkReady = "order_item:mark_ready";
+
+    // ============ Cashier — payment + shift ============
+    public const string ShiftSessionOpen = "shift_session:open";
+    public const string ShiftSessionClose = "shift_session:close";
+    public const string PaymentCash = "payment:cash";
+    public const string PaymentQr = "payment:qr";
+    public const string PaymentCancelPending = "payment:cancel_pending";
+    public const string PaymentDeleteRecord = "payment:delete_record";
+    public const string TicketApplyDiscount = "ticket:apply_discount";
+    public const string TicketClose = "ticket:close";
+    public const string EInvoiceIssue = "e_invoice:issue";
+
+    // ============ Reporting — Manager/Owner ============
+    public const string ReportRevenue = "report:revenue";
+    public const string ReportShift = "report:shift";
+    public const string ReportItemConsumption = "report:item_consumption";
+    public const string ReportExportExcel = "report:export_excel";
+
+    // ============ AI Operations Assistant ============
+    public const string AiAsk = "ai:ask";
+    public const string AiViewNotifications = "ai:view_notifications";
+
+    // ============ Access Control — Owner ============
+    public const string StaffAccountManage = "staff_account:manage";
+    public const string RoleManage = "role:manage";
+    public const string PermissionAssign = "permission:assign";
+}

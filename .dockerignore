@@ -1,0 +1,22 @@
+# .dockerignore — exclude from Docker build context
+**/.dockerignore
+**/.env
+**/.git
+**/.gitignore
+**/.idea
+**/.vs
+**/.vscode
+**/bin
+**/obj
+**/*.user
+**/secrets.dev.yaml
+**/values.dev.yaml
+**/charts
+**/docker-compose*
+**/compose.yaml
+**/compose.*.yaml
+**/Dockerfile*
+README.md
+LICENSE
+*.md
+node_modules

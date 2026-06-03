@@ -1,0 +1,56 @@
+name: rpom
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: rpom-postgres
+    environment:
+      POSTGRES_DB: rpom
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - rpom-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d rpom"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  seq:
+    image: datalust/seq:latest
+    container_name: rpom-seq
+    environment:
+      ACCEPT_EULA: "Y"
+      # Dev-only: bỏ qua auth lần đầu. Production phải set SEQ_FIRSTRUN_ADMINPASSWORD.
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
+    ports:
+      - "8081:80"   # Seq UI
+      - "5341:5341" # Serilog ingest
+    volumes:
+      - rpom-seq-data:/data
+
+  api:
+    container_name: rpom-api
+    build:
+      context: .
+      dockerfile: src/Rpom.Api/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+      seq:
+        condition: service_started
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__Database: Host=postgres;Database=rpom;Username=postgres;Password=postgres
+      Serilog__WriteTo__1__Args__serverUrl: http://seq:5341
+    ports:
+      - "5080:8080"  # host:container — port 5000 trên macOS thường bị AirPlay Receiver chiếm
+
+  # worker: TBD — add khi cần containerize Rpom.Worker.
+
+volumes:
+  rpom-postgres-data:
+  rpom-seq-data:

@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Rpom.Api/Rpom.Api.csproj" />
+    <Project Path="src/Rpom.Application/Rpom.Application.csproj" />
+    <Project Path="src/Rpom.Domain/Rpom.Domain.csproj" />
+    <Project Path="src/Rpom.Infrastructure/Rpom.Infrastructure.csproj" />
+    <Project Path="src/Rpom.Worker/Rpom.Worker.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Rpom.Application.Tests/Rpom.Application.Tests.csproj" />
+    <Project Path="tests/Rpom.Domain.Tests/Rpom.Domain.Tests.csproj" />
+  </Folder>
+</Solution>
