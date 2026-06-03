@@ -64,4 +64,8 @@ public static class Permissions
     public const string StaffAccountManage = "staff_account:manage";
     public const string RoleManage = "role:manage";
     public const string PermissionAssign = "permission:assign";
+
+    // ============ Configuration — Owner/Manager ============
+    public const string ConfigView = "config:view";
+    public const string ConfigManage = "config:manage";
 }

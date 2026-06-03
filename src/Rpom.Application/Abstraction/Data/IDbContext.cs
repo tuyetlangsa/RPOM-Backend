@@ -3,6 +3,7 @@ using Rpom.Domain.Access;
 using Rpom.Domain.Ai;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
+using Rpom.Domain.Configuration;
 using Rpom.Domain.Inventory;
 using Rpom.Domain.Menu;
 using Rpom.Domain.Operations;
@@ -86,6 +87,9 @@ public interface IDbContext
 
     // --- Cross-cutting: Audit ---
     DbSet<AuditLog> AuditLogs { get; }
+
+    // --- Cross-cutting: Configuration ---
+    DbSet<ConfigValue> ConfigValues { get; }
 
     // --- Outbox infrastructure ---
     DbSet<OutboxMessage> OutboxMessages { get; }

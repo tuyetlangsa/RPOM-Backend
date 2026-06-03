@@ -14,7 +14,6 @@ internal sealed class ItemConfiguration : IEntityTypeConfiguration<Item>
         builder.Property(x => x.Name).IsRequired().HasMaxLength(200);
         builder.Property(x => x.Description).HasMaxLength(500);
         builder.Property(x => x.ImageUrl).HasMaxLength(500);
-        builder.Property(x => x.BasePrice).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.VatPercent).HasPrecision(5, 2).HasDefaultValue(0m);
         builder.Property(x => x.IsStockable).HasDefaultValue(false);
         builder.Property(x => x.HasRecipe).HasDefaultValue(false);

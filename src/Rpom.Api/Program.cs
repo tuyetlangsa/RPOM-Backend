@@ -40,6 +40,9 @@ await using (var scope = app.Services.CreateAsyncScope())
 
     var lookupSeeder = scope.ServiceProvider.GetRequiredService<LookupSeeder>();
     await lookupSeeder.SeedAsync();
+
+    var configSeeder = scope.ServiceProvider.GetRequiredService<ConfigValueSeeder>();
+    await configSeeder.SeedAsync();
 }
 
 app.UseCors();

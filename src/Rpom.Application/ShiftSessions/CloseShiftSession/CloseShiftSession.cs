@@ -91,9 +91,6 @@ public static class CloseShiftSession
                     });
                 }
 
-                // v1 placeholder: Expected = OpeningCash (no ticket payment SUM yet).
-                // TODO: when TicketPaymentDetail feature ready, change to:
-                //   Expected = OpeningCash + SUM(cash payments in this session)
                 session.ExpectedClosingCash = session.OpeningCash ?? 0m;
                 session.ActualClosingCash = actualClosingCash;
                 session.Variance = actualClosingCash - session.ExpectedClosingCash;

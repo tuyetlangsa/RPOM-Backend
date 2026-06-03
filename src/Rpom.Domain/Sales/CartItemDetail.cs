@@ -15,7 +15,7 @@ public class CartItemDetail : Entity
     /// <summary>Which ChoiceCategory this option satisfies (MODIFIER). NULL for MAIN_COMPONENT.</summary>
     public int? ChoiceCategoryId { get; set; }
 
-    /// <summary>The Item picked (modifier or component — both are Items per v0.10 design).</summary>
+    /// <summary>The Item picked (modifier or component — both are Items).</summary>
     public int ItemId { get; set; }
 
     /// <summary>Snapshot.</summary>

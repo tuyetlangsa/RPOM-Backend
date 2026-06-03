@@ -127,6 +127,9 @@ public sealed class AccessSeeder(
             (Permissions.StaffAccountManage,     "Manage staff accounts",             PermissionGroups.Access),
             (Permissions.RoleManage,             "Manage roles",                      PermissionGroups.Access),
             (Permissions.PermissionAssign,       "Assign permissions to accounts",    PermissionGroups.Access),
+
+            (Permissions.ConfigView,             "View configuration values",         PermissionGroups.Access),
+            (Permissions.ConfigManage,           "Update configuration values",       PermissionGroups.Access),
         };
 
         var existingCodes = await db.Permissions.Select(x => x.Code).ToListAsync(ct);
@@ -201,12 +204,14 @@ public sealed class AccessSeeder(
             return;
         }
 
-        var existsOwner = await db.StaffAccounts
-            .AnyAsync(x => x.Username == _bootstrap.OwnerUsername, ct);
-        if (existsOwner)
+        var owner = await db.StaffAccounts
+            .FirstOrDefaultAsync(x => x.Username == _bootstrap.OwnerUsername, ct);
+
+        if (owner is not null)
         {
-            logger.LogInformation("Bootstrap Owner '{Username}' already exists — skip.",
-                _bootstrap.OwnerUsername);
+            // Sync: ensure existing bootstrap Owner has every permission newly added
+            // to the catalog (e.g. when devs add a new permission code between releases).
+            await SyncOwnerPermissionsAsync(db, owner.Id, clock.UtcNow, ct);
             return;
         }
 
@@ -215,7 +220,7 @@ public sealed class AccessSeeder(
             ?? throw new InvalidOperationException("OWNER role not seeded — seed order broken.");
 
         var now = clock.UtcNow;
-        var owner = new StaffAccount
+        owner = new StaffAccount
         {
             Username = _bootstrap.OwnerUsername,
             PasswordHash = passwordHasher.Hash(_bootstrap.OwnerPassword),
@@ -249,5 +254,33 @@ public sealed class AccessSeeder(
             "Bootstrap Owner created: username='{Username}', granted {Count} permissions. "
             + "→ Login with provided password, then change it ASAP.",
             _bootstrap.OwnerUsername, allPermissionIds.Count);
+    }
+
+    /// <summary>
+    /// Idempotent permission sync — grants every Permission row that the
+    /// bootstrap Owner doesn't already have. Used on app restart to pick up
+    /// newly added permissions in the catalog.
+    /// </summary>
+    private static async Task SyncOwnerPermissionsAsync(
+        ApplicationDbContext db, int ownerId, DateTime now, CancellationToken ct)
+    {
+        var allPermissionIds = await db.Permissions.Select(x => x.Id).ToListAsync(ct);
+        var grantedIds = (await db.StaffAccountPermissions
+            .Where(x => x.StaffAccountId == ownerId)
+            .Select(x => x.PermissionId)
+            .ToListAsync(ct)).ToHashSet();
+
+        foreach (var pid in allPermissionIds)
+        {
+            if (grantedIds.Contains(pid)) continue;
+            db.StaffAccountPermissions.Add(new StaffAccountPermission
+            {
+                StaffAccountId = ownerId,
+                PermissionId = pid,
+                CreatedAt = now
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
     }
 }

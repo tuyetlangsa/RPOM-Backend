@@ -70,7 +70,7 @@ public static class Login
             staff.LastLoginAt = now;
             staff.UpdatedAt = now;
 
-            // Audit log: LOGIN action. TODO: migrate to IAuditLogger when built.
+            // Audit log: LOGIN action.
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(StaffAccount),

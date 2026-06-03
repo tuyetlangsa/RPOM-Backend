@@ -4,6 +4,7 @@ using Rpom.Domain.Access;
 using Rpom.Domain.Ai;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
+using Rpom.Domain.Configuration;
 using Rpom.Domain.Inventory;
 using Rpom.Domain.Menu;
 using Rpom.Domain.Operations;
@@ -91,6 +92,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     // --- Cross-cutting: Audit ---
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
+
+    // --- Cross-cutting: Configuration ---
+    public DbSet<ConfigValue> ConfigValues => Set<ConfigValue>();
 
     // --- Outbox infrastructure ---
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();

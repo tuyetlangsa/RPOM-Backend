@@ -22,12 +22,6 @@ public class Item : Entity
     /// <summary>FK to base Uom. Alternative units defined via ItemUomConversion (Area H).</summary>
     public int BaseUomId { get; set; }
 
-    /// <summary>
-    /// Default sell price; only meaningful for sellable items. Overridden by
-    /// PriceEntry rows under each active PriceVariant during price resolution.
-    /// </summary>
-    public decimal BasePrice { get; set; }
-
     /// <summary>VAT percentage (e.g. 10.00 for 10%).</summary>
     public decimal VatPercent { get; set; }
 
@@ -50,7 +44,6 @@ public class Item : Entity
     /// <summary>
     /// FK to KitchenStation (Area D). NULL when item is not kitchen-routed
     /// (raw ingredients, ready-to-sell shelf items, SET_MENU containers).
-    /// v0.15: simplified from per-Area routing junction to direct FK on Item.
     /// </summary>
     public int? KitchenStationId { get; set; }
 

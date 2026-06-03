@@ -14,6 +14,7 @@ using Rpom.Application;
 using Rpom.Application.Abstraction.Authentication;
 using Rpom.Application.Abstraction.Authorization;
 using Rpom.Application.Abstraction.Clock;
+using Rpom.Application.Abstraction.Configuration;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.User;
 using Rpom.Domain.Common;
@@ -47,6 +48,7 @@ public static class DependencyInjection
         services.Configure<BootstrapOptions>(configuration.GetSection(BootstrapOptions.SectionName));
         services.AddSingleton<AccessSeeder>();
         services.AddSingleton<LookupSeeder>();
+        services.AddSingleton<ConfigValueSeeder>();
         return services;
     }
 
@@ -70,6 +72,7 @@ public static class DependencyInjection
 
         services.TryAddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<ICurrentStaff, CurrentStaffImpl>();
+        services.AddScoped<IConfigValueService, Configuration.ConfigValueService>();
 
         services.AddQuartz(configurator =>
         {
