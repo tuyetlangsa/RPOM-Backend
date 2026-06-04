@@ -3,9 +3,9 @@ using Rpom.Domain.Common;
 namespace Rpom.Domain.Menu;
 
 /// <summary>
-/// A "price column" within a parent PriceTable — one priced scenario with its
-/// own applicability conditions and its own set of PriceEntry rows.
-/// See PriceVariant resolution algorithm in RPOM_Logical_ERD.md §7.6.
+/// 1 "price column" in a parent PriceTable — conditional pricing scenario
+/// with its own (Time × Day × Area) applicability and its own PriceEntry set.
+/// Full spec: docs/RPOM_Pricing_Spec.md.
 /// </summary>
 public class PriceVariant : Entity
 {
@@ -19,26 +19,20 @@ public class PriceVariant : Entity
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
 
-    /// <summary>Higher wins when multiple variants match the order context (tie-breaker).</summary>
-    public short Priority { get; set; }
-
-    /// <summary>Override parent PriceTable.BeginDate. NULL = inherit parent.</summary>
-    public DateOnly? BeginDate { get; set; }
-
-    /// <summary>Override parent PriceTable.EndDate. NULL = inherit parent.</summary>
-    public DateOnly? EndDate { get; set; }
-
-    /// <summary>Daily time window start (e.g. 14:00 for happy hour). NULL = whole day.</summary>
+    /// <summary>Inclusive. NULL = whole day. E.g. 14:00 for happy hour.</summary>
     public TimeOnly? BeginTime { get; set; }
+
+    /// <summary>Exclusive. NULL = whole day. E.g. 17:00.</summary>
     public TimeOnly? EndTime { get; set; }
 
     /// <summary>
-    /// Comma-separated day-of-week: 1=Mon..7=Sun (e.g. "1,2,3,4,5" weekdays).
-    /// NULL = all days.
+    /// Day-of-week bitmask: Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64.
+    /// Mon-Fri = 31, weekend = 96. NULL = all days.
+    /// Check match: <c>(DayMask &amp; dayBit) != 0</c>.
     /// </summary>
-    public string? DaysOfWeek { get; set; }
+    public int? DayMask { get; set; }
 
-    /// <summary>true = applies to all Areas; false = only Areas in PriceVariantArea junction.</summary>
+    /// <summary>true = applies to all Areas (junction ignored). false = only Areas in PriceVariantArea.</summary>
     public bool AppliesToAllAreas { get; set; } = true;
 
     public bool IsActive { get; set; } = true;
@@ -48,4 +42,13 @@ public class PriceVariant : Entity
     public virtual PriceTable PriceTable { get; set; } = null!;
     public virtual ICollection<PriceEntry> PriceEntries { get; set; } = new List<PriceEntry>();
     public virtual ICollection<PriceVariantArea> PriceVariantAreas { get; set; } = new List<PriceVariantArea>();
+
+    /// <summary>
+    /// Specificity: number of dimensions specified (non-NULL / non-AllAreas), range 0..3.
+    /// Used by most-specific-wins resolution and save-time conflict validator.
+    /// </summary>
+    public int Specificity =>
+        (BeginTime is not null || EndTime is not null ? 1 : 0)
+      + (DayMask is not null ? 1 : 0)
+      + (AppliesToAllAreas ? 0 : 1);
 }
