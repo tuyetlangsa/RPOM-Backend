@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Rpom.Application.Abstraction.Clock;
+using Rpom.Domain.Menu;
 using Rpom.Domain.Operations;
 using Rpom.Domain.Restaurant;
 using Rpom.Domain.Sales;
@@ -35,6 +36,7 @@ public sealed class LookupSeeder(
         await SeedAreasAsync(db, now, ct);
         await SeedTablesAsync(db, now, ct);
         await SeedKitchenStationsAsync(db, now, ct);
+        await SeedUomsAsync(db, now, ct);
         await SeedDenominationsAsync(db, now, ct);
 
         logger.LogInformation("LookupSeeder finished.");
@@ -130,6 +132,39 @@ public sealed class LookupSeeder(
             new Table { AreaId = vip.Id,  Code = "VIP1", SeatCount = 8, Description = "VIP cửa kính",  Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now },
             new Table { AreaId = vip.Id,  Code = "VIP2", SeatCount = 10, Description = null,           Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now }
         );
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedUomsAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        var rows = new (string Code, string Name, string? Description)[]
+        {
+            ("phan",  "Phần",     "Đơn vị bán theo phần (1 phần cơm, 1 phần combo)"),
+            ("to",    "Tô",       "Đơn vị bán theo tô / bát"),
+            ("dia",   "Đĩa",      "Đơn vị bán theo đĩa"),
+            ("chai",  "Chai",     "Đơn vị bán theo chai (nước ngọt, rượu, ...)"),
+            ("lon",   "Lon",      "Đơn vị bán theo lon"),
+            ("ly",    "Ly",       "Đơn vị bán theo ly / cốc"),
+            ("kg",    "Kilogam",  "Đơn vị khối lượng — gạo, thịt, hải sản tươi"),
+            ("g",     "Gam",      "Đơn vị khối lượng nhỏ — gia vị, rau"),
+            ("l",     "Lít",      "Đơn vị thể tích — bia hơi, nước"),
+            ("ml",    "Mililit",  "Đơn vị thể tích nhỏ — gia vị nước, rượu hộp"),
+        };
+
+        var existing = (await db.Uoms.Select(x => x.Code.ToLower()).ToListAsync(ct)).ToHashSet();
+        foreach (var u in rows)
+        {
+            if (existing.Contains(u.Code.ToLower())) continue;
+            db.Uoms.Add(new Uom
+            {
+                Code = u.Code,
+                Name = u.Name,
+                Description = u.Description,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+        }
         await db.SaveChangesAsync(ct);
     }
 
