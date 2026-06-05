@@ -38,6 +38,8 @@ public sealed class LookupSeeder(
         await SeedKitchenStationsAsync(db, now, ct);
         await SeedUomsAsync(db, now, ct);
         await SeedDenominationsAsync(db, now, ct);
+        await SeedCategoriesAsync(db, now, ct);
+        await SeedItemsAsync(db, now, ct);
 
         logger.LogInformation("LookupSeeder finished.");
     }
@@ -218,6 +220,143 @@ public sealed class LookupSeeder(
                 CreatedAt = now,
                 UpdatedAt = now
             });
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedCategoriesAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        if (await db.Categories.AnyAsync(ct)) return;
+
+        // 4 roots + 2-3 children each. Path/Level kept consistent.
+        var roots = new (string Code, string Name, short Order, (string Code, string Name)[] Children)[]
+        {
+            ("DOUONG", "Đồ uống", 1, new[]
+            {
+                ("DOUONG_BIA",   "Bia"),
+                ("DOUONG_NGOT",  "Nước ngọt"),
+                ("DOUONG_NUOC",  "Nước suối"),
+            }),
+            ("MONCHINH", "Món chính", 2, new[]
+            {
+                ("MC_COM",   "Cơm"),
+                ("MC_PHO",   "Phở / Bún"),
+                ("MC_LAU",   "Lẩu"),
+            }),
+            ("MONPHU", "Món phụ", 3, new[]
+            {
+                ("MP_KHAIVI", "Khai vị"),
+                ("MP_TRANGMIENG", "Tráng miệng"),
+            }),
+            ("NGUYENLIEU", "Nguyên vật liệu", 9, Array.Empty<(string, string)>()),
+        };
+
+        short rootOrder = 1;
+        foreach (var (code, name, _, children) in roots)
+        {
+            var root = new Category
+            {
+                Code = code,
+                Name = name,
+                ParentId = null,
+                DisplayOrder = rootOrder++,
+                Level = 0,
+                Path = "",
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            db.Categories.Add(root);
+            await db.SaveChangesAsync(ct);
+            root.Path = $"{root.Id};";
+
+            short childOrder = 1;
+            foreach (var (cCode, cName) in children)
+            {
+                var child = new Category
+                {
+                    Code = cCode,
+                    Name = cName,
+                    ParentId = root.Id,
+                    DisplayOrder = childOrder++,
+                    Level = 1,
+                    Path = "",
+                    IsActive = true,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                };
+                db.Categories.Add(child);
+                await db.SaveChangesAsync(ct);
+                child.Path = $"{root.Id};{child.Id};";
+            }
+            await db.SaveChangesAsync(ct);
+        }
+    }
+
+    private static async Task SeedItemsAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        if (await db.Items.AnyAsync(ct)) return;
+
+        var uomByCode = await db.Uoms.ToDictionaryAsync(u => u.Code, u => u.Id, ct);
+        var catByCode = await db.Categories.ToDictionaryAsync(c => c.Code, c => c.Id, ct);
+        var hotStation = await db.KitchenStations.FirstOrDefaultAsync(s => s.Code == "BN", ct);
+        var coldStation = await db.KitchenStations.FirstOrDefaultAsync(s => s.Code == "BL", ct);
+
+        var seeds = new (string Code, string Name, string Uom, decimal Vat, bool Stockable, bool HasRecipe,
+            int? StationId, string PrimaryCategory, string[] SubCategories)[]
+        {
+            ("BIA_HEINEKEN",  "Bia Heineken lon",     "lon",  10, true,  false, coldStation?.Id, "DOUONG_BIA",  Array.Empty<string>()),
+            ("BIA_TIGER",     "Bia Tiger lon",        "lon",  10, true,  false, coldStation?.Id, "DOUONG_BIA",  Array.Empty<string>()),
+            ("COCA_LON",      "Coca-Cola lon",        "lon",  10, true,  false, coldStation?.Id, "DOUONG_NGOT", Array.Empty<string>()),
+            ("PEPSI_LON",     "Pepsi lon",            "lon",  10, true,  false, coldStation?.Id, "DOUONG_NGOT", Array.Empty<string>()),
+            ("NUOC_LAVIE",    "Nước suối Lavie chai", "chai", 10, true,  false, coldStation?.Id, "DOUONG_NUOC", Array.Empty<string>()),
+            ("COM_GA_XOI_MO", "Cơm gà xối mỡ",        "phan",  8, false, true,  hotStation?.Id,  "MC_COM",      Array.Empty<string>()),
+            ("COM_SUON_BI",   "Cơm sườn bì chả",      "phan",  8, false, true,  hotStation?.Id,  "MC_COM",      Array.Empty<string>()),
+            ("PHO_BO_TAI",    "Phở bò tái",           "to",    8, false, true,  hotStation?.Id,  "MC_PHO",      Array.Empty<string>()),
+            ("BUN_BO_HUE",    "Bún bò Huế",           "to",    8, false, true,  hotStation?.Id,  "MC_PHO",      Array.Empty<string>()),
+            ("LAU_THAI",      "Lẩu Thái",             "phan",  8, false, true,  hotStation?.Id,  "MC_LAU",      Array.Empty<string>()),
+            ("GOI_CUON",      "Gỏi cuốn tôm thịt",    "dia",   8, false, true,  hotStation?.Id,  "MP_KHAIVI",   Array.Empty<string>()),
+            ("NEM_NUONG",     "Nem nướng cuốn bánh",  "dia",   8, false, true,  hotStation?.Id,  "MP_KHAIVI",   Array.Empty<string>()),
+            ("CHE_KHUC_BACH", "Chè khúc bạch",        "ly",    8, false, true,  coldStation?.Id, "MP_TRANGMIENG", Array.Empty<string>()),
+            ("FLAN",          "Bánh flan",            "ly",    8, false, true,  coldStation?.Id, "MP_TRANGMIENG", Array.Empty<string>()),
+            ("THIT_BO",       "Thịt bò tươi",         "kg",    8, true,  false, null,            "NGUYENLIEU",  Array.Empty<string>()),
+        };
+
+        foreach (var s in seeds)
+        {
+            if (!uomByCode.TryGetValue(s.Uom, out var uomId)) continue;
+            if (!catByCode.TryGetValue(s.PrimaryCategory, out var primaryCatId)) continue;
+
+            var item = new Item
+            {
+                Code = s.Code,
+                Name = s.Name,
+                BaseUomId = uomId,
+                VatPercent = s.Vat,
+                IsStockable = s.Stockable,
+                HasRecipe = s.HasRecipe,
+                KitchenStationId = s.StationId,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            item.ItemCategories.Add(new ItemCategory
+            {
+                CategoryId = primaryCatId,
+                IsMain = true,
+                CreatedAt = now,
+            });
+            foreach (var subCode in s.SubCategories)
+            {
+                if (catByCode.TryGetValue(subCode, out var subId))
+                    item.ItemCategories.Add(new ItemCategory
+                    {
+                        CategoryId = subId,
+                        IsMain = false,
+                        CreatedAt = now,
+                    });
+            }
+            db.Items.Add(item);
         }
         await db.SaveChangesAsync(ct);
     }

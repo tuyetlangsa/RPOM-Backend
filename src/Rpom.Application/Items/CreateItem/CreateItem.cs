@@ -1,0 +1,179 @@
+using FluentValidation;
+using Microsoft.EntityFrameworkCore;
+using Rpom.Application.Abstraction.Clock;
+using Rpom.Application.Abstraction.Data;
+using Rpom.Application.Abstraction.Messaging;
+using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Audit;
+using Rpom.Domain.Common;
+using Rpom.Domain.Menu;
+
+namespace Rpom.Application.Items.CreateItem;
+
+public static class CreateItem
+{
+    public sealed record CategoryInput(int CategoryId, bool IsMain);
+
+    public sealed record Command(
+        string Code,
+        string Name,
+        string? Description,
+        string? ImageUrl,
+        int BaseUomId,
+        decimal VatPercent,
+        bool IsStockable,
+        bool HasRecipe,
+        decimal? LowStockThreshold,
+        int? KitchenStationId,
+        bool IsActive,
+        IReadOnlyList<CategoryInput> Categories) : ICommand<Response>;
+
+    public sealed record CategoryAssignment(int CategoryId, string Name, bool IsMain);
+
+    public sealed record Response(
+        int Id,
+        string Code,
+        string Name,
+        string? Description,
+        string? ImageUrl,
+        int BaseUomId,
+        string BaseUomCode,
+        string BaseUomName,
+        decimal VatPercent,
+        bool IsStockable,
+        bool HasRecipe,
+        decimal? LowStockThreshold,
+        int? KitchenStationId,
+        string? KitchenStationName,
+        bool IsActive,
+        IReadOnlyList<CategoryAssignment> Categories,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    internal sealed class Validator : AbstractValidator<Command>
+    {
+        public Validator()
+        {
+            RuleFor(x => x.Code).NotEmpty().MaximumLength(50);
+            RuleFor(x => x.Name).NotEmpty().MaximumLength(200);
+            RuleFor(x => x.Description).MaximumLength(500);
+            RuleFor(x => x.ImageUrl).MaximumLength(500);
+            RuleFor(x => x.BaseUomId).GreaterThan(0);
+            RuleFor(x => x.VatPercent).InclusiveBetween(0m, 100m);
+            RuleFor(x => x.LowStockThreshold).GreaterThanOrEqualTo(0m).When(x => x.LowStockThreshold.HasValue);
+            RuleFor(x => x.Categories).NotEmpty().WithMessage("Hàng hoá phải thuộc ít nhất 1 nhóm.");
+            RuleFor(x => x.Categories).Must(cs => cs.Count(c => c.IsMain) == 1)
+                .WithMessage("Phải chỉ định đúng 1 nhóm chính (IsMain).");
+        }
+    }
+
+    internal sealed class Handler(
+        IDbContext dbContext,
+        ICurrentStaff currentStaff,
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command, Response>
+    {
+        public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
+        {
+            var code = request.Code.Trim();
+            var codeLower = code.ToLower();
+
+            var duplicate = await dbContext.Items.AnyAsync(x => x.Code.ToLower() == codeLower, ct);
+            if (duplicate) return Result.Failure<Response>(ItemErrors.CodeDuplicate);
+
+            var uom = await dbContext.Uoms
+                .Where(u => u.Id == request.BaseUomId && u.IsActive)
+                .Select(u => new { u.Id, u.Code, u.Name })
+                .FirstOrDefaultAsync(ct);
+            if (uom is null) return Result.Failure<Response>(ItemErrors.UomNotFound);
+
+            string? stationName = null;
+            if (request.KitchenStationId.HasValue)
+            {
+                var st = await dbContext.KitchenStations
+                    .Where(s => s.Id == request.KitchenStationId.Value && s.IsActive)
+                    .Select(s => s.Name)
+                    .FirstOrDefaultAsync(ct);
+                if (st is null) return Result.Failure<Response>(ItemErrors.KitchenStationNotFound);
+                stationName = st;
+            }
+
+            var categoryIds = request.Categories.Select(c => c.CategoryId).Distinct().ToList();
+            var cats = await dbContext.Categories
+                .Where(c => categoryIds.Contains(c.Id))
+                .Select(c => new { c.Id, c.Name })
+                .ToListAsync(ct);
+            if (cats.Count != categoryIds.Count)
+                return Result.Failure<Response>(ItemErrors.CategoryNotFound);
+
+            var staffId = currentStaff.StaffAccountId;
+            var now = clock.UtcNow;
+
+            var entity = new Item
+            {
+                Code = code,
+                Name = request.Name.Trim(),
+                Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
+                ImageUrl = string.IsNullOrWhiteSpace(request.ImageUrl) ? null : request.ImageUrl.Trim(),
+                BaseUomId = request.BaseUomId,
+                VatPercent = request.VatPercent,
+                IsStockable = request.IsStockable,
+                HasRecipe = request.HasRecipe,
+                LowStockThreshold = request.LowStockThreshold,
+                KitchenStationId = request.KitchenStationId,
+                IsActive = request.IsActive,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+
+            foreach (var c in request.Categories)
+            {
+                entity.ItemCategories.Add(new ItemCategory
+                {
+                    CategoryId = c.CategoryId,
+                    IsMain = c.IsMain,
+                    CreatedAt = now,
+                });
+            }
+
+            dbContext.Items.Add(entity);
+
+            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+
+            try
+            {
+                await dbContext.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                return Result.Failure<Response>(ItemErrors.CodeDuplicate);
+            }
+
+            dbContext.AuditLogs.Add(new AuditLog
+            {
+                EntityType = nameof(Item),
+                EntityId = entity.Id,
+                Action = "CREATE",
+                ActorStaffAccountId = staffId,
+                ActorFullName = staff.FullName,
+                Timestamp = now,
+                Summary = $"Item created: {entity.Code} — {entity.Name}",
+            });
+            await dbContext.SaveChangesAsync(ct);
+            await versionService.BumpAsync(VersionScopes.Menu, $"Item.Create(id={entity.Id})", ct);
+
+            var byId = cats.ToDictionary(c => c.Id, c => c.Name);
+            var assignments = request.Categories
+                .Select(c => new CategoryAssignment(c.CategoryId, byId[c.CategoryId], c.IsMain))
+                .ToList();
+
+            return Result.Success(new Response(
+                entity.Id, entity.Code, entity.Name, entity.Description, entity.ImageUrl,
+                entity.BaseUomId, uom.Code, uom.Name,
+                entity.VatPercent, entity.IsStockable, entity.HasRecipe, entity.LowStockThreshold,
+                entity.KitchenStationId, stationName, entity.IsActive,
+                assignments, entity.CreatedAt, entity.UpdatedAt));
+        }
+    }
+}
