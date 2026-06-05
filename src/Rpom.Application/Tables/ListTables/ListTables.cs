@@ -8,11 +8,22 @@ namespace Rpom.Application.Tables.ListTables;
 public static class ListTables
 {
     public sealed record Query(int? CounterId, int? AreaId, string? Search, bool? IsActive)
-        : IQuery<IReadOnlyList<TableItem>>;
+        : IQuery<IReadOnlyList<Response>>;
 
-    internal sealed class Handler(IDbContext dbContext) : IQueryHandler<Query, IReadOnlyList<TableItem>>
+    public sealed record Response(
+        int Id,
+        int AreaId,
+        string Code,
+        int SeatCount,
+        string? Description,
+        string Status,
+        bool IsActive,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    internal sealed class Handler(IDbContext dbContext) : IQueryHandler<Query, IReadOnlyList<Response>>
     {
-        public async Task<Result<IReadOnlyList<TableItem>>> Handle(Query request, CancellationToken ct)
+        public async Task<Result<IReadOnlyList<Response>>> Handle(Query request, CancellationToken ct)
         {
             var q = dbContext.Tables.AsQueryable();
             if (request.AreaId.HasValue) q = q.Where(x => x.AreaId == request.AreaId.Value);
@@ -35,12 +46,12 @@ public static class ListTables
 
             var rows = await q
                 .OrderBy(x => x.AreaId).ThenBy(x => x.Code)
-                .Select(x => new TableItem(
+                .Select(x => new Response(
                     x.Id, x.AreaId, x.Code, x.SeatCount, x.Description, x.Status,
                     x.IsActive, x.CreatedAt, x.UpdatedAt))
                 .ToListAsync(ct);
 
-            return Result.Success<IReadOnlyList<TableItem>>(rows);
+            return Result.Success<IReadOnlyList<Response>>(rows);
         }
     }
 }

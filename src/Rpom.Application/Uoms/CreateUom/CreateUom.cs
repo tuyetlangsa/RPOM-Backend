@@ -17,7 +17,16 @@ public static class CreateUom
         string Code,
         string Name,
         string? Description,
-        bool IsActive) : ICommand<UomItem>;
+        bool IsActive) : ICommand<Response>;
+
+    public sealed record Response(
+        int Id,
+        string Code,
+        string Name,
+        string? Description,
+        bool IsActive,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
 
     internal sealed class Validator : AbstractValidator<Command>
     {
@@ -36,9 +45,9 @@ public static class CreateUom
         IDbContext dbContext,
         ICurrentStaff currentStaff,
         IDateTimeProvider clock,
-        IVersionService versionService) : ICommandHandler<Command, UomItem>
+        IVersionService versionService) : ICommandHandler<Command, Response>
     {
-        public async Task<Result<UomItem>> Handle(Command request, CancellationToken ct)
+        public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
             var code = request.Code.Trim();
             var codeLower = code.ToLower();
@@ -46,7 +55,7 @@ public static class CreateUom
             // Case-insensitive duplicate check (BR-1, BR-6).
             var duplicate = await dbContext.Uoms
                 .AnyAsync(x => x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<UomItem>(UomErrors.CodeDuplicate);
+            if (duplicate) return Result.Failure<Response>(UomErrors.CodeDuplicate);
 
             var staffId = currentStaff.StaffAccountId;
             var now = clock.UtcNow;
@@ -71,7 +80,7 @@ public static class CreateUom
             catch (DbUpdateException)
             {
                 // Race condition safety net — DB unique index caught what pre-check missed.
-                return Result.Failure<UomItem>(UomErrors.CodeDuplicate);
+                return Result.Failure<Response>(UomErrors.CodeDuplicate);
             }
 
             dbContext.AuditLogs.Add(new AuditLog
@@ -87,7 +96,7 @@ public static class CreateUom
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.Menu, $"Uom.Create(id={entity.Id})", ct);
 
-            return Result.Success(new UomItem(
+            return Result.Success(new Response(
                 entity.Id, entity.Code, entity.Name, entity.Description,
                 entity.IsActive, entity.CreatedAt, entity.UpdatedAt));
         }

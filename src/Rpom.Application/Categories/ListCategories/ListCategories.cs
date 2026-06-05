@@ -3,20 +3,24 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Domain.Common;
 
-namespace Rpom.Application.Areas.ListAreas;
+namespace Rpom.Application.Categories.ListCategories;
 
-public static class ListAreas
+public static class ListCategories
 {
-    public sealed record Query(int? CounterId, string? Search, bool? IsActive)
-        : IQuery<IReadOnlyList<Response>>;
+    public sealed record Query(string? Search, bool? IsActive) : IQuery<IReadOnlyList<Response>>;
 
     public sealed record Response(
         int Id,
-        int CounterId,
+        string Code,
         string Name,
         string? Description,
+        int? ParentId,
+        string Path,
+        short Level,
         short DisplayOrder,
         bool IsActive,
+        int ItemCount,
+        int ChildCount,
         DateTime CreatedAt,
         DateTime UpdatedAt);
 
@@ -24,22 +28,23 @@ public static class ListAreas
     {
         public async Task<Result<IReadOnlyList<Response>>> Handle(Query request, CancellationToken ct)
         {
-            var q = dbContext.Areas.AsQueryable();
-            if (request.CounterId.HasValue) q = q.Where(x => x.CounterId == request.CounterId.Value);
+            var q = dbContext.Categories.AsQueryable();
             if (request.IsActive.HasValue) q = q.Where(x => x.IsActive == request.IsActive.Value);
-
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 var s = request.Search.Trim().ToLower();
-                q = q.Where(x => x.Name.ToLower().Contains(s)
-                              || (x.Description != null && x.Description.ToLower().Contains(s)));
+                q = q.Where(x => x.Code.ToLower().Contains(s) || x.Name.ToLower().Contains(s));
             }
 
+            // Pre-compute child + item counts in one round-trip to avoid N+1.
             var rows = await q
-                .OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name)
+                .OrderBy(x => x.Level).ThenBy(x => x.DisplayOrder).ThenBy(x => x.Name)
                 .Select(x => new Response(
-                    x.Id, x.CounterId, x.Name, x.Description, x.DisplayOrder,
-                    x.IsActive, x.CreatedAt, x.UpdatedAt))
+                    x.Id, x.Code, x.Name, x.Description, x.ParentId, x.Path, x.Level,
+                    x.DisplayOrder, x.IsActive,
+                    dbContext.ItemCategories.Count(ic => ic.CategoryId == x.Id),
+                    dbContext.Categories.Count(c => c.ParentId == x.Id),
+                    x.CreatedAt, x.UpdatedAt))
                 .ToListAsync(ct);
 
             return Result.Success<IReadOnlyList<Response>>(rows);

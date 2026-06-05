@@ -23,7 +23,18 @@ public static class UpdateTable
         string Code,
         int SeatCount,
         string? Description,
-        bool IsActive) : ICommand<TableItem>;
+        bool IsActive) : ICommand<Response>;
+
+    public sealed record Response(
+        int Id,
+        int AreaId,
+        string Code,
+        int SeatCount,
+        string? Description,
+        string Status,
+        bool IsActive,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
 
     internal sealed class Validator : AbstractValidator<Command>
     {
@@ -41,17 +52,17 @@ public static class UpdateTable
         IDbContext dbContext,
         ICurrentStaff currentStaff,
         IDateTimeProvider clock,
-        IVersionService versionService) : ICommandHandler<Command, TableItem>
+        IVersionService versionService) : ICommandHandler<Command, Response>
     {
-        public async Task<Result<TableItem>> Handle(Command request, CancellationToken ct)
+        public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
             var entity = await dbContext.Tables.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<TableItem>(TableErrors.NotFound);
+            if (entity is null) return Result.Failure<Response>(TableErrors.NotFound);
 
             if (entity.AreaId != request.AreaId)
             {
                 var areaExists = await dbContext.Areas.AnyAsync(x => x.Id == request.AreaId, ct);
-                if (!areaExists) return Result.Failure<TableItem>(TableErrors.AreaNotFound);
+                if (!areaExists) return Result.Failure<Response>(TableErrors.AreaNotFound);
             }
 
             var code = request.Code.Trim();
@@ -59,7 +70,7 @@ public static class UpdateTable
             {
                 var dup = await dbContext.Tables.AnyAsync(
                     x => x.Id != request.Id && x.AreaId == request.AreaId && x.Code == code, ct);
-                if (dup) return Result.Failure<TableItem>(TableErrors.CodeDuplicateInArea);
+                if (dup) return Result.Failure<Response>(TableErrors.CodeDuplicateInArea);
             }
 
             var staffId = currentStaff.StaffAccountId;
@@ -88,7 +99,7 @@ public static class UpdateTable
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Table.Update(id={entity.Id})", ct);
 
-            return Result.Success(new TableItem(
+            return Result.Success(new Response(
                 entity.Id, entity.AreaId, entity.Code, entity.SeatCount, entity.Description,
                 entity.Status, entity.IsActive, entity.CreatedAt, entity.UpdatedAt));
         }

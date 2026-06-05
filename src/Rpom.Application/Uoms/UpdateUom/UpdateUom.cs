@@ -24,7 +24,16 @@ public static class UpdateUom
         string Code,
         string Name,
         string? Description,
-        bool IsActive) : ICommand<UomItem>;
+        bool IsActive) : ICommand<Response>;
+
+    public sealed record Response(
+        int Id,
+        string Code,
+        string Name,
+        string? Description,
+        bool IsActive,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
 
     internal sealed class Validator : AbstractValidator<Command>
     {
@@ -44,12 +53,12 @@ public static class UpdateUom
         IDbContext dbContext,
         ICurrentStaff currentStaff,
         IDateTimeProvider clock,
-        IVersionService versionService) : ICommandHandler<Command, UomItem>
+        IVersionService versionService) : ICommandHandler<Command, Response>
     {
-        public async Task<Result<UomItem>> Handle(Command request, CancellationToken ct)
+        public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
             var entity = await dbContext.Uoms.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<UomItem>(UomErrors.NotFound);
+            if (entity is null) return Result.Failure<Response>(UomErrors.NotFound);
 
             var code = request.Code.Trim();
             var codeLower = code.ToLower();
@@ -57,7 +66,7 @@ public static class UpdateUom
             // Allow same code as current; reject if any OTHER Uom uses it (case-insensitive).
             var duplicate = await dbContext.Uoms
                 .AnyAsync(x => x.Id != request.Id && x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<UomItem>(UomErrors.CodeDuplicate);
+            if (duplicate) return Result.Failure<Response>(UomErrors.CodeDuplicate);
 
             var staffId = currentStaff.StaffAccountId;
             var now = clock.UtcNow;
@@ -87,11 +96,11 @@ public static class UpdateUom
             }
             catch (DbUpdateException)
             {
-                return Result.Failure<UomItem>(UomErrors.CodeDuplicate);
+                return Result.Failure<Response>(UomErrors.CodeDuplicate);
             }
             await versionService.BumpAsync(VersionScopes.Menu, $"Uom.Update(id={entity.Id})", ct);
 
-            return Result.Success(new UomItem(
+            return Result.Success(new Response(
                 entity.Id, entity.Code, entity.Name, entity.Description,
                 entity.IsActive, entity.CreatedAt, entity.UpdatedAt));
         }

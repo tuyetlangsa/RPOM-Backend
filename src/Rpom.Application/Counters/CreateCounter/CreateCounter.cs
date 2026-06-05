@@ -17,7 +17,16 @@ public static class CreateCounter
         string Name,
         string? Note,
         short DisplayOrder,
-        bool IsActive) : ICommand<CounterItem>;
+        bool IsActive) : ICommand<Response>;
+
+    public sealed record Response(
+        int Id,
+        string Name,
+        string? Note,
+        short DisplayOrder,
+        bool IsActive,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
 
     internal sealed class Validator : AbstractValidator<Command>
     {
@@ -33,9 +42,9 @@ public static class CreateCounter
         IDbContext dbContext,
         ICurrentStaff currentStaff,
         IDateTimeProvider clock,
-        IVersionService versionService) : ICommandHandler<Command, CounterItem>
+        IVersionService versionService) : ICommandHandler<Command, Response>
     {
-        public async Task<Result<CounterItem>> Handle(Command request, CancellationToken ct)
+        public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
             var staffId = currentStaff.StaffAccountId;
             var now = clock.UtcNow;
@@ -67,7 +76,7 @@ public static class CreateCounter
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Counter.Create(id={entity.Id})", ct);
 
-            return Result.Success(new CounterItem(
+            return Result.Success(new Response(
                 entity.Id, entity.Name, entity.Note, entity.DisplayOrder,
                 entity.IsActive, entity.CreatedAt, entity.UpdatedAt));
         }

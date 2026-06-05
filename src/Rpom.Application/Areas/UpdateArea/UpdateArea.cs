@@ -19,7 +19,17 @@ public static class UpdateArea
         string Name,
         string? Description,
         short DisplayOrder,
-        bool IsActive) : ICommand<AreaItem>;
+        bool IsActive) : ICommand<Response>;
+
+    public sealed record Response(
+        int Id,
+        int CounterId,
+        string Name,
+        string? Description,
+        short DisplayOrder,
+        bool IsActive,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
 
     internal sealed class Validator : AbstractValidator<Command>
     {
@@ -37,17 +47,17 @@ public static class UpdateArea
         IDbContext dbContext,
         ICurrentStaff currentStaff,
         IDateTimeProvider clock,
-        IVersionService versionService) : ICommandHandler<Command, AreaItem>
+        IVersionService versionService) : ICommandHandler<Command, Response>
     {
-        public async Task<Result<AreaItem>> Handle(Command request, CancellationToken ct)
+        public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
             var entity = await dbContext.Areas.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<AreaItem>(AreaErrors.NotFound);
+            if (entity is null) return Result.Failure<Response>(AreaErrors.NotFound);
 
             if (entity.CounterId != request.CounterId)
             {
                 var counterExists = await dbContext.Counters.AnyAsync(x => x.Id == request.CounterId, ct);
-                if (!counterExists) return Result.Failure<AreaItem>(AreaErrors.CounterNotFound);
+                if (!counterExists) return Result.Failure<Response>(AreaErrors.CounterNotFound);
             }
 
             var staffId = currentStaff.StaffAccountId;
@@ -76,7 +86,7 @@ public static class UpdateArea
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Area.Update(id={entity.Id})", ct);
 
-            return Result.Success(new AreaItem(
+            return Result.Success(new Response(
                 entity.Id, entity.CounterId, entity.Name, entity.Description,
                 entity.DisplayOrder, entity.IsActive, entity.CreatedAt, entity.UpdatedAt));
         }

@@ -7,11 +7,20 @@ namespace Rpom.Application.Uoms.ListUoms;
 
 public static class ListUoms
 {
-    public sealed record Query(string? Search, bool? IsActive) : IQuery<IReadOnlyList<UomItem>>;
+    public sealed record Query(string? Search, bool? IsActive) : IQuery<IReadOnlyList<Response>>;
 
-    internal sealed class Handler(IDbContext dbContext) : IQueryHandler<Query, IReadOnlyList<UomItem>>
+    public sealed record Response(
+        int Id,
+        string Code,
+        string Name,
+        string? Description,
+        bool IsActive,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
+
+    internal sealed class Handler(IDbContext dbContext) : IQueryHandler<Query, IReadOnlyList<Response>>
     {
-        public async Task<Result<IReadOnlyList<UomItem>>> Handle(Query request, CancellationToken ct)
+        public async Task<Result<IReadOnlyList<Response>>> Handle(Query request, CancellationToken ct)
         {
             var q = dbContext.Uoms.AsQueryable();
 
@@ -28,11 +37,11 @@ public static class ListUoms
 
             var rows = await q
                 .OrderBy(x => x.Code)
-                .Select(x => new UomItem(
+                .Select(x => new Response(
                     x.Id, x.Code, x.Name, x.Description, x.IsActive, x.CreatedAt, x.UpdatedAt))
                 .ToListAsync(ct);
 
-            return Result.Success<IReadOnlyList<UomItem>>(rows);
+            return Result.Success<IReadOnlyList<Response>>(rows);
         }
     }
 }
