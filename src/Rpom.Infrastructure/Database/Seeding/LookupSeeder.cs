@@ -9,9 +9,10 @@ using Rpom.Domain.Sales;
 namespace Rpom.Infrastructure.Database.Seeding;
 
 /// <summary>
-/// Idempotent seeder for minimal lookup data needed to smoke-test ShiftSession:
+/// Idempotent seeder for minimal lookup + master data needed to smoke-test
+/// ShiftSession and the Restaurant master-data screens (Counter / Area / Table):
 ///   - 3 Shifts (MORN, AFTER, NIGHT)
-///   - 1 Counter (Quầy Trung Tâm)
+///   - 1 Counter (Quầy Trung Tâm), 2 sample Areas, 5 sample Tables
 ///   - 2 KitchenStations (Bếp Nóng, Bếp Lạnh)
 ///   - 7 VND Denominations
 ///
@@ -31,6 +32,8 @@ public sealed class LookupSeeder(
 
         await SeedShiftsAsync(db, now, ct);
         await SeedCountersAsync(db, now, ct);
+        await SeedAreasAsync(db, now, ct);
+        await SeedTablesAsync(db, now, ct);
         await SeedKitchenStationsAsync(db, now, ct);
         await SeedDenominationsAsync(db, now, ct);
 
@@ -76,6 +79,57 @@ public sealed class LookupSeeder(
             CreatedAt = now,
             UpdatedAt = now
         });
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedAreasAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        if (await db.Areas.AnyAsync(ct)) return;
+
+        var counter = await db.Counters.FirstOrDefaultAsync(ct);
+        if (counter is null) return;
+
+        db.Areas.AddRange(
+            new Area
+            {
+                CounterId = counter.Id,
+                Name = "Sảnh chính",
+                Description = "Khu vực bàn thường ở tầng 1",
+                DisplayOrder = 1,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            },
+            new Area
+            {
+                CounterId = counter.Id,
+                Name = "Khu VIP",
+                Description = "Phụ thu 15% — phục vụ riêng",
+                DisplayOrder = 2,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedTablesAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        if (await db.Tables.AnyAsync(ct)) return;
+
+        var areas = await db.Areas.OrderBy(x => x.DisplayOrder).ToListAsync(ct);
+        if (areas.Count == 0) return;
+
+        var sanh = areas[0];
+        var vip = areas.Count > 1 ? areas[1] : areas[0];
+
+        db.Tables.AddRange(
+            new Table { AreaId = sanh.Id, Code = "T01", SeatCount = 4, Description = "Bàn cạnh cửa sổ", Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now },
+            new Table { AreaId = sanh.Id, Code = "T02", SeatCount = 4, Description = null,             Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now },
+            new Table { AreaId = sanh.Id, Code = "T03", SeatCount = 6, Description = "Bàn dài 6 chỗ",  Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now },
+            new Table { AreaId = vip.Id,  Code = "VIP1", SeatCount = 8, Description = "VIP cửa kính",  Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now },
+            new Table { AreaId = vip.Id,  Code = "VIP2", SeatCount = 10, Description = null,           Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now }
+        );
         await db.SaveChangesAsync(ct);
     }
 
