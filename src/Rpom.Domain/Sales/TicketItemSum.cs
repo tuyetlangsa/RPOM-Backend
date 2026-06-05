@@ -20,6 +20,12 @@ public class TicketItemSum : Entity
     public string ItemName { get; set; } = null!;
     public int UomId { get; set; }
 
+    /// <summary>Snapshot of Uom.Code at recompute time.</summary>
+    public string UomCode { get; set; } = null!;
+
+    /// <summary>Snapshot of Uom.Name at recompute time.</summary>
+    public string UomName { get; set; } = null!;
+
     public decimal UnitPrice { get; set; }
 
     /// <summary>Distributed discount % from Ticket-level DiscountPolicy.</summary>

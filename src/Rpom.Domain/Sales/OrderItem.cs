@@ -33,6 +33,12 @@ public class OrderItem : Entity
     public string ItemName { get; set; } = null!;
     public int UomId { get; set; }
 
+    /// <summary>Snapshot of Uom.Code at order time.</summary>
+    public string UomCode { get; set; } = null!;
+
+    /// <summary>Snapshot of Uom.Name at order time.</summary>
+    public string UomName { get; set; } = null!;
+
     /// <summary>
     /// Quantity. May be NEGATIVE for refund-line rows (damaged-dish pattern) —
     /// in that case OriginalOrderItemId points back to the original positive row.

@@ -12,6 +12,8 @@ internal sealed class TicketItemSumConfiguration : IEntityTypeConfiguration<Tick
 
         builder.Property(x => x.ItemCode).IsRequired().HasMaxLength(50);
         builder.Property(x => x.ItemName).IsRequired().HasMaxLength(200);
+        builder.Property(x => x.UomCode).IsRequired().HasMaxLength(20);
+        builder.Property(x => x.UomName).IsRequired().HasMaxLength(50);
 
         builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
         builder.Property(x => x.DiscountPercent).HasPrecision(5, 2).HasDefaultValue(0m);
