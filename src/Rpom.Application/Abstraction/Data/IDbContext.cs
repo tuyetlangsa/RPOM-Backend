@@ -88,6 +88,9 @@ public interface IDbContext
     // --- Cross-cutting: Audit ---
     DbSet<AuditLog> AuditLogs { get; }
 
+    // --- Cross-cutting: Aggregate polling versions ---
+    DbSet<DomainVersion> DomainVersions { get; }
+
     // --- Cross-cutting: Configuration ---
     DbSet<ConfigValue> ConfigValues { get; }
 

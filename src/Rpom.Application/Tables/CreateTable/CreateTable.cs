@@ -4,6 +4,7 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -33,7 +34,8 @@ public static class CreateTable
     internal sealed class Handler(
         IDbContext dbContext,
         ICurrentStaff currentStaff,
-        IDateTimeProvider clock) : ICommandHandler<Command, TableItem>
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command, TableItem>
     {
         public async Task<Result<TableItem>> Handle(Command request, CancellationToken ct)
         {
@@ -75,6 +77,7 @@ public static class CreateTable
                 Summary = $"Table created: {entity.Code} (area={entity.AreaId})",
             });
             await dbContext.SaveChangesAsync(ct);
+            await versionService.BumpAsync(VersionScopes.FloorPlan, $"Table.Create(id={entity.Id})", ct);
 
             return Result.Success(new TableItem(
                 entity.Id, entity.AreaId, entity.Code, entity.SeatCount, entity.Description,

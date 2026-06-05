@@ -4,6 +4,7 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -31,7 +32,8 @@ public static class CreateCounter
     internal sealed class Handler(
         IDbContext dbContext,
         ICurrentStaff currentStaff,
-        IDateTimeProvider clock) : ICommandHandler<Command, CounterItem>
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command, CounterItem>
     {
         public async Task<Result<CounterItem>> Handle(Command request, CancellationToken ct)
         {
@@ -63,6 +65,7 @@ public static class CreateCounter
                 Summary = $"Counter created: {entity.Name}",
             });
             await dbContext.SaveChangesAsync(ct);
+            await versionService.BumpAsync(VersionScopes.FloorPlan, $"Counter.Create(id={entity.Id})", ct);
 
             return Result.Success(new CounterItem(
                 entity.Id, entity.Name, entity.Note, entity.DisplayOrder,

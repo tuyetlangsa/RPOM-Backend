@@ -4,6 +4,7 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -26,7 +27,8 @@ public static class DeleteUom
     internal sealed class Handler(
         IDbContext dbContext,
         ICurrentStaff currentStaff,
-        IDateTimeProvider clock) : ICommandHandler<Command>
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command>
     {
         public async Task<Result> Handle(Command request, CancellationToken ct)
         {
@@ -65,6 +67,7 @@ public static class DeleteUom
             });
 
             await dbContext.SaveChangesAsync(ct);
+            await versionService.BumpAsync(VersionScopes.Menu, $"Uom.Delete(id={id})", ct);
             return Result.Success();
         }
     }

@@ -16,6 +16,7 @@ using Rpom.Application.Abstraction.Authorization;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Configuration;
 using Rpom.Application.Abstraction.Data;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Abstraction.User;
 using Rpom.Domain.Common;
 using Rpom.Infrastructure.Authentication;
@@ -73,6 +74,7 @@ public static class DependencyInjection
         services.TryAddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<ICurrentStaff, CurrentStaffImpl>();
         services.AddScoped<IConfigValueService, Configuration.ConfigValueService>();
+        services.AddScoped<IVersionService, Versioning.VersionService>();
 
         services.AddQuartz(configurator =>
         {

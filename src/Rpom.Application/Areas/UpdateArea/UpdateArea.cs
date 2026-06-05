@@ -4,6 +4,7 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -35,7 +36,8 @@ public static class UpdateArea
     internal sealed class Handler(
         IDbContext dbContext,
         ICurrentStaff currentStaff,
-        IDateTimeProvider clock) : ICommandHandler<Command, AreaItem>
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command, AreaItem>
     {
         public async Task<Result<AreaItem>> Handle(Command request, CancellationToken ct)
         {
@@ -72,6 +74,7 @@ public static class UpdateArea
             });
 
             await dbContext.SaveChangesAsync(ct);
+            await versionService.BumpAsync(VersionScopes.FloorPlan, $"Area.Update(id={entity.Id})", ct);
 
             return Result.Success(new AreaItem(
                 entity.Id, entity.CounterId, entity.Name, entity.Description,

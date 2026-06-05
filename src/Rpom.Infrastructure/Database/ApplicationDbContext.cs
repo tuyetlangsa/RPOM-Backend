@@ -93,6 +93,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // --- Cross-cutting: Audit ---
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
 
+    // --- Cross-cutting: Aggregate polling versions ---
+    public DbSet<DomainVersion> DomainVersions => Set<DomainVersion>();
+
     // --- Cross-cutting: Configuration ---
     public DbSet<ConfigValue> ConfigValues => Set<ConfigValue>();
 

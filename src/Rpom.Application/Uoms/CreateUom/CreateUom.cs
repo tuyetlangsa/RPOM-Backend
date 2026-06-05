@@ -4,6 +4,7 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -34,7 +35,8 @@ public static class CreateUom
     internal sealed class Handler(
         IDbContext dbContext,
         ICurrentStaff currentStaff,
-        IDateTimeProvider clock) : ICommandHandler<Command, UomItem>
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command, UomItem>
     {
         public async Task<Result<UomItem>> Handle(Command request, CancellationToken ct)
         {
@@ -83,6 +85,7 @@ public static class CreateUom
                 Summary = $"Uom created: {entity.Code} — {entity.Name}",
             });
             await dbContext.SaveChangesAsync(ct);
+            await versionService.BumpAsync(VersionScopes.Menu, $"Uom.Create(id={entity.Id})", ct);
 
             return Result.Success(new UomItem(
                 entity.Id, entity.Code, entity.Name, entity.Description,
