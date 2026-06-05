@@ -39,9 +39,12 @@ public static class Permissions
     public const string OrderItemStartCooking = "order_item:start_cooking";
     public const string OrderItemMarkReady = "order_item:mark_ready";
 
-    // ============ Cashier — payment + shift ============
-    public const string ShiftSessionOpen = "shift_session:open";
-    public const string ShiftSessionClose = "shift_session:close";
+    // ============ Cashier — payment + cash drawer ============
+    /// <summary>Open a cash drawer at a counter (count opening cash).</summary>
+    public const string CashDrawerOpen = "cash_drawer:open";
+    /// <summary>Close a cash drawer (count closing cash). Can be issued to a different
+    /// staff than the opener — e.g. Manager force-closing on cashier behalf.</summary>
+    public const string CashDrawerClose = "cash_drawer:close";
     public const string PaymentCash = "payment:cash";
     public const string PaymentQr = "payment:qr";
     public const string PaymentCancelPending = "payment:cancel_pending";

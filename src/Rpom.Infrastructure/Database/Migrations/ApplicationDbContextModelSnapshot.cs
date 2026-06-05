@@ -2756,6 +2756,176 @@ namespace Rpom.Infrastructure.Database.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Rpom.Domain.Sales.CashDrawer.CashDrawerCashCount", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<long>("CashDrawerSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_drawer_session_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("DenominationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("denomination_id");
+
+                    b.Property<string>("Phase")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("phase");
+
+                    b.Property<int>("Quantity")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal>("Subtotal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("subtotal");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cash_drawer_cash_counts");
+
+                    b.HasIndex("DenominationId")
+                        .HasDatabaseName("ix_cash_drawer_cash_counts_denomination_id");
+
+                    b.HasIndex("CashDrawerSessionId", "Phase")
+                        .HasDatabaseName("ix_cash_drawer_cash_count_session_phase");
+
+                    b.HasIndex("CashDrawerSessionId", "Phase", "DenominationId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_cash_drawer_cash_count");
+
+                    b.ToTable("cash_drawer_cash_counts", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_drawer_cash_count_phase", "phase IN ('OPENING', 'CLOSING')");
+                        });
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Sales.CashDrawer.CashDrawerSession", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal?>("ActualClosingCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("actual_closing_cash");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<int?>("ClosedByStaffAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("closed_by_staff_account_id");
+
+                    b.Property<int>("CounterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("counter_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<decimal?>("ExpectedClosingCash")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("expected_closing_cash");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)")
+                        .HasColumnName("notes");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("opened_at");
+
+                    b.Property<int>("OpenedByStaffAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("opened_by_staff_account_id");
+
+                    b.Property<decimal>("OpeningCash")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("opening_cash");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("OPEN")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<decimal?>("Variance")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("variance");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("version");
+
+                    b.HasKey("Id")
+                        .HasName("pk_cash_drawer_sessions");
+
+                    b.HasIndex("ClosedByStaffAccountId")
+                        .HasDatabaseName("ix_cash_drawer_sessions_closed_by_staff_account_id");
+
+                    b.HasIndex("CounterId")
+                        .IsUnique()
+                        .HasDatabaseName("ux_cash_drawer_session_counter_open")
+                        .HasFilter("status = 'OPEN'");
+
+                    b.HasIndex("OpenedAt")
+                        .HasDatabaseName("ix_cash_drawer_sessions_opened_at");
+
+                    b.HasIndex("OpenedByStaffAccountId")
+                        .HasDatabaseName("ix_cash_drawer_sessions_opened_by_staff_account_id");
+
+                    b.HasIndex("CounterId", "Status")
+                        .HasDatabaseName("ix_cash_drawer_session_counter_status");
+
+                    b.ToTable("cash_drawer_sessions", "public", t =>
+                        {
+                            t.HasCheckConstraint("ck_cash_drawer_session_status", "status IN ('OPEN', 'CLOSED')");
+                        });
+                });
+
             modelBuilder.Entity("Rpom.Domain.Sales.Denomination", b =>
                 {
                     b.Property<int>("Id")
@@ -3266,193 +3436,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.ToTable("payment_methods", "public");
                 });
 
-            modelBuilder.Entity("Rpom.Domain.Sales.ShiftSession", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<decimal?>("ActualClosingCash")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("actual_closing_cash");
-
-                    b.Property<DateTime?>("ClosedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("closed_at");
-
-                    b.Property<int?>("CounterId")
-                        .HasColumnType("integer")
-                        .HasColumnName("counter_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<decimal?>("ExpectedClosingCash")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("expected_closing_cash");
-
-                    b.Property<bool>("HasCashTracking")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(false)
-                        .HasColumnName("has_cash_tracking");
-
-                    b.Property<int?>("KitchenStationId")
-                        .HasColumnType("integer")
-                        .HasColumnName("kitchen_station_id");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("notes");
-
-                    b.Property<DateTime>("OpenedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("opened_at");
-
-                    b.Property<decimal?>("OpeningCash")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("opening_cash");
-
-                    b.Property<int>("ShiftId")
-                        .HasColumnType("integer")
-                        .HasColumnName("shift_id");
-
-                    b.Property<int>("StaffAccountId")
-                        .HasColumnType("integer")
-                        .HasColumnName("staff_account_id");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("OPEN")
-                        .HasColumnName("status");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<decimal?>("Variance")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("variance");
-
-                    b.Property<int>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("version");
-
-                    b.HasKey("Id")
-                        .HasName("pk_shift_sessions");
-
-                    b.HasIndex("CounterId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_shift_session_counter_cashier_open")
-                        .HasFilter("status = 'OPEN' AND has_cash_tracking = true");
-
-                    b.HasIndex("KitchenStationId")
-                        .HasDatabaseName("ix_shift_session_kitchen_station");
-
-                    b.HasIndex("OpenedAt")
-                        .HasDatabaseName("ix_shift_sessions_opened_at");
-
-                    b.HasIndex("ShiftId")
-                        .HasDatabaseName("ix_shift_sessions_shift_id");
-
-                    b.HasIndex("StaffAccountId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_shift_session_staff_open")
-                        .HasFilter("status = 'OPEN'");
-
-                    b.HasIndex("CounterId", "Status")
-                        .HasDatabaseName("ix_shift_session_counter_status");
-
-                    b.ToTable("shift_sessions", "public", t =>
-                        {
-                            t.HasCheckConstraint("ck_shift_session_cash_tracking_counter", "has_cash_tracking = false OR counter_id IS NOT NULL");
-
-                            t.HasCheckConstraint("ck_shift_session_scope_xor", "(counter_id IS NULL) <> (kitchen_station_id IS NULL)");
-
-                            t.HasCheckConstraint("ck_shift_session_status", "status IN ('OPEN', 'CLOSED')");
-                        });
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Sales.ShiftSessionCashCount", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int>("DenominationId")
-                        .HasColumnType("integer")
-                        .HasColumnName("denomination_id");
-
-                    b.Property<string>("Phase")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("phase");
-
-                    b.Property<int>("Quantity")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasDefaultValue(0)
-                        .HasColumnName("quantity");
-
-                    b.Property<long>("ShiftSessionId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("shift_session_id");
-
-                    b.Property<decimal>("Subtotal")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("subtotal");
-
-                    b.HasKey("Id")
-                        .HasName("pk_shift_session_cash_counts");
-
-                    b.HasIndex("DenominationId")
-                        .HasDatabaseName("ix_shift_session_cash_counts_denomination_id");
-
-                    b.HasIndex("ShiftSessionId", "Phase")
-                        .HasDatabaseName("ix_shift_session_cash_count_session_phase");
-
-                    b.HasIndex("ShiftSessionId", "Phase", "DenominationId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_shift_session_cash_count");
-
-                    b.ToTable("shift_session_cash_counts", "public", t =>
-                        {
-                            t.HasCheckConstraint("ck_shift_session_cash_count_phase", "phase IN ('OPENING', 'CLOSING')");
-                        });
-                });
-
             modelBuilder.Entity("Rpom.Domain.Sales.Ticket", b =>
                 {
                     b.Property<long>("Id")
@@ -3478,6 +3461,10 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Property<DateTime?>("CancelledAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("cancelled_at");
+
+                    b.Property<long>("CashDrawerSessionId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("cash_drawer_session_id");
 
                     b.Property<decimal>("ChangeAmount")
                         .ValueGeneratedOnAdd()
@@ -3572,10 +3559,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("shift_id");
 
-                    b.Property<long>("ShiftSessionId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("shift_session_id");
-
                     b.Property<string>("Status")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -3639,6 +3622,9 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.HasIndex("CancellationReasonId")
                         .HasDatabaseName("ix_tickets_cancellation_reason_id");
 
+                    b.HasIndex("CashDrawerSessionId")
+                        .HasDatabaseName("ix_tickets_cash_drawer_session_id");
+
                     b.HasIndex("Code")
                         .IsUnique()
                         .HasDatabaseName("ix_tickets_code");
@@ -3656,9 +3642,6 @@ namespace Rpom.Infrastructure.Database.Migrations
 
                     b.HasIndex("ShiftId")
                         .HasDatabaseName("ix_tickets_shift_id");
-
-                    b.HasIndex("ShiftSessionId")
-                        .HasDatabaseName("ix_tickets_shift_session_id");
 
                     b.HasIndex("Status")
                         .HasDatabaseName("ix_tickets_status");
@@ -4466,6 +4449,56 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Item");
                 });
 
+            modelBuilder.Entity("Rpom.Domain.Sales.CashDrawer.CashDrawerCashCount", b =>
+                {
+                    b.HasOne("Rpom.Domain.Sales.CashDrawer.CashDrawerSession", "CashDrawerSession")
+                        .WithMany("CashCounts")
+                        .HasForeignKey("CashDrawerSessionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_cash_drawer_cash_counts_cash_drawer_sessions_cash_drawer_se");
+
+                    b.HasOne("Rpom.Domain.Sales.Denomination", "Denomination")
+                        .WithMany()
+                        .HasForeignKey("DenominationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_cash_drawer_cash_counts_denominations_denomination_id");
+
+                    b.Navigation("CashDrawerSession");
+
+                    b.Navigation("Denomination");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Sales.CashDrawer.CashDrawerSession", b =>
+                {
+                    b.HasOne("Rpom.Domain.Access.StaffAccount", "ClosedByStaff")
+                        .WithMany()
+                        .HasForeignKey("ClosedByStaffAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_cash_drawer_sessions_staff_accounts_closed_by_staff_account");
+
+                    b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
+                        .WithMany()
+                        .HasForeignKey("CounterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_cash_drawer_sessions_counters_counter_id");
+
+                    b.HasOne("Rpom.Domain.Access.StaffAccount", "OpenedByStaff")
+                        .WithMany()
+                        .HasForeignKey("OpenedByStaffAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_cash_drawer_sessions_staff_accounts_opened_by_staff_account");
+
+                    b.Navigation("ClosedByStaff");
+
+                    b.Navigation("Counter");
+
+                    b.Navigation("OpenedByStaff");
+                });
+
             modelBuilder.Entity("Rpom.Domain.Sales.EInvoice", b =>
                 {
                     b.HasOne("Rpom.Domain.Sales.Ticket", "Ticket")
@@ -4598,64 +4631,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("OrderItem");
                 });
 
-            modelBuilder.Entity("Rpom.Domain.Sales.ShiftSession", b =>
-                {
-                    b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
-                        .WithMany()
-                        .HasForeignKey("CounterId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_shift_sessions_counters_counter_id");
-
-                    b.HasOne("Rpom.Domain.Operations.KitchenStation", "KitchenStation")
-                        .WithMany()
-                        .HasForeignKey("KitchenStationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_shift_sessions_kitchen_stations_kitchen_station_id");
-
-                    b.HasOne("Rpom.Domain.Operations.Shift", "Shift")
-                        .WithMany()
-                        .HasForeignKey("ShiftId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_shift_sessions_shifts_shift_id");
-
-                    b.HasOne("Rpom.Domain.Access.StaffAccount", "Staff")
-                        .WithMany()
-                        .HasForeignKey("StaffAccountId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_shift_sessions_staff_accounts_staff_account_id");
-
-                    b.Navigation("Counter");
-
-                    b.Navigation("KitchenStation");
-
-                    b.Navigation("Shift");
-
-                    b.Navigation("Staff");
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Sales.ShiftSessionCashCount", b =>
-                {
-                    b.HasOne("Rpom.Domain.Sales.Denomination", "Denomination")
-                        .WithMany()
-                        .HasForeignKey("DenominationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_shift_session_cash_counts_denominations_denomination_id");
-
-                    b.HasOne("Rpom.Domain.Sales.ShiftSession", "ShiftSession")
-                        .WithMany("CashCounts")
-                        .HasForeignKey("ShiftSessionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_shift_session_cash_counts_shift_sessions_shift_session_id");
-
-                    b.Navigation("Denomination");
-
-                    b.Navigation("ShiftSession");
-                });
-
             modelBuilder.Entity("Rpom.Domain.Sales.Ticket", b =>
                 {
                     b.HasOne("Rpom.Domain.Restaurant.Area", "Area")
@@ -4670,6 +4645,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasForeignKey("CancellationReasonId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_tickets_cancellation_reasons_cancellation_reason_id");
+
+                    b.HasOne("Rpom.Domain.Sales.CashDrawer.CashDrawerSession", "CashDrawerSession")
+                        .WithMany("Tickets")
+                        .HasForeignKey("CashDrawerSessionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_tickets_cash_drawer_sessions_cash_drawer_session_id");
 
                     b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
                         .WithMany()
@@ -4697,13 +4679,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_tickets_shifts_shift_id");
 
-                    b.HasOne("Rpom.Domain.Sales.ShiftSession", "ShiftSession")
-                        .WithMany("Tickets")
-                        .HasForeignKey("ShiftSessionId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired()
-                        .HasConstraintName("fk_tickets_shift_sessions_shift_session_id");
-
                     b.HasOne("Rpom.Domain.Restaurant.Table", "Table")
                         .WithMany()
                         .HasForeignKey("TableId")
@@ -4721,6 +4696,8 @@ namespace Rpom.Infrastructure.Database.Migrations
 
                     b.Navigation("CancellationReason");
 
+                    b.Navigation("CashDrawerSession");
+
                     b.Navigation("Counter");
 
                     b.Navigation("DiscountPolicy");
@@ -4728,8 +4705,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("ManagerStaff");
 
                     b.Navigation("Shift");
-
-                    b.Navigation("ShiftSession");
 
                     b.Navigation("Table");
 
@@ -4898,6 +4873,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Details");
                 });
 
+            modelBuilder.Entity("Rpom.Domain.Sales.CashDrawer.CashDrawerSession", b =>
+                {
+                    b.Navigation("CashCounts");
+
+                    b.Navigation("Tickets");
+                });
+
             modelBuilder.Entity("Rpom.Domain.Sales.Order", b =>
                 {
                     b.Navigation("CartItems");
@@ -4910,13 +4892,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Details");
 
                     b.Navigation("RefundLines");
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Sales.ShiftSession", b =>
-                {
-                    b.Navigation("CashCounts");
-
-                    b.Navigation("Tickets");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Sales.Ticket", b =>

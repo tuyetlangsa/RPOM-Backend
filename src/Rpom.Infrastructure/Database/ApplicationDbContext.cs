@@ -11,6 +11,7 @@ using Rpom.Domain.Operations;
 using Rpom.Domain.Reservation;
 using Rpom.Domain.Restaurant;
 using Rpom.Domain.Sales;
+using Rpom.Domain.Sales.CashDrawer;
 
 namespace Rpom.Infrastructure.Database;
 
@@ -62,8 +63,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<PaymentMethod> PaymentMethods => Set<PaymentMethod>();
     public DbSet<CancellationReason> CancellationReasons => Set<CancellationReason>();
     public DbSet<Denomination> Denominations => Set<Denomination>();
-    public DbSet<ShiftSession> ShiftSessions => Set<ShiftSession>();
-    public DbSet<ShiftSessionCashCount> ShiftSessionCashCounts => Set<ShiftSessionCashCount>();
+    public DbSet<CashDrawerSession> CashDrawerSessions => Set<CashDrawerSession>();
+    public DbSet<CashDrawerCashCount> CashDrawerCashCounts => Set<CashDrawerCashCount>();
     public DbSet<Ticket> Tickets => Set<Ticket>();
     public DbSet<Order> Orders => Set<Order>();
     public DbSet<CartItem> CartItems => Set<CartItem>();

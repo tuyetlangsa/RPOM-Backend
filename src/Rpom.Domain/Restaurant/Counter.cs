@@ -5,7 +5,7 @@ namespace Rpom.Domain.Restaurant;
 /// <summary>
 /// Quầy phục vụ — top of spatial hierarchy (Counter → Area → Table).
 /// Login context: every operational user picks 1 Counter at login, scoping
-/// all subsequent screens. Also scopes ShiftSession and AI EOD Summary.
+/// all subsequent screens. Also scopes CashDrawerSession and AI EOD Summary.
 /// </summary>
 public class Counter : Entity
 {

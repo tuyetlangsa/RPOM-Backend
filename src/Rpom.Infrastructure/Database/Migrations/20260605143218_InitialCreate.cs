@@ -110,6 +110,22 @@ namespace Rpom.Infrastructure.Database.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "config_values",
+                schema: "public",
+                columns: table => new
+                {
+                    code = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    value = table.Column<string>(type: "text", nullable: true),
+                    description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
+                    updated_by_staff_account_id = table.Column<int>(type: "integer", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_config_values", x => x.code);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "counters",
                 schema: "public",
                 columns: table => new
@@ -168,6 +184,21 @@ namespace Rpom.Infrastructure.Database.Migrations
                 {
                     table.PrimaryKey("pk_discount_policies", x => x.id);
                     table.CheckConstraint("ck_discount_policy_discount_type", "discount_type IN ('TICKET_THRESHOLD', 'QUANTITY_ITEM')");
+                });
+
+            migrationBuilder.CreateTable(
+                name: "domain_versions",
+                schema: "public",
+                columns: table => new
+                {
+                    scope = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    version = table.Column<long>(type: "bigint", nullable: false, defaultValue: 0L),
+                    updated_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
+                    updated_by_source = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("pk_domain_versions", x => x.scope);
                 });
 
             migrationBuilder.CreateTable(
@@ -466,12 +497,9 @@ namespace Rpom.Infrastructure.Database.Migrations
                     code = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     name = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
-                    priority = table.Column<short>(type: "smallint", nullable: false, defaultValue: (short)0),
-                    begin_date = table.Column<DateOnly>(type: "date", nullable: true),
-                    end_date = table.Column<DateOnly>(type: "date", nullable: true),
                     begin_time = table.Column<TimeOnly>(type: "time without time zone", nullable: true),
                     end_time = table.Column<TimeOnly>(type: "time without time zone", nullable: true),
-                    days_of_week = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    day_mask = table.Column<int>(type: "integer", nullable: true),
                     applies_to_all_areas = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
                     is_active = table.Column<bool>(type: "boolean", nullable: false, defaultValue: true),
                     created_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "now()"),
@@ -532,7 +560,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     image_url = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
                     base_uom_id = table.Column<int>(type: "integer", nullable: false),
-                    base_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
                     vat_percent = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
                     is_stockable = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
                     has_recipe = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
@@ -710,20 +737,18 @@ namespace Rpom.Infrastructure.Database.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "shift_sessions",
+                name: "cash_drawer_sessions",
                 schema: "public",
                 columns: table => new
                 {
                     id = table.Column<long>(type: "bigint", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    shift_id = table.Column<int>(type: "integer", nullable: false),
-                    staff_account_id = table.Column<int>(type: "integer", nullable: false),
-                    counter_id = table.Column<int>(type: "integer", nullable: true),
-                    kitchen_station_id = table.Column<int>(type: "integer", nullable: true),
-                    has_cash_tracking = table.Column<bool>(type: "boolean", nullable: false, defaultValue: false),
+                    counter_id = table.Column<int>(type: "integer", nullable: false),
+                    opened_by_staff_account_id = table.Column<int>(type: "integer", nullable: false),
                     opened_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    opening_cash = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
+                    closed_by_staff_account_id = table.Column<int>(type: "integer", nullable: true),
                     closed_at = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    opening_cash = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
                     expected_closing_cash = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
                     actual_closing_cash = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
                     variance = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: true),
@@ -735,34 +760,25 @@ namespace Rpom.Infrastructure.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_shift_sessions", x => x.id);
-                    table.CheckConstraint("ck_shift_session_cash_tracking_counter", "has_cash_tracking = false OR counter_id IS NOT NULL");
-                    table.CheckConstraint("ck_shift_session_scope_xor", "(counter_id IS NULL) <> (kitchen_station_id IS NULL)");
-                    table.CheckConstraint("ck_shift_session_status", "status IN ('OPEN', 'CLOSED')");
+                    table.PrimaryKey("pk_cash_drawer_sessions", x => x.id);
+                    table.CheckConstraint("ck_cash_drawer_session_status", "status IN ('OPEN', 'CLOSED')");
                     table.ForeignKey(
-                        name: "fk_shift_sessions_counters_counter_id",
+                        name: "fk_cash_drawer_sessions_counters_counter_id",
                         column: x => x.counter_id,
                         principalSchema: "public",
                         principalTable: "counters",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "fk_shift_sessions_kitchen_stations_kitchen_station_id",
-                        column: x => x.kitchen_station_id,
+                        name: "fk_cash_drawer_sessions_staff_accounts_closed_by_staff_account",
+                        column: x => x.closed_by_staff_account_id,
                         principalSchema: "public",
-                        principalTable: "kitchen_stations",
+                        principalTable: "staff_accounts",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "fk_shift_sessions_shifts_shift_id",
-                        column: x => x.shift_id,
-                        principalSchema: "public",
-                        principalTable: "shifts",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "fk_shift_sessions_staff_accounts_staff_account_id",
-                        column: x => x.staff_account_id,
+                        name: "fk_cash_drawer_sessions_staff_accounts_opened_by_staff_account",
+                        column: x => x.opened_by_staff_account_id,
                         principalSchema: "public",
                         principalTable: "staff_accounts",
                         principalColumn: "id",
@@ -1123,13 +1139,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "shift_session_cash_counts",
+                name: "cash_drawer_cash_counts",
                 schema: "public",
                 columns: table => new
                 {
                     id = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
-                    shift_session_id = table.Column<long>(type: "bigint", nullable: false),
+                    cash_drawer_session_id = table.Column<long>(type: "bigint", nullable: false),
                     denomination_id = table.Column<int>(type: "integer", nullable: false),
                     phase = table.Column<string>(type: "character varying(10)", maxLength: 10, nullable: false),
                     quantity = table.Column<int>(type: "integer", nullable: false, defaultValue: 0),
@@ -1138,22 +1154,22 @@ namespace Rpom.Infrastructure.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("pk_shift_session_cash_counts", x => x.id);
-                    table.CheckConstraint("ck_shift_session_cash_count_phase", "phase IN ('OPENING', 'CLOSING')");
+                    table.PrimaryKey("pk_cash_drawer_cash_counts", x => x.id);
+                    table.CheckConstraint("ck_cash_drawer_cash_count_phase", "phase IN ('OPENING', 'CLOSING')");
                     table.ForeignKey(
-                        name: "fk_shift_session_cash_counts_denominations_denomination_id",
+                        name: "fk_cash_drawer_cash_counts_cash_drawer_sessions_cash_drawer_se",
+                        column: x => x.cash_drawer_session_id,
+                        principalSchema: "public",
+                        principalTable: "cash_drawer_sessions",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "fk_cash_drawer_cash_counts_denominations_denomination_id",
                         column: x => x.denomination_id,
                         principalSchema: "public",
                         principalTable: "denominations",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "fk_shift_session_cash_counts_shift_sessions_shift_session_id",
-                        column: x => x.shift_session_id,
-                        principalSchema: "public",
-                        principalTable: "shift_sessions",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
@@ -1167,7 +1183,7 @@ namespace Rpom.Infrastructure.Database.Migrations
                     table_id = table.Column<int>(type: "integer", nullable: false),
                     area_id = table.Column<int>(type: "integer", nullable: false),
                     counter_id = table.Column<int>(type: "integer", nullable: false),
-                    shift_session_id = table.Column<long>(type: "bigint", nullable: false),
+                    cash_drawer_session_id = table.Column<long>(type: "bigint", nullable: false),
                     shift_id = table.Column<int>(type: "integer", nullable: false),
                     guest_count = table.Column<short>(type: "smallint", nullable: false, defaultValue: (short)1),
                     waiter_staff_id = table.Column<int>(type: "integer", nullable: true),
@@ -1214,6 +1230,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
+                        name: "fk_tickets_cash_drawer_sessions_cash_drawer_session_id",
+                        column: x => x.cash_drawer_session_id,
+                        principalSchema: "public",
+                        principalTable: "cash_drawer_sessions",
+                        principalColumn: "id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
                         name: "fk_tickets_counters_counter_id",
                         column: x => x.counter_id,
                         principalSchema: "public",
@@ -1225,13 +1248,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         column: x => x.discount_policy_id,
                         principalSchema: "public",
                         principalTable: "discount_policies",
-                        principalColumn: "id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "fk_tickets_shift_sessions_shift_session_id",
-                        column: x => x.shift_session_id,
-                        principalSchema: "public",
-                        principalTable: "shift_sessions",
                         principalColumn: "id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
@@ -1472,6 +1488,8 @@ namespace Rpom.Infrastructure.Database.Migrations
                     item_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     item_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     uom_id = table.Column<int>(type: "integer", nullable: false),
+                    uom_code = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    uom_name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     unit_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     discount_percent = table.Column<decimal>(type: "numeric(5,2)", precision: 5, scale: 2, nullable: false, defaultValue: 0m),
                     choice_price_per_unit = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
@@ -1571,6 +1589,8 @@ namespace Rpom.Infrastructure.Database.Migrations
                     item_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     item_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     uom_id = table.Column<int>(type: "integer", nullable: false),
+                    uom_code = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    uom_name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     quantity = table.Column<decimal>(type: "numeric(18,3)", precision: 18, scale: 3, nullable: false, defaultValue: 1m),
                     unit_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     line_total = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
@@ -1617,6 +1637,8 @@ namespace Rpom.Infrastructure.Database.Migrations
                     item_code = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     item_name = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
                     uom_id = table.Column<int>(type: "integer", nullable: false),
+                    uom_code = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    uom_name = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
                     quantity = table.Column<decimal>(type: "numeric(18,3)", precision: 18, scale: 3, nullable: false, defaultValue: 1m),
                     unit_price = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false),
                     line_total = table.Column<decimal>(type: "numeric(18,2)", precision: 18, scale: 2, nullable: false, defaultValue: 0m),
@@ -1965,6 +1987,57 @@ namespace Rpom.Infrastructure.Database.Migrations
                 column: "uom_id");
 
             migrationBuilder.CreateIndex(
+                name: "ix_cash_drawer_cash_count_session_phase",
+                schema: "public",
+                table: "cash_drawer_cash_counts",
+                columns: new[] { "cash_drawer_session_id", "phase" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_cash_drawer_cash_counts_denomination_id",
+                schema: "public",
+                table: "cash_drawer_cash_counts",
+                column: "denomination_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ux_cash_drawer_cash_count",
+                schema: "public",
+                table: "cash_drawer_cash_counts",
+                columns: new[] { "cash_drawer_session_id", "phase", "denomination_id" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "ix_cash_drawer_session_counter_status",
+                schema: "public",
+                table: "cash_drawer_sessions",
+                columns: new[] { "counter_id", "status" });
+
+            migrationBuilder.CreateIndex(
+                name: "ix_cash_drawer_sessions_closed_by_staff_account_id",
+                schema: "public",
+                table: "cash_drawer_sessions",
+                column: "closed_by_staff_account_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_cash_drawer_sessions_opened_at",
+                schema: "public",
+                table: "cash_drawer_sessions",
+                column: "opened_at");
+
+            migrationBuilder.CreateIndex(
+                name: "ix_cash_drawer_sessions_opened_by_staff_account_id",
+                schema: "public",
+                table: "cash_drawer_sessions",
+                column: "opened_by_staff_account_id");
+
+            migrationBuilder.CreateIndex(
+                name: "ux_cash_drawer_session_counter_open",
+                schema: "public",
+                table: "cash_drawer_sessions",
+                column: "counter_id",
+                unique: true,
+                filter: "status = 'OPEN'");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_categories_code",
                 schema: "public",
                 table: "categories",
@@ -2279,10 +2352,10 @@ namespace Rpom.Infrastructure.Database.Migrations
                 column: "area_id");
 
             migrationBuilder.CreateIndex(
-                name: "ix_price_variant_active_priority",
+                name: "ix_price_variant_active",
                 schema: "public",
                 table: "price_variants",
-                columns: new[] { "price_table_id", "is_active", "priority" });
+                columns: new[] { "price_table_id", "is_active" });
 
             migrationBuilder.CreateIndex(
                 name: "ix_price_variants_price_table_id",
@@ -2427,65 +2500,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                 schema: "public",
                 table: "set_menu_details",
                 column: "set_menu_item_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_shift_session_cash_count_session_phase",
-                schema: "public",
-                table: "shift_session_cash_counts",
-                columns: new[] { "shift_session_id", "phase" });
-
-            migrationBuilder.CreateIndex(
-                name: "ix_shift_session_cash_counts_denomination_id",
-                schema: "public",
-                table: "shift_session_cash_counts",
-                column: "denomination_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ux_shift_session_cash_count",
-                schema: "public",
-                table: "shift_session_cash_counts",
-                columns: new[] { "shift_session_id", "phase", "denomination_id" },
-                unique: true);
-
-            migrationBuilder.CreateIndex(
-                name: "ix_shift_session_counter_status",
-                schema: "public",
-                table: "shift_sessions",
-                columns: new[] { "counter_id", "status" });
-
-            migrationBuilder.CreateIndex(
-                name: "ix_shift_session_kitchen_station",
-                schema: "public",
-                table: "shift_sessions",
-                column: "kitchen_station_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_shift_sessions_opened_at",
-                schema: "public",
-                table: "shift_sessions",
-                column: "opened_at");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_shift_sessions_shift_id",
-                schema: "public",
-                table: "shift_sessions",
-                column: "shift_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ux_shift_session_counter_cashier_open",
-                schema: "public",
-                table: "shift_sessions",
-                column: "counter_id",
-                unique: true,
-                filter: "status = 'OPEN' AND has_cash_tracking = true");
-
-            migrationBuilder.CreateIndex(
-                name: "ux_shift_session_staff_open",
-                schema: "public",
-                table: "shift_sessions",
-                column: "staff_account_id",
-                unique: true,
-                filter: "status = 'OPEN'");
 
             migrationBuilder.CreateIndex(
                 name: "ix_shifts_code",
@@ -2662,6 +2676,12 @@ namespace Rpom.Infrastructure.Database.Migrations
                 column: "cancellation_reason_id");
 
             migrationBuilder.CreateIndex(
+                name: "ix_tickets_cash_drawer_session_id",
+                schema: "public",
+                table: "tickets",
+                column: "cash_drawer_session_id");
+
+            migrationBuilder.CreateIndex(
                 name: "ix_tickets_code",
                 schema: "public",
                 table: "tickets",
@@ -2685,12 +2705,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                 schema: "public",
                 table: "tickets",
                 column: "shift_id");
-
-            migrationBuilder.CreateIndex(
-                name: "ix_tickets_shift_session_id",
-                schema: "public",
-                table: "tickets",
-                column: "shift_session_id");
 
             migrationBuilder.CreateIndex(
                 name: "ix_tickets_status",
@@ -2754,7 +2768,19 @@ namespace Rpom.Infrastructure.Database.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
+                name: "cash_drawer_cash_counts",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "config_values",
+                schema: "public");
+
+            migrationBuilder.DropTable(
                 name: "discount_policy_conditions",
+                schema: "public");
+
+            migrationBuilder.DropTable(
+                name: "domain_versions",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2814,10 +2840,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
-                name: "shift_session_cash_counts",
-                schema: "public");
-
-            migrationBuilder.DropTable(
                 name: "staff_account_permissions",
                 schema: "public");
 
@@ -2842,6 +2864,10 @@ namespace Rpom.Infrastructure.Database.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
+                name: "denominations",
+                schema: "public");
+
+            migrationBuilder.DropTable(
                 name: "categories",
                 schema: "public");
 
@@ -2859,10 +2885,6 @@ namespace Rpom.Infrastructure.Database.Migrations
 
             migrationBuilder.DropTable(
                 name: "set_menus",
-                schema: "public");
-
-            migrationBuilder.DropTable(
-                name: "denominations",
                 schema: "public");
 
             migrationBuilder.DropTable(
@@ -2898,6 +2920,10 @@ namespace Rpom.Infrastructure.Database.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
+                name: "kitchen_stations",
+                schema: "public");
+
+            migrationBuilder.DropTable(
                 name: "uoms",
                 schema: "public");
 
@@ -2906,23 +2932,19 @@ namespace Rpom.Infrastructure.Database.Migrations
                 schema: "public");
 
             migrationBuilder.DropTable(
+                name: "cash_drawer_sessions",
+                schema: "public");
+
+            migrationBuilder.DropTable(
                 name: "discount_policies",
                 schema: "public");
 
             migrationBuilder.DropTable(
-                name: "shift_sessions",
+                name: "shifts",
                 schema: "public");
 
             migrationBuilder.DropTable(
                 name: "tables",
-                schema: "public");
-
-            migrationBuilder.DropTable(
-                name: "kitchen_stations",
-                schema: "public");
-
-            migrationBuilder.DropTable(
-                name: "shifts",
                 schema: "public");
 
             migrationBuilder.DropTable(

@@ -3,7 +3,7 @@ using Rpom.Domain.Common;
 namespace Rpom.Domain.Sales;
 
 /// <summary>
-/// VND cash denomination lookup. Used by ShiftSessionCashCount for cashier
+/// VND cash denomination lookup. Used by CashDrawerCashCount for cashier
 /// open/close cash counting. Owner can disable rarely-used denominations.
 /// </summary>
 public class Denomination : Entity

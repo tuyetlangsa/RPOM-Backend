@@ -3,8 +3,9 @@ using Rpom.Domain.Common;
 namespace Rpom.Domain.Operations;
 
 /// <summary>
-/// Work shift definition. Referenced by ShiftSession + Ticket (Area E) for
-/// revenue ownership, and by ScheduleAssignment (Area G) for staff scheduling.
+/// Work shift definition. Referenced by Ticket (Area E) — denormalized from
+/// time-of-day when ticket opens — for revenue ownership ("doanh thu ca sáng").
+/// Will also be referenced by StaffWorkSession (Area G) for personal scheduling.
 /// </summary>
 public class Shift : Entity
 {

@@ -14,22 +14,13 @@ internal sealed class JwtTokenService(
 {
     private readonly JwtOptions _options = options.Value;
 
-    public AccessTokenResult IssueAccessToken(int staffAccountId, string username, ShiftScopeClaims? scope = null)
+    public AccessTokenResult IssueAccessToken(int staffAccountId, string username)
     {
         var claims = new List<Claim>
         {
             new(CustomClaims.Sub, staffAccountId.ToString()),
             new(CustomClaims.Username, username)
         };
-
-        if (scope is not null)
-        {
-            claims.Add(new Claim(CustomClaims.ShiftSessionId, scope.ShiftSessionId.ToString()));
-            if (scope.CounterId.HasValue)
-                claims.Add(new Claim(CustomClaims.CounterId, scope.CounterId.Value.ToString()));
-            if (scope.KitchenStationId.HasValue)
-                claims.Add(new Claim(CustomClaims.KitchenStationId, scope.KitchenStationId.Value.ToString()));
-        }
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_options.Secret));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

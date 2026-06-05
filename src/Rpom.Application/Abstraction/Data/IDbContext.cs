@@ -10,6 +10,7 @@ using Rpom.Domain.Operations;
 using Rpom.Domain.Reservation;
 using Rpom.Domain.Restaurant;
 using Rpom.Domain.Sales;
+using Rpom.Domain.Sales.CashDrawer;
 
 namespace Rpom.Application.Abstraction.Data;
 
@@ -57,8 +58,8 @@ public interface IDbContext
     DbSet<PaymentMethod> PaymentMethods { get; }
     DbSet<CancellationReason> CancellationReasons { get; }
     DbSet<Denomination> Denominations { get; }
-    DbSet<ShiftSession> ShiftSessions { get; }
-    DbSet<ShiftSessionCashCount> ShiftSessionCashCounts { get; }
+    DbSet<CashDrawerSession> CashDrawerSessions { get; }
+    DbSet<CashDrawerCashCount> CashDrawerCashCounts { get; }
     DbSet<Ticket> Tickets { get; }
     DbSet<Order> Orders { get; }
     DbSet<CartItem> CartItems { get; }

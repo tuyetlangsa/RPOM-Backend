@@ -1,12 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Rpom.Domain.Sales;
+using Rpom.Domain.Sales.CashDrawer;
 
 namespace Rpom.Infrastructure.Database.Configurations.Sales;
 
-internal sealed class ShiftSessionCashCountConfiguration : IEntityTypeConfiguration<ShiftSessionCashCount>
+internal sealed class CashDrawerCashCountConfiguration : IEntityTypeConfiguration<CashDrawerCashCount>
 {
-    public void Configure(EntityTypeBuilder<ShiftSessionCashCount> builder)
+    public void Configure(EntityTypeBuilder<CashDrawerCashCount> builder)
     {
         builder.HasKey(x => x.Id);
 
@@ -16,17 +16,17 @@ internal sealed class ShiftSessionCashCountConfiguration : IEntityTypeConfigurat
         builder.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
 
         builder.ToTable(t => t.HasCheckConstraint(
-            "ck_shift_session_cash_count_phase",
+            "ck_cash_drawer_cash_count_phase",
             "phase IN ('OPENING', 'CLOSING')"));
 
-        builder.HasIndex(x => new { x.ShiftSessionId, x.Phase, x.DenominationId })
-            .IsUnique().HasDatabaseName("ux_shift_session_cash_count");
-        builder.HasIndex(x => new { x.ShiftSessionId, x.Phase })
-            .HasDatabaseName("ix_shift_session_cash_count_session_phase");
+        builder.HasIndex(x => new { x.CashDrawerSessionId, x.Phase, x.DenominationId })
+            .IsUnique().HasDatabaseName("ux_cash_drawer_cash_count");
+        builder.HasIndex(x => new { x.CashDrawerSessionId, x.Phase })
+            .HasDatabaseName("ix_cash_drawer_cash_count_session_phase");
 
-        builder.HasOne(x => x.ShiftSession)
+        builder.HasOne(x => x.CashDrawerSession)
             .WithMany(x => x.CashCounts)
-            .HasForeignKey(x => x.ShiftSessionId)
+            .HasForeignKey(x => x.CashDrawerSessionId)
             .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.Denomination)

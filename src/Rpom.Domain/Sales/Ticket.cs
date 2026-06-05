@@ -26,10 +26,13 @@ public class Ticket : Entity
     /// <summary>DENORM from Area → Counter for fast "tickets at counter X" queries.</summary>
     public int CounterId { get; set; }
 
-    /// <summary>Active session at the counter when ticket opened.</summary>
-    public long ShiftSessionId { get; set; }
+    /// <summary>Active cash drawer at the counter when ticket opened (cashier audit).</summary>
+    public long CashDrawerSessionId { get; set; }
 
-    /// <summary>DENORM from ShiftSession.ShiftId for reporting "doanh thu ca sáng".</summary>
+    /// <summary>
+    /// DENORM from Shift definition resolved by ticket open time-of-day —
+    /// for reporting "doanh thu ca sáng". Independent from cash drawer.
+    /// </summary>
     public int ShiftId { get; set; }
 
     public short GuestCount { get; set; } = 1;
@@ -90,7 +93,7 @@ public class Ticket : Entity
     public virtual Table Table { get; set; } = null!;
     public virtual Area Area { get; set; } = null!;
     public virtual Counter Counter { get; set; } = null!;
-    public virtual ShiftSession ShiftSession { get; set; } = null!;
+    public virtual CashDrawer.CashDrawerSession CashDrawerSession { get; set; } = null!;
     public virtual Shift Shift { get; set; } = null!;
     public virtual StaffAccount? WaiterStaff { get; set; }
     public virtual StaffAccount? ManagerStaff { get; set; }

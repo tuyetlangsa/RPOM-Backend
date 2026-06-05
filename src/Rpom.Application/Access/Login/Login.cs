@@ -4,7 +4,6 @@ using Rpom.Application.Abstraction.Authentication;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
-using Rpom.Application.ShiftSessions.Shared;
 using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
@@ -21,8 +20,7 @@ public static class Login
         int StaffAccountId,
         string Username,
         string FullName,
-        string RoleCode,
-        ShiftSessionSummary? ShiftSession);
+        string RoleCode);
 
     internal sealed class Validator : AbstractValidator<Command>
     {
@@ -47,30 +45,21 @@ public static class Login
                 .FirstOrDefaultAsync(x => x.Username == request.Username, cancellationToken);
 
             if (staff is null)
-            {
                 return Result.Failure<Response>(AccessErrors.InvalidCredentials);
-            }
 
             if (!staff.IsActive)
-            {
                 return Result.Failure<Response>(AccessErrors.AccountInactive);
-            }
 
             if (staff.IsLocked)
-            {
                 return Result.Failure<Response>(AccessErrors.AccountLocked);
-            }
 
             if (!passwordHasher.Verify(request.Password, staff.PasswordHash))
-            {
                 return Result.Failure<Response>(AccessErrors.InvalidCredentials);
-            }
 
             var now = dateTimeProvider.UtcNow;
             staff.LastLoginAt = now;
             staff.UpdatedAt = now;
 
-            // Audit log: LOGIN action.
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(StaffAccount),
@@ -84,18 +73,11 @@ public static class Login
 
             await dbContext.SaveChangesAsync(cancellationToken);
 
-            // Auto-resume: if staff has an OPEN shift session, bake its scope into JWT.
-            var currentShift = await ShiftSessionMapper.LoadCurrentForStaffAsync(
-                dbContext, staff.Id, cancellationToken);
-
-            ShiftScopeClaims? scope = currentShift is null
-                ? null
-                : new ShiftScopeClaims(
-                    ShiftSessionId: currentShift.Id,
-                    CounterId: currentShift.CounterId,
-                    KitchenStationId: currentShift.KitchenStationId);
-
-            var token = jwtTokenService.IssueAccessToken(staff.Id, staff.Username, scope);
+            // NOTE: Personal shift attendance (StaffWorkSession) will record
+            // login as a clock-in event in a future feature. For now login
+            // only issues a JWT — cash drawer is opened separately at the
+            // cashier app via POST /api/cash-drawers when needed.
+            var token = jwtTokenService.IssueAccessToken(staff.Id, staff.Username);
 
             return Result.Success(new Response(
                 AccessToken: token.Token,
@@ -103,8 +85,7 @@ public static class Login
                 StaffAccountId: staff.Id,
                 Username: staff.Username,
                 FullName: staff.FullName,
-                RoleCode: staff.Role.Code,
-                ShiftSession: currentShift));
+                RoleCode: staff.Role.Code));
         }
     }
 }

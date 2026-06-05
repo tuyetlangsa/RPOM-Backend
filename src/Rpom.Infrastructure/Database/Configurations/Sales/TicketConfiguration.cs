@@ -40,7 +40,7 @@ internal sealed class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.HasIndex(x => new { x.CounterId, x.Status, x.UpdatedAt }).HasDatabaseName("ix_ticket_counter_active");
         builder.HasIndex(x => new { x.AreaId, x.Status }).HasDatabaseName("ix_ticket_area_status");
         builder.HasIndex(x => x.TableId);
-        builder.HasIndex(x => x.ShiftSessionId);
+        builder.HasIndex(x => x.CashDrawerSessionId);
         builder.HasIndex(x => x.Status);
 
         // Filtered unique index — Postgres native syntax via HasFilter
@@ -64,9 +64,9 @@ internal sealed class TicketConfiguration : IEntityTypeConfiguration<Ticket>
             .HasForeignKey(x => x.CounterId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.ShiftSession)
+        builder.HasOne(x => x.CashDrawerSession)
             .WithMany(x => x.Tickets)
-            .HasForeignKey(x => x.ShiftSessionId)
+            .HasForeignKey(x => x.CashDrawerSessionId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.Shift)

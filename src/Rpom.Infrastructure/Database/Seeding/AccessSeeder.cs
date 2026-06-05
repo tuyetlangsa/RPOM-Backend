@@ -106,8 +106,8 @@ public sealed class AccessSeeder(
             (Permissions.OrderItemStartCooking,  "Mark dish PROCESSING",              PermissionGroups.Kds),
             (Permissions.OrderItemMarkReady,     "Mark dish READY",                   PermissionGroups.Kds),
 
-            (Permissions.ShiftSessionOpen,       "Open shift session",                PermissionGroups.Cashier),
-            (Permissions.ShiftSessionClose,      "Close shift session",               PermissionGroups.Cashier),
+            (Permissions.CashDrawerOpen,         "Open cash drawer at counter",       PermissionGroups.Cashier),
+            (Permissions.CashDrawerClose,        "Close cash drawer (any opener)",    PermissionGroups.Cashier),
             (Permissions.PaymentCash,            "Process cash payment",              PermissionGroups.Cashier),
             (Permissions.PaymentQr,              "Process QR payment",                PermissionGroups.Cashier),
             (Permissions.PaymentCancelPending,   "Cancel pending payment",            PermissionGroups.Cashier),
