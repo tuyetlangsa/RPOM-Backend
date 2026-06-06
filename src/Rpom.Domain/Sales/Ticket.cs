@@ -63,7 +63,7 @@ public class Ticket : Entity
     /// <summary>Total discount applied (distributed across line items).</summary>
     public decimal DiscountAmount { get; set; }
 
-    /// <summary>Snapshot from Area.ServiceChargePercent (or restaurant profile) at payment time.</summary>
+    /// <summary>Snapshot from Area.ServiceChargePercent at open; re-snapshot on table transfer (pricing spec §3.7, CLAUDE.md §14).</summary>
     public decimal ServiceChargePercent { get; set; }
     public decimal ServiceChargeAmount { get; set; }
 
@@ -76,7 +76,7 @@ public class Ticket : Entity
     /// <summary>Σ OrderItem.TicketDiscountAmount.</summary>
     public decimal TicketDiscountTotal { get; set; }
 
-    /// <summary>Snapshot of default VAT at payment time.</summary>
+    /// <summary>Legacy header VAT% — kept for back-compat; NOT used by recompute (VAT is per-line via OrderItem.VatPercent).</summary>
     public decimal VatPercent { get; set; }
     public decimal VatAmount { get; set; }
 
