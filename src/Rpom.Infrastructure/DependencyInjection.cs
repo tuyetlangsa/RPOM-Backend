@@ -80,6 +80,7 @@ public static class DependencyInjection
         services.AddMemoryCache();
         services.AddScoped<IRoundingConfig, Pricing.RoundingConfigService>();
         services.AddScoped<ICartRecomputeService, Pricing.CartRecomputeService>();
+        services.AddScoped<ITicketRecomputeService, Pricing.TicketRecomputeService>();
 
         services.AddQuartz(configurator =>
         {
