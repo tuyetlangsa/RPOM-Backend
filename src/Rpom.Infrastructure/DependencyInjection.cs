@@ -16,6 +16,7 @@ using Rpom.Application.Abstraction.Authorization;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Configuration;
 using Rpom.Application.Abstraction.Data;
+using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Abstraction.User;
 using Rpom.Domain.Common;
@@ -76,6 +77,8 @@ public static class DependencyInjection
         services.AddScoped<ICurrentStaff, CurrentStaffImpl>();
         services.AddScoped<IConfigValueService, Configuration.ConfigValueService>();
         services.AddScoped<IVersionService, Versioning.VersionService>();
+        services.AddMemoryCache();
+        services.AddScoped<IRoundingConfig, Pricing.RoundingConfigService>();
 
         services.AddQuartz(configurator =>
         {
