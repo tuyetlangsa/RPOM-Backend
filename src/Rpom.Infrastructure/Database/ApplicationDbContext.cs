@@ -99,6 +99,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     // --- Cross-cutting: Configuration ---
     public DbSet<ConfigValue> ConfigValues => Set<ConfigValue>();
+    public DbSet<RoundingConfig> RoundingConfigs => Set<RoundingConfig>();
 
     // --- Outbox infrastructure ---
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();

@@ -94,6 +94,7 @@ public interface IDbContext
 
     // --- Cross-cutting: Configuration ---
     DbSet<ConfigValue> ConfigValues { get; }
+    DbSet<RoundingConfig> RoundingConfigs { get; }
 
     // --- Outbox infrastructure ---
     DbSet<OutboxMessage> OutboxMessages { get; }
