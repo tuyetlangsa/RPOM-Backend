@@ -17,6 +17,9 @@ internal sealed class AreaConfiguration : IEntityTypeConfiguration<Area>
         builder.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
         builder.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
 
+        builder.Property(x => x.ServiceChargePercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.ServiceChargeVatPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+
         builder.HasIndex(x => x.CounterId);
         builder.HasIndex(x => new { x.CounterId, x.IsActive }).HasDatabaseName("ix_area_counter_active");
 

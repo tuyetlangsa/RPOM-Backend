@@ -20,6 +20,12 @@ internal sealed class TicketConfiguration : IEntityTypeConfiguration<Ticket>
         builder.Property(x => x.DiscountAmount).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.ServiceChargePercent).HasPrecision(5, 2).HasDefaultValue(0m);
         builder.Property(x => x.ServiceChargeAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(x => x.DiscountPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.ServiceChargeVatPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.LineDiscountTotal).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(x => x.TicketDiscountTotal).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(x => x.RoundingAdjustment).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(x => x.RefundAmount).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.VatPercent).HasPrecision(5, 2).HasDefaultValue(0m);
         builder.Property(x => x.VatAmount).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.TotalAmount).HasPrecision(18, 2).HasDefaultValue(0m);

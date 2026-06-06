@@ -16,6 +16,15 @@ internal sealed class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
         builder.Property(x => x.UomName).IsRequired().HasMaxLength(50);
         builder.Property(x => x.Quantity).HasPrecision(18, 3).HasDefaultValue(1m);
         builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
+        builder.Property(x => x.ChoicePricePerUnit).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(x => x.VatPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.ServiceChargePercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.ServiceChargeVatPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.LineSubtotal).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(x => x.ServiceChargeAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(x => x.VatItemAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(x => x.VatScAmount).HasPrecision(18, 2).HasDefaultValue(0m);
+        builder.Property(x => x.VatAmount).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.LineTotal).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.Notes).HasMaxLength(300);
         builder.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
