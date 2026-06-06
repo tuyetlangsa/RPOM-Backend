@@ -71,4 +71,7 @@ public static class Permissions
     // ============ Configuration — Owner/Manager ============
     public const string ConfigView = "config:view";
     public const string ConfigManage = "config:manage";
+
+    /// <summary>Owner edits per-field rounding precision (RoundingConfig).</summary>
+    public const string UpdateRoundingConfig = "rounding_config:update";
 }

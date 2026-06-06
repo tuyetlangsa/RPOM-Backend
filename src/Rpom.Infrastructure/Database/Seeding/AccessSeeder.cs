@@ -130,6 +130,7 @@ public sealed class AccessSeeder(
 
             (Permissions.ConfigView,             "View configuration values",         PermissionGroups.Access),
             (Permissions.ConfigManage,           "Update configuration values",       PermissionGroups.Access),
+            (Permissions.UpdateRoundingConfig,   "Update rounding precision config",   PermissionGroups.Access),
         };
 
         var existingCodes = await db.Permissions.Select(x => x.Code).ToListAsync(ct);

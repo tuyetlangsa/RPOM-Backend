@@ -9,3 +9,9 @@ public interface IRoundingConfig
     /// <summary>Digit count for a key. Falls back to RoundingKeys.Defaults if unseeded.</summary>
     int GetDigits(string keyCode);
 }
+
+/// <summary>Lets command handlers drop the rounding cache after an update.</summary>
+public interface IRoundingCacheInvalidator
+{
+    void Invalidate();
+}

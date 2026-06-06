@@ -7,13 +7,13 @@ namespace Rpom.Infrastructure.Pricing;
 
 /// <summary>
 /// Loads all rounding digits into IMemoryCache (5-min TTL). One cache entry
-/// holds the full key→digits map; invalidated by InvalidateCache() from the
+/// holds the full key→digits map; invalidated by Invalidate() from the
 /// UpdateRoundingConfig handler. Falls back to RoundingKeys.Defaults when a
 /// key is missing (unseeded). Synchronous GetDigits blocks on first load —
 /// acceptable, the map is tiny (14 rows).
 /// </summary>
 internal sealed class RoundingConfigService(IDbContext dbContext, IMemoryCache cache)
-    : IRoundingConfig
+    : IRoundingConfig, IRoundingCacheInvalidator
 {
     private const string CacheKey = "rounding_config_map";
     private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(5);
@@ -33,8 +33,5 @@ internal sealed class RoundingConfigService(IDbContext dbContext, IMemoryCache c
         return RoundingKeys.Defaults.TryGetValue(keyCode, out var def) ? def : 0;
     }
 
-    public void InvalidateCache() => cache.Remove(CacheKey);
-
-    /// <summary>Static entry so the update handler can invalidate without a typed ref.</summary>
-    public static void Invalidate(IMemoryCache cache) => cache.Remove(CacheKey);
+    public void Invalidate() => cache.Remove(CacheKey);
 }

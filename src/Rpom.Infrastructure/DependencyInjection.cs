@@ -79,6 +79,8 @@ public static class DependencyInjection
         services.AddScoped<IVersionService, Versioning.VersionService>();
         services.AddMemoryCache();
         services.AddScoped<IRoundingConfig, Pricing.RoundingConfigService>();
+        services.AddScoped<IRoundingCacheInvalidator>(sp =>
+            (Pricing.RoundingConfigService)sp.GetRequiredService<IRoundingConfig>());
         services.AddScoped<ICartRecomputeService, Pricing.CartRecomputeService>();
         services.AddScoped<ITicketRecomputeService, Pricing.TicketRecomputeService>();
         services.AddScoped<IRefreshPaymentTotalsService, Pricing.RefreshPaymentTotalsService>();
