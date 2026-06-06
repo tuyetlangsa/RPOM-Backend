@@ -19,4 +19,8 @@ public static class PriceTableErrors
     public static readonly Error HasVariants = Error.Conflict(
         "PriceTable.HasVariants",
         "Không xoá được — bảng giá còn variant. Hãy xoá các variant trước.");
+
+    public static readonly Error NoActivePriceTable = Error.Conflict(
+        "Menu.NoActivePriceTable",
+        "Chưa có bảng giá hoạt động — gọi Owner");
 }

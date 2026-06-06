@@ -53,6 +53,11 @@ public static class Permissions
     public const string TicketClose = "ticket:close";
     public const string EInvoiceIssue = "e_invoice:issue";
 
+    // Cashier read APIs — load floor plan, tickets, and menu for NextCashier.
+    public const string CashierFloorPlan = "floor_plan:view_cashier";
+    public const string CashierViewTicket = "ticket:view_cashier";
+    public const string CashierViewMenu = "menu:view_cashier";
+
     // ============ Reporting — Manager/Owner ============
     public const string ReportRevenue = "report:revenue";
     public const string ReportShift = "report:shift";
