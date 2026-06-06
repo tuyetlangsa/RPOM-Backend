@@ -51,11 +51,18 @@ public static class UpdateCounter
             var entity = await dbContext.Counters.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
             if (entity is null) return Result.Failure<Response>(CounterErrors.NotFound);
 
+            var name = request.Name.Trim();
+            var nameLower = name.ToLower();
+
+            var duplicate = await dbContext.Counters
+                .AnyAsync(x => x.Id != request.Id && x.Name.ToLower() == nameLower, ct);
+            if (duplicate) return Result.Failure<Response>(CounterErrors.NameDuplicate);
+
             var staffId = currentStaff.StaffAccountId;
             var now = clock.UtcNow;
             var summary = BuildSummary(entity, request);
 
-            entity.Name = request.Name.Trim();
+            entity.Name = name;
             entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
             entity.DisplayOrder = request.DisplayOrder;
             entity.IsActive = request.IsActive;
@@ -73,7 +80,14 @@ public static class UpdateCounter
                 Summary = summary,
             });
 
-            await dbContext.SaveChangesAsync(ct);
+            try
+            {
+                await dbContext.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                return Result.Failure<Response>(CounterErrors.NameDuplicate);
+            }
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Counter.Update(id={entity.Id})", ct);
 
             return Result.Success(new Response(

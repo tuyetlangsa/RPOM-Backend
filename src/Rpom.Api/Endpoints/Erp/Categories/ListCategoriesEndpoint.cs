@@ -10,9 +10,9 @@ internal sealed class ListCategoriesEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapGet("api/categories",
-            async (string? search, bool? isActive, ISender sender, CancellationToken ct) =>
+            async (string? search, bool? isActive, string? rootCode, ISender sender, CancellationToken ct) =>
             {
-                var result = await sender.Send(new ListCategories.Query(search, isActive), ct);
+                var result = await sender.Send(new ListCategories.Query(search, isActive, rootCode), ct);
                 return result.MatchOk();
             })
             .RequireAuthorization(Permissions.MasterDataView)

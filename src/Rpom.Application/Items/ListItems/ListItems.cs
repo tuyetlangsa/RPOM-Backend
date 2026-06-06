@@ -1,3 +1,4 @@
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
@@ -6,17 +7,20 @@ using Rpom.Domain.Common;
 namespace Rpom.Application.Items.ListItems;
 
 /// <summary>
-/// List items with optional Category descendant filter (categoryId selects
-/// items whose ItemCategory.CategoryId is the category itself or any of its
-/// descendants — resolved via Category.Path LIKE).
-/// Thin row shape — no per-row joins beyond category/uom display names.
+/// List items (paginated) with optional Category descendant filter — items
+/// whose ItemCategory.CategoryId matches the category or any descendant
+/// (resolved via Category.Path LIKE).
 /// </summary>
 public static class ListItems
 {
-    public sealed record Query(int? CategoryId, string? Search, bool? IsActive)
-        : IQuery<IReadOnlyList<Response>>;
+    public sealed record Query(
+        int? CategoryId,
+        string? Search,
+        bool? IsActive,
+        int PageNumber,
+        int PageSize) : IQuery<Page<Item>>;
 
-    public sealed record Response(
+    public sealed record Item(
         int Id,
         string Code,
         string Name,
@@ -30,9 +34,18 @@ public static class ListItems
         int? PrimaryCategoryId,
         string? PrimaryCategoryName);
 
-    internal sealed class Handler(IDbContext dbContext) : IQueryHandler<Query, IReadOnlyList<Response>>
+    internal sealed class Validator : AbstractValidator<Query>
     {
-        public async Task<Result<IReadOnlyList<Response>>> Handle(Query request, CancellationToken ct)
+        public Validator()
+        {
+            RuleFor(x => x.PageNumber).GreaterThanOrEqualTo(1);
+            RuleFor(x => x.PageSize).InclusiveBetween(1, 500);
+        }
+    }
+
+    internal sealed class Handler(IDbContext dbContext) : IQueryHandler<Query, Page<Item>>
+    {
+        public async Task<Result<Page<Item>>> Handle(Query request, CancellationToken ct)
         {
             var q = dbContext.Items.AsQueryable();
 
@@ -46,13 +59,15 @@ public static class ListItems
 
             if (request.CategoryId.HasValue)
             {
-                // Resolve descendant ids via Category.Path prefix.
                 var root = await dbContext.Categories
                     .Where(c => c.Id == request.CategoryId.Value)
                     .Select(c => new { c.Id, c.Path })
                     .FirstOrDefaultAsync(ct);
 
-                if (root is null) return Result.Success<IReadOnlyList<Response>>(Array.Empty<Response>());
+                if (root is null)
+                {
+                    return Result.Success(new Page<Item>(Array.Empty<Item>(), 0, request.PageNumber, request.PageSize));
+                }
 
                 var idsInSubtree = await dbContext.Categories
                     .Where(c => c.Id == root.Id || EF.Functions.Like(c.Path, root.Path + "%"))
@@ -62,8 +77,12 @@ public static class ListItems
                 q = q.Where(x => x.ItemCategories.Any(ic => idsInSubtree.Contains(ic.CategoryId)));
             }
 
+            var totalCount = await q.CountAsync(ct);
+
             var rows = await q
                 .OrderBy(x => x.Name)
+                .Skip((request.PageNumber - 1) * request.PageSize)
+                .Take(request.PageSize)
                 .Select(x => new
                 {
                     x.Id,
@@ -85,14 +104,14 @@ public static class ListItems
                 })
                 .ToListAsync(ct);
 
-            var result = rows
-                .Select(r => new Response(
+            var items = rows
+                .Select(r => new Item(
                     r.Id, r.Code, r.Name, r.ImageUrl, r.BaseUomCode, r.VatPercent,
                     r.IsStockable, r.HasRecipe, r.IsActive,
                     r.CategoryNames, r.PrimaryCategoryId, r.PrimaryCategoryName))
                 .ToList();
 
-            return Result.Success<IReadOnlyList<Response>>(result);
+            return Result.Success(new Page<Item>(items, totalCount, request.PageNumber, request.PageSize));
         }
     }
 }

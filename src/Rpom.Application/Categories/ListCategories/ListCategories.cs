@@ -7,7 +7,7 @@ namespace Rpom.Application.Categories.ListCategories;
 
 public static class ListCategories
 {
-    public sealed record Query(string? Search, bool? IsActive) : IQuery<IReadOnlyList<Response>>;
+    public sealed record Query(string? Search, bool? IsActive, string? RootCode) : IQuery<IReadOnlyList<Response>>;
 
     public sealed record Response(
         int Id,
@@ -34,6 +34,19 @@ public static class ListCategories
             {
                 var s = request.Search.Trim().ToLower();
                 q = q.Where(x => x.Code.ToLower().Contains(s) || x.Name.ToLower().Contains(s));
+            }
+            if (!string.IsNullOrWhiteSpace(request.RootCode))
+            {
+                // Trả về subtree (self + descendants) của Category root có Code khớp.
+                // Path semicolon-terminated → StartsWith(root.Path) phủ cả self và mọi descendant.
+                var rootCodeLower = request.RootCode.Trim().ToLower();
+                var root = await dbContext.Categories
+                    .Where(c => c.Code.ToLower() == rootCodeLower)
+                    .Select(c => new { c.Path })
+                    .FirstOrDefaultAsync(ct);
+                if (root is null)
+                    return Result.Success<IReadOnlyList<Response>>(Array.Empty<Response>());
+                q = q.Where(c => c.Path.StartsWith(root.Path));
             }
 
             // Pre-compute child + item counts in one round-trip to avoid N+1.

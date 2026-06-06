@@ -228,8 +228,15 @@ public sealed class LookupSeeder(
     {
         if (await db.Categories.AnyAsync(ct)) return;
 
-        // 4 roots + 2-3 children each. Path/Level kept consistent.
-        var roots = new (string Code, string Name, short Order, (string Code, string Name)[] Children)[]
+        // Per Glossary §3.5: 2 canonical roots — HANG_BAN + NGUYEN_VAT_LIEU.
+        // Sample groupings (Đồ uống / Món chính / Món phụ) live UNDER HANG_BAN at level 1;
+        // their leaves (Bia / Nước ngọt / Cơm / ...) sit at level 2.
+        var hangBan = await AddCategoryAsync(db, code: "HANG_BAN", name: "Hàng bán",
+            parentId: null, parentPath: "", level: 0, order: 1, now, ct);
+        var nguyenLieu = await AddCategoryAsync(db, code: "NGUYEN_VAT_LIEU", name: "Nguyên vật liệu",
+            parentId: null, parentPath: "", level: 0, order: 2, now, ct);
+
+        var subRoots = new (string Code, string Name, short Order, (string Code, string Name)[] Children)[]
         {
             ("DOUONG", "Đồ uống", 1, new[]
             {
@@ -248,49 +255,49 @@ public sealed class LookupSeeder(
                 ("MP_KHAIVI", "Khai vị"),
                 ("MP_TRANGMIENG", "Tráng miệng"),
             }),
-            ("NGUYENLIEU", "Nguyên vật liệu", 9, Array.Empty<(string, string)>()),
         };
 
-        short rootOrder = 1;
-        foreach (var (code, name, _, children) in roots)
+        foreach (var (code, name, order, children) in subRoots)
         {
-            var root = new Category
-            {
-                Code = code,
-                Name = name,
-                ParentId = null,
-                DisplayOrder = rootOrder++,
-                Level = 0,
-                Path = "",
-                IsActive = true,
-                CreatedAt = now,
-                UpdatedAt = now,
-            };
-            db.Categories.Add(root);
-            await db.SaveChangesAsync(ct);
-            root.Path = $"{root.Id};";
+            var sub = await AddCategoryAsync(db, code, name,
+                parentId: hangBan.Id, parentPath: hangBan.Path,
+                level: 1, order, now, ct);
 
-            short childOrder = 1;
+            short leafOrder = 1;
             foreach (var (cCode, cName) in children)
             {
-                var child = new Category
-                {
-                    Code = cCode,
-                    Name = cName,
-                    ParentId = root.Id,
-                    DisplayOrder = childOrder++,
-                    Level = 1,
-                    Path = "",
-                    IsActive = true,
-                    CreatedAt = now,
-                    UpdatedAt = now,
-                };
-                db.Categories.Add(child);
-                await db.SaveChangesAsync(ct);
-                child.Path = $"{root.Id};{child.Id};";
+                await AddCategoryAsync(db, cCode, cName,
+                    parentId: sub.Id, parentPath: sub.Path,
+                    level: 2, leafOrder++, now, ct);
             }
-            await db.SaveChangesAsync(ct);
         }
+
+        // Suppress unused-warning if compiler complains; nguyenLieu is reserved for material seed paths.
+        _ = nguyenLieu;
+    }
+
+    private static async Task<Category> AddCategoryAsync(
+        ApplicationDbContext db, string code, string name,
+        int? parentId, string parentPath, short level, short order,
+        DateTime now, CancellationToken ct)
+    {
+        var cat = new Category
+        {
+            Code = code,
+            Name = name,
+            ParentId = parentId,
+            DisplayOrder = order,
+            Level = level,
+            Path = "",
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.Categories.Add(cat);
+        await db.SaveChangesAsync(ct);
+        cat.Path = $"{parentPath}{cat.Id};";
+        await db.SaveChangesAsync(ct);
+        return cat;
     }
 
     private static async Task SeedItemsAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
@@ -319,7 +326,7 @@ public sealed class LookupSeeder(
             ("NEM_NUONG",     "Nem nướng cuốn bánh",  "dia",   8, false, true,  hotStation?.Id,  "MP_KHAIVI",   Array.Empty<string>()),
             ("CHE_KHUC_BACH", "Chè khúc bạch",        "ly",    8, false, true,  coldStation?.Id, "MP_TRANGMIENG", Array.Empty<string>()),
             ("FLAN",          "Bánh flan",            "ly",    8, false, true,  coldStation?.Id, "MP_TRANGMIENG", Array.Empty<string>()),
-            ("THIT_BO",       "Thịt bò tươi",         "kg",    8, true,  false, null,            "NGUYENLIEU",  Array.Empty<string>()),
+            ("THIT_BO",       "Thịt bò tươi",         "kg",    8, true,  false, null,            "NGUYEN_VAT_LIEU",  Array.Empty<string>()),
         };
 
         foreach (var s in seeds)

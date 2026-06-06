@@ -12,6 +12,10 @@ public static class CounterErrors
         "Counter.NameRequired",
         "Tên Quầy là bắt buộc.");
 
+    public static readonly Error NameDuplicate = Error.Conflict(
+        "Counter.NameDuplicate",
+        "Tên Quầy đã tồn tại. Vui lòng chọn tên khác.");
+
     public static readonly Error InUse = Error.Conflict(
         "Counter.InUse",
         "Không xoá được vì Quầy đang có Khu sử dụng. Hãy chuyển hoặc xoá các Khu trước.");

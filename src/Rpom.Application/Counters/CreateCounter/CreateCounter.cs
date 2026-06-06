@@ -46,12 +46,19 @@ public static class CreateCounter
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
+            var name = request.Name.Trim();
+            var nameLower = name.ToLower();
+
+            var duplicate = await dbContext.Counters
+                .AnyAsync(x => x.Name.ToLower() == nameLower, ct);
+            if (duplicate) return Result.Failure<Response>(CounterErrors.NameDuplicate);
+
             var staffId = currentStaff.StaffAccountId;
             var now = clock.UtcNow;
 
             var entity = new Counter
             {
-                Name = request.Name.Trim(),
+                Name = name,
                 Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim(),
                 DisplayOrder = request.DisplayOrder,
                 IsActive = request.IsActive,
@@ -61,7 +68,15 @@ public static class CreateCounter
             dbContext.Counters.Add(entity);
 
             var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
-            await dbContext.SaveChangesAsync(ct);
+
+            try
+            {
+                await dbContext.SaveChangesAsync(ct);
+            }
+            catch (DbUpdateException)
+            {
+                return Result.Failure<Response>(CounterErrors.NameDuplicate);
+            }
 
             dbContext.AuditLogs.Add(new AuditLog
             {
