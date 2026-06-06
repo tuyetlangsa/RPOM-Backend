@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Rpom.Application\Rpom.Application.csproj" />
     <ProjectReference Include="..\..\src\Rpom.Domain\Rpom.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Rpom.Infrastructure\Rpom.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
