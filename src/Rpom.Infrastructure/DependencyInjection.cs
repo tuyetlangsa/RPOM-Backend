@@ -79,6 +79,7 @@ public static class DependencyInjection
         services.AddScoped<IVersionService, Versioning.VersionService>();
         services.AddMemoryCache();
         services.AddScoped<IRoundingConfig, Pricing.RoundingConfigService>();
+        services.AddScoped<ICartRecomputeService, Pricing.CartRecomputeService>();
 
         services.AddQuartz(configurator =>
         {
