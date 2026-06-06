@@ -43,6 +43,9 @@ await using (var scope = app.Services.CreateAsyncScope())
 
     var configSeeder = scope.ServiceProvider.GetRequiredService<ConfigValueSeeder>();
     await configSeeder.SeedAsync();
+
+    var roundingConfigSeeder = scope.ServiceProvider.GetRequiredService<RoundingConfigSeeder>();
+    await roundingConfigSeeder.SeedAsync();
 }
 
 app.UseCors();
