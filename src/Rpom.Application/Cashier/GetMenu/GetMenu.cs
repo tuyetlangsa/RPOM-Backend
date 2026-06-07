@@ -176,12 +176,9 @@ public static class GetMenu
                 decimal? basePrice = null, displayPrice = null;
                 if (rawPrice is { } price)
                 {
-                    basePrice = isVatIncluded
-                        ? Money.Round(price / (1 + i.VatPercent / 100m), rc, RoundingKeys.PriceDetail)
-                        : price;
-                    displayPrice = isVatIncluded
-                        ? price
-                        : Money.Round(price * (1 + i.VatPercent / 100m), rc, RoundingKeys.MenuDisplay);
+                    var (b, d) = MenuPricing.ComputePrices(price, isVatIncluded, i.VatPercent, rc);
+                    basePrice = b;
+                    displayPrice = d;
                 }
 
                 bool available = !i.IsStockable || stockAvail.GetValueOrDefault(i.Id, true);
