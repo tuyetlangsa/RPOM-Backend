@@ -17,14 +17,14 @@ public static class GetMenu
         int TableId, int AreaId, string AreaName,
         decimal ServiceChargePercent, decimal ServiceChargeVatPercent,
         int? PriceTableId, string? PriceTableName, DateTime ResolvedAt,
-        IReadOnlyList<CategoryDto> Categories,
-        IReadOnlyList<MenuItemDto> Items);
+        IReadOnlyList<MenuCategory> Categories,
+        IReadOnlyList<MenuItem> Items);
 
-    public sealed record CategoryDto(
+    public sealed record MenuCategory(
         int CategoryId, string Code, string Name, int? ParentId,
         string Path, short DisplayOrder, int ItemCount);
 
-    public sealed record MenuItemDto(
+    public sealed record MenuItem(
         int ItemId, string Code, string Name, string? Description, string? ImageUrl,
         int BaseUomId, string UomCode, string UomName,
         IReadOnlyList<int> CategoryIds, int? KitchenStationId, string? KitchenStationName,
@@ -64,16 +64,25 @@ public static class GetMenu
                 .FirstOrDefaultAsync(ct);
             if (table is null) return Result.Failure<Response>(TableErrors.NotFound);
 
+            var now = clock.UtcNow;
+            var time = TimeOnly.FromDateTime(now);
+            var today = DateOnly.FromDateTime(now);
+            var dayBit = 1 << (((int)now.DayOfWeek + 6) % 7); // Mon=bit0 … Sun=bit6
+
+            // Active price table currently IN EFFECT (date window), not merely IsActive.
+            // Tie-break when several qualify: a dated table beats an open-ended one, newest
+            // BeginDate, then newest row.
             var activePriceTable = await db.PriceTables
-                .Where(p => p.IsActive)
+                .Where(p => p.IsActive
+                    && (p.BeginDate == null || p.BeginDate <= today)
+                    && (p.EndDate == null || today <= p.EndDate))
+                .OrderByDescending(p => p.BeginDate.HasValue)
+                .ThenByDescending(p => p.BeginDate)
+                .ThenByDescending(p => p.CreatedAt)
                 .Select(p => new { p.Id, p.Name })
                 .FirstOrDefaultAsync(ct);
             if (activePriceTable is null)
                 return Result.Failure<Response>(PriceTableErrors.NoActivePriceTable);
-
-            var now = clock.UtcNow;
-            var time = TimeOnly.FromDateTime(now);
-            var dayBit = 1 << (((int)now.DayOfWeek + 6) % 7); // Mon=bit0 … Sun=bit6
 
             // 1. Visible categories for this area (junction + subtree via Path prefix).
             var areaCategoryPaths = await db.AreaMenuCategories
@@ -155,15 +164,20 @@ public static class GetMenu
                     .ThenByDescending(e => specById[e.PriceVariantId].CreatedAt)
                     .First());
 
+            // Pricing spec / F2 Phase 2: an item with no price in the active table is
+            // silently hidden. Keep only priced items from here on.
+            var pricedItems = items.Where(i => winnerByItem.ContainsKey(i.Id)).ToList();
+            var pricedIds = pricedItems.Select(i => i.Id).ToList();
+
             // Stock availability for stockable items.
             var stockByItem = await db.ItemStocks
-                .Where(s => realItemIds.Contains(s.ItemId))
+                .Where(s => pricedIds.Contains(s.ItemId))
                 .Select(s => new { s.ItemId, Available = s.CurrentQty - s.ReservedQty > 0 })
                 .ToListAsync(ct);
             var stockAvail = stockByItem.ToDictionary(s => s.ItemId, s => s.Available);
 
             // Set-menu specs for set items.
-            var setItemIds = items.Where(i => i.IsSetMenu).Select(i => i.Id).ToList();
+            var setItemIds = pricedItems.Where(i => i.IsSetMenu).Select(i => i.Id).ToList();
             var setSpecs = await LoadSetMenuSpecsAsync(setItemIds, ct);
 
             // Subtree rollup (Cách A): expand each item's direct categories to include
@@ -181,34 +195,27 @@ public static class GetMenu
                     : new List<int>();
 
             var categoryIdsByItem = itemCategoryLinks
-                .Where(l => realItemIds.Contains(l.ItemId))
+                .Where(l => pricedIds.Contains(l.ItemId))
                 .GroupBy(l => l.ItemId)
                 .ToDictionary(
                     g => g.Key,
                     g => g.SelectMany(x => VisibleAncestorIds(x.CategoryId)).Distinct().ToList());
 
-            var itemDtos = items.Select(i =>
+            var itemDtos = pricedItems.Select(i =>
             {
-                winnerByItem.TryGetValue(i.Id, out var w);
-                decimal? rawPrice = w?.Price;
-                bool isVatIncluded = w?.IsVatIncluded ?? false;
-                decimal? basePrice = null, displayPrice = null;
-                if (rawPrice is { } price)
-                {
-                    var (b, d) = MenuPricing.ComputePrices(price, isVatIncluded, i.VatPercent, rc);
-                    basePrice = b;
-                    displayPrice = d;
-                }
+                var w = winnerByItem[i.Id]; // guaranteed present — unpriced items already dropped
+                var (basePrice, displayPrice) =
+                    MenuPricing.ComputePrices(w.Price, w.IsVatIncluded, i.VatPercent, rc);
 
                 bool available = !i.IsStockable || stockAvail.GetValueOrDefault(i.Id, true);
 
-                return new MenuItemDto(
+                return new MenuItem(
                     i.Id, i.Code, i.Name, i.Description, i.ImageUrl, i.BaseUomId,
                     i.UomCode, i.UomName,
                     categoryIdsByItem.GetValueOrDefault(i.Id) ?? new(),
                     i.KitchenStationId, i.KitchenStationName,
                     i.IsSetMenu, i.IsStockable, available,
-                    rawPrice, isVatIncluded, i.VatPercent, basePrice, displayPrice,
+                    w.Price, w.IsVatIncluded, i.VatPercent, basePrice, displayPrice,
                     i.IsSetMenu ? setSpecs.GetValueOrDefault(i.Id) : null);
             }).ToList();
 
@@ -221,7 +228,7 @@ public static class GetMenu
 
             var categoryDtos = visibleCategories
                 .OrderBy(c => c.DisplayOrder)
-                .Select(c => new CategoryDto(
+                .Select(c => new MenuCategory(
                     c.Id, c.Code, c.Name, c.ParentId, c.Path, c.DisplayOrder,
                     itemCountByCategory.GetValueOrDefault(c.Id)))
                 .ToList();
@@ -248,6 +255,7 @@ public static class GetMenu
                     ComponentName = d.ComponentItem != null ? d.ComponentItem.Name : null,
                     ComponentUomCode = d.ComponentItem != null ? d.ComponentItem.BaseUom.Code : null,
                     ComponentUomName = d.ComponentItem != null ? d.ComponentItem.BaseUom.Name : null,
+                    ComponentIsActive = d.ComponentItem != null && d.ComponentItem.IsActive,
                 })
                 .ToListAsync(ct);
 
@@ -256,7 +264,7 @@ public static class GetMenu
                 .Select(d => d.ChoiceCategoryId!.Value).Distinct().ToList();
 
             var choiceCategories = await db.ChoiceCategories
-                .Where(cc => choiceCategoryIds.Contains(cc.Id))
+                .Where(cc => choiceCategoryIds.Contains(cc.Id) && cc.IsActive)
                 .Select(cc => new { cc.Id, cc.Name, cc.MinChoice, cc.MaxChoice, cc.DisplayOrder })
                 .ToListAsync(ct);
 
@@ -278,7 +286,8 @@ public static class GetMenu
                 var d = details.Where(x => x.SetMenuItemId == setId).ToList();
 
                 var mains = d
-                    .Where(x => x.DetailType == SetMenuDetailType.Component && x.ComponentItemId != null)
+                    .Where(x => x.DetailType == SetMenuDetailType.Component
+                        && x.ComponentItemId != null && x.ComponentIsActive)
                     .Select(x => new SetMenuMainComponent(
                         x.ComponentItemId!.Value, x.ComponentName ?? "", x.Quantity ?? 0m,
                         x.IsFixed ?? false, x.ComponentUomCode ?? "", x.ComponentUomName ?? ""))
@@ -286,10 +295,11 @@ public static class GetMenu
 
                 var choices = d
                     .Where(x => x.DetailType == SetMenuDetailType.ChoiceCategory && x.ChoiceCategoryId != null)
-                    .Select(x =>
+                    .Select(x => choiceCategories.FirstOrDefault(c => c.Id == x.ChoiceCategoryId!.Value))
+                    .Where(cc => cc != null) // skip choice categories deactivated since attach
+                    .Select(cc =>
                     {
-                        var cc = choiceCategories.First(c => c.Id == x.ChoiceCategoryId!.Value);
-                        var mods = (modifiersByCc.GetValueOrDefault(cc.Id) ?? new())
+                        var mods = (modifiersByCc.GetValueOrDefault(cc!.Id) ?? new())
                             .Select(m => new ModifierSpec(
                                 m.ModifierId, m.ItemId, m.Name, m.ExtraPrice,
                                 m.MinPerModifier, m.MaxPerModifier, m.DisplayOrder))
