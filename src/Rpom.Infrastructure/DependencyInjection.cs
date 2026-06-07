@@ -62,6 +62,7 @@ public static class DependencyInjection
     private static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
     {
         services.TryAddSingleton<InsertOutboxMessagesInterceptor>();
+        services.TryAddSingleton<ConcurrencyVersionInterceptor>();
 
         services.AddDbContext<IDbContext, ApplicationDbContext>((sp, options) =>
             options
@@ -72,7 +73,9 @@ public static class DependencyInjection
                         .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Default)
                         .UseVector())
                 .UseSnakeCaseNamingConvention()
-                .AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>()));
+                .AddInterceptors(
+                    sp.GetRequiredService<InsertOutboxMessagesInterceptor>(),
+                    sp.GetRequiredService<ConcurrencyVersionInterceptor>()));
 
         services.Configure<OutboxOptions>(configuration.GetSection("Rpom:Outbox"));
         services.ConfigureOptions<ConfigureProcessOutboxJob>();
