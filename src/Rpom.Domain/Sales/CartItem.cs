@@ -36,7 +36,34 @@ public class CartItem : Entity
     /// <summary>Snapshot from active PriceEntry at moment of add.</summary>
     public decimal UnitPrice { get; set; }
 
-    /// <summary>Quantity × UnitPrice + Σ CartItemDetail.ExtraPrice × Quantity. Denormalized.</summary>
+    /// <summary>Σ CartItemDetail.ExtraPrice per unit (pre-VAT).</summary>
+    public decimal ChoicePricePerUnit { get; set; }
+
+    /// <summary>Snapshot Item.VatPercent at add.</summary>
+    public decimal VatPercent { get; set; }
+
+    /// <summary>Snapshot Ticket.ServiceChargePercent.</summary>
+    public decimal ServiceChargePercent { get; set; }
+
+    /// <summary>Snapshot Ticket.ServiceChargeVatPercent.</summary>
+    public decimal ServiceChargeVatPercent { get; set; }
+
+    /// <summary>Quantity × (UnitPrice + ChoicePricePerUnit), rounded.</summary>
+    public decimal LineSubtotal { get; set; }
+
+    /// <summary>LineSubtotal × ServiceChargePercent / 100.</summary>
+    public decimal ServiceChargeAmount { get; set; }
+
+    /// <summary>LineSubtotal × VatPercent / 100.</summary>
+    public decimal VatItemAmount { get; set; }
+
+    /// <summary>ServiceChargeAmount × ServiceChargeVatPercent / 100.</summary>
+    public decimal VatScAmount { get; set; }
+
+    /// <summary>VatItemAmount + VatScAmount.</summary>
+    public decimal VatAmount { get; set; }
+
+    /// <summary>LineSubtotal + ServiceChargeAmount + VatAmount (all-in tạm tính).</summary>
     public decimal LineTotal { get; set; }
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }

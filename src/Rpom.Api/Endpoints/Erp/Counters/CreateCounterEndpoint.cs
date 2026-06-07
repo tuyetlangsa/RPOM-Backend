@@ -19,7 +19,12 @@ internal sealed class CreateCounterEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Counters")
-            .WithName("CreateCounter");
+            .WithName("CreateCounter")
+            .Produces<ApiResult<CreateCounter.Response>>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Create a counter.")
+            .WithDescription("Request: JSON body { name:string, note?:string, displayOrder:short, isActive:bool }. Response: 201 Created — Location header; JSON body with new counter id.");
     }
 
     internal sealed record Request(string Name, string? Note, short DisplayOrder, bool IsActive);

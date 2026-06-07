@@ -15,6 +15,9 @@ internal sealed class GetKitchenStationsEndpoint : IEndpoint
         })
         .RequireAuthorization()
         .WithTags("Lookups")
-        .WithName("GetKitchenStations");
+        .WithName("GetKitchenStations")
+        .Produces<ApiResult<IReadOnlyList<GetKitchenStations.KitchenStationItem>>>(StatusCodes.Status200OK)
+        .WithSummary("List kitchen stations for selection lists.")
+        .WithDescription("Request: none. Response: 200 OK — JSON array of GetKitchenStations.Response.");
     }
 }

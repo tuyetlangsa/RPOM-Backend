@@ -15,6 +15,9 @@ internal sealed class GetDenominationsEndpoint : IEndpoint
         })
         .RequireAuthorization()
         .WithTags("Lookups")
-        .WithName("GetDenominations");
+        .WithName("GetDenominations")
+        .Produces<ApiResult<IReadOnlyList<GetDenominations.DenominationItem>>>(StatusCodes.Status200OK)
+        .WithSummary("List cash denominations for selection lists.")
+        .WithDescription("Request: none. Response: 200 OK — JSON array of GetDenominations.Response.");
     }
 }

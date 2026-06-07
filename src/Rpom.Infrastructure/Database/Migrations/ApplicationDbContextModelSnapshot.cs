@@ -842,6 +842,40 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.ToTable("config_values", "public");
                 });
 
+            modelBuilder.Entity("Rpom.Domain.Configuration.RoundingConfig", b =>
+                {
+                    b.Property<string>("KeyCode")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("key_code");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("description");
+
+                    b.Property<short>("Digits")
+                        .HasColumnType("smallint")
+                        .HasColumnName("digits");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("KeyCode")
+                        .HasName("pk_rounding_configs");
+
+                    b.ToTable("rounding_configs", "public");
+                });
+
             modelBuilder.Entity("Rpom.Domain.Inventory.BomLine", b =>
                 {
                     b.Property<int>("Id")
@@ -2373,6 +2407,20 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(50)")
                         .HasColumnName("name");
 
+                    b.Property<decimal>("ServiceChargePercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_percent");
+
+                    b.Property<decimal>("ServiceChargeVatPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_vat_percent");
+
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -2584,6 +2632,13 @@ namespace Rpom.Infrastructure.Database.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
+                    b.Property<decimal>("ChoicePricePerUnit")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("choice_price_per_unit");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -2605,6 +2660,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)")
                         .HasColumnName("item_name");
+
+                    b.Property<decimal>("LineSubtotal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("line_subtotal");
 
                     b.Property<decimal>("LineTotal")
                         .ValueGeneratedOnAdd()
@@ -2628,6 +2690,27 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("numeric(18,3)")
                         .HasDefaultValue(1m)
                         .HasColumnName("quantity");
+
+                    b.Property<decimal>("ServiceChargeAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_amount");
+
+                    b.Property<decimal>("ServiceChargePercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_percent");
+
+                    b.Property<decimal>("ServiceChargeVatPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_vat_percent");
 
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 2)
@@ -2655,6 +2738,34 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<decimal>("VatAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_amount");
+
+                    b.Property<decimal>("VatItemAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_item_amount");
+
+                    b.Property<decimal>("VatPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_percent");
+
+                    b.Property<decimal>("VatScAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_sc_amount");
 
                     b.HasKey("Id")
                         .HasName("pk_cart_items");
@@ -3144,6 +3255,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("cancelled_by_staff_id");
 
+                    b.Property<decimal>("ChoicePricePerUnit")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("choice_price_per_unit");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -3173,6 +3291,27 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Property<int?>("KitchenStationId")
                         .HasColumnType("integer")
                         .HasColumnName("kitchen_station_id");
+
+                    b.Property<decimal>("LineDiscountAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("line_discount_amount");
+
+                    b.Property<decimal>("LineDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("line_discount_percent");
+
+                    b.Property<decimal>("LineSubtotal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("line_subtotal");
 
                     b.Property<decimal>("LineTotal")
                         .ValueGeneratedOnAdd()
@@ -3211,6 +3350,27 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnName("sent_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<decimal>("ServiceChargeAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_amount");
+
+                    b.Property<decimal>("ServiceChargePercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_percent");
+
+                    b.Property<decimal>("ServiceChargeVatPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_vat_percent");
+
                     b.Property<DateTime?>("StartCookAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("start_cook_at");
@@ -3223,9 +3383,30 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue("PENDING")
                         .HasColumnName("status");
 
+                    b.Property<decimal>("TicketDiscountAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("ticket_discount_amount");
+
+                    b.Property<decimal>("TicketDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("ticket_discount_percent");
+
                     b.Property<long>("TicketId")
                         .HasColumnType("bigint")
                         .HasColumnName("ticket_id");
+
+                    b.Property<decimal>("TotalDiscountAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("total_discount_amount");
 
                     b.Property<decimal>("UnitPrice")
                         .HasPrecision(18, 2)
@@ -3253,6 +3434,34 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<decimal>("VatAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_amount");
+
+                    b.Property<decimal>("VatItemAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_item_amount");
+
+                    b.Property<decimal>("VatPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_percent");
+
+                    b.Property<decimal>("VatScAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_sc_amount");
 
                     b.Property<int>("Version")
                         .IsConcurrencyToken()
@@ -3500,6 +3709,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("discount_amount");
 
+                    b.Property<decimal>("DiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("discount_percent");
+
                     b.Property<int?>("DiscountPolicyId")
                         .HasColumnType("integer")
                         .HasColumnName("discount_policy_id");
@@ -3518,6 +3734,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)")
                         .HasColumnName("guest_qr_token");
+
+                    b.Property<decimal>("LineDiscountTotal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("line_discount_total");
 
                     b.Property<int?>("ManagerStaffId")
                         .HasColumnType("integer")
@@ -3541,6 +3764,20 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("paid_amount");
 
+                    b.Property<decimal>("RefundAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("refund_amount");
+
+                    b.Property<decimal>("RoundingAdjustment")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("rounding_adjustment");
+
                     b.Property<decimal>("ServiceChargeAmount")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
@@ -3554,6 +3791,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("numeric(5,2)")
                         .HasDefaultValue(0m)
                         .HasColumnName("service_charge_percent");
+
+                    b.Property<decimal>("ServiceChargeVatPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_vat_percent");
 
                     b.Property<int>("ShiftId")
                         .HasColumnType("integer")
@@ -3577,6 +3821,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Property<int>("TableId")
                         .HasColumnType("integer")
                         .HasColumnName("table_id");
+
+                    b.Property<decimal>("TicketDiscountTotal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("ticket_discount_total");
 
                     b.Property<decimal>("TotalAmount")
                         .ValueGeneratedOnAdd()
@@ -3686,13 +3937,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
-                    b.Property<decimal>("DiscountPercent")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(5, 2)
-                        .HasColumnType("numeric(5,2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("discount_percent");
-
                     b.Property<int>("DisplayOrder")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
@@ -3715,6 +3959,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("item_name");
 
+                    b.Property<decimal>("LineDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("line_discount_percent");
+
                     b.Property<long>("MaxOrderItemId")
                         .HasColumnType("bigint")
                         .HasColumnName("max_order_item_id");
@@ -3726,12 +3977,19 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("service_charge_percent");
 
-                    b.Property<decimal>("Subtotal")
+                    b.Property<decimal>("ServiceChargeVatPercent")
                         .ValueGeneratedOnAdd()
-                        .HasPrecision(22, 2)
-                        .HasColumnType("numeric(22,2)")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
                         .HasDefaultValue(0m)
-                        .HasColumnName("subtotal");
+                        .HasColumnName("service_charge_vat_percent");
+
+                    b.Property<decimal>("TicketDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("ticket_discount_percent");
 
                     b.Property<long>("TicketId")
                         .HasColumnType("bigint")
@@ -3744,13 +4002,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("total_amount");
 
-                    b.Property<decimal>("TotalChoiceAmount")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(22, 2)
-                        .HasColumnType("numeric(22,2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("total_choice_amount");
-
                     b.Property<decimal>("TotalDiscount")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(22, 2)
@@ -3758,12 +4009,26 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("total_discount");
 
+                    b.Property<decimal>("TotalLineSubtotal")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(22, 2)
+                        .HasColumnType("numeric(22,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("total_line_subtotal");
+
                     b.Property<decimal>("TotalQuantity")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(22, 3)
                         .HasColumnType("numeric(22,3)")
                         .HasDefaultValue(0m)
                         .HasColumnName("total_quantity");
+
+                    b.Property<decimal>("TotalServiceCharge")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(22, 2)
+                        .HasColumnType("numeric(22,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("total_service_charge");
 
                     b.Property<decimal>("TotalVat")
                         .ValueGeneratedOnAdd()
@@ -3821,7 +4086,7 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.HasIndex("TicketId", "DisplayOrder")
                         .HasDatabaseName("ix_ticket_item_sum_render");
 
-                    b.HasIndex("TicketId", "ItemId", "UomId", "UnitPrice", "DiscountPercent", "ChoicePricePerUnit", "VatPercent", "ServiceChargePercent")
+                    b.HasIndex("TicketId", "ItemId", "UomId", "UnitPrice", "ChoicePricePerUnit", "LineDiscountPercent", "TicketDiscountPercent", "VatPercent", "ServiceChargePercent", "ServiceChargeVatPercent")
                         .IsUnique()
                         .HasDatabaseName("ux_ticket_item_sum_bucket");
 

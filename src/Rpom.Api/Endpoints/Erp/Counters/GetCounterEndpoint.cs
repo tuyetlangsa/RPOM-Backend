@@ -17,6 +17,10 @@ internal sealed class GetCounterEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("Counters")
-            .WithName("GetCounter");
+            .WithName("GetCounter")
+            .Produces<ApiResult<GetCounter.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Get a counter by id.")
+            .WithDescription("Request: route id (int). Response: 200 OK — JSON GetCounter.Response.");
     }
 }

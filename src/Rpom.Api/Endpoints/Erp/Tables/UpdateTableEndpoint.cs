@@ -20,7 +20,13 @@ internal sealed class UpdateTableEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Tables")
-            .WithName("UpdateTable");
+            .WithName("UpdateTable")
+            .Produces<ApiResult<UpdateTable.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Update a table.")
+            .WithDescription("Request: route id (int); JSON body { areaId:int, code:string, seatCount:int, description?:string, isActive:bool }. Response: 200 OK — JSON UpdateTable.Response.");
     }
 
     internal sealed record Request(int AreaId, string Code, int SeatCount, string? Description, bool IsActive);

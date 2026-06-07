@@ -19,7 +19,11 @@ internal sealed class UpdateConfigValueEndpoint : IEndpoint
         .RequireAuthorization(Permissions.ConfigManage)
         .WithTags("Configurations")
         .WithName("UpdateConfigValue")
-        .WithSummary("Update an existing config value by code.");
+        .Produces<ApiResult<UpdateConfigValue.Response>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status404NotFound)
+        .WithSummary("Update an existing config value by code.")
+        .WithDescription("Request: route code (string); JSON body { value?:string }. Response: 200 OK — JSON UpdateConfigValue.Response.");
     }
 
     internal sealed record Request(string? Value);

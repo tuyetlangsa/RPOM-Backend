@@ -17,6 +17,11 @@ internal sealed class DeleteUomEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Uoms")
-            .WithName("DeleteUom");
+            .WithName("DeleteUom")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Delete a unit of measure.")
+            .WithDescription("Request: route id (int). Response: 204 No Content.");
     }
 }

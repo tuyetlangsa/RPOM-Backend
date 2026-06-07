@@ -21,7 +21,12 @@ internal sealed class UpsertPriceEntriesEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("PriceEntries")
-            .WithName("UpsertPriceEntries");
+            .WithName("UpsertPriceEntries")
+            .Produces<ApiResult<UpsertPriceEntries.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Upsert price entries of a price variant.")
+            .WithDescription("Request: route priceVariantId (int); JSON body { entries:[{ itemId:int, price:decimal, isVatIncluded:bool }] }. Response: 200 OK — JSON UpsertPriceEntries.Response.");
     }
 
     internal sealed record Request(IReadOnlyList<EntryRequest>? Entries);

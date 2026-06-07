@@ -17,6 +17,11 @@ internal sealed class DeleteCounterEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Counters")
-            .WithName("DeleteCounter");
+            .WithName("DeleteCounter")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Delete a counter.")
+            .WithDescription("Request: route id (int). Response: 204 No Content.");
     }
 }

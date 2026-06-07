@@ -17,6 +17,12 @@ public class Area : Entity
     public string? Description { get; set; }
     public short DisplayOrder { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>SC% applied to tickets opened in this area (pricing spec §3.1).</summary>
+    public decimal ServiceChargePercent { get; set; }
+
+    /// <summary>VAT% applied to the service-charge amount.</summary>
+    public decimal ServiceChargeVatPercent { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

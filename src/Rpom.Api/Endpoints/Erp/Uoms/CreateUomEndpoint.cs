@@ -19,7 +19,12 @@ internal sealed class CreateUomEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Uoms")
-            .WithName("CreateUom");
+            .WithName("CreateUom")
+            .Produces<ApiResult<CreateUom.Response>>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Create a unit of measure.")
+            .WithDescription("Request: JSON body { code:string, name:string, description?:string, isActive:bool }. Response: 201 Created — Location header; JSON body with new uom id.");
     }
 
     internal sealed record Request(string Code, string Name, string? Description, bool IsActive);

@@ -17,6 +17,11 @@ internal sealed class DeleteCategoryEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Categories")
-            .WithName("DeleteCategory");
+            .WithName("DeleteCategory")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Delete a category.")
+            .WithDescription("Request: route id (int). Response: 204 No Content.");
     }
 }

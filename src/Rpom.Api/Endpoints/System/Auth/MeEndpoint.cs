@@ -16,6 +16,8 @@ internal sealed class MeEndpoint : IEndpoint
         .RequireAuthorization()
         .WithTags("Auth")
         .WithName("GetMyProfile")
-        .WithSummary("Return the current authenticated staff profile + permissions.");
+        .Produces<ApiResult<GetMyProfile.Response>>(StatusCodes.Status200OK)
+        .WithSummary("Return the current authenticated staff profile + permissions.")
+        .WithDescription("Request: none (Bearer token). Response: 200 OK — JSON GetMyProfile.Response (profile + permissions).");
     }
 }

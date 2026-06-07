@@ -22,7 +22,13 @@ internal sealed class CreatePriceVariantEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("PriceVariants")
-            .WithName("CreatePriceVariant");
+            .WithName("CreatePriceVariant")
+            .Produces<ApiResult<CreatePriceVariant.Response>>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Create a price variant under a price table.")
+            .WithDescription("Request: route priceTableId (int); JSON body { code:string, name:string, description?:string, beginTime?:time, endTime?:time, dayMask?:int, appliesToAllAreas:bool, areaIds?:int[], isActive:bool }. Response: 201 Created — Location header; JSON body with new price-variant id.");
     }
 
     internal sealed record Request(

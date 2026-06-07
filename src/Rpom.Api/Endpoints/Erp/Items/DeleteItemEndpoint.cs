@@ -17,6 +17,11 @@ internal sealed class DeleteItemEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Items")
-            .WithName("DeleteItem");
+            .WithName("DeleteItem")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Delete an item.")
+            .WithDescription("Request: route id (int). Response: 204 No Content.");
     }
 }

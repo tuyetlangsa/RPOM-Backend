@@ -115,6 +115,9 @@ public sealed class AccessSeeder(
             (Permissions.TicketApplyDiscount,    "Apply discount policy at payment",  PermissionGroups.Cashier),
             (Permissions.TicketClose,            "Close ticket after payment",        PermissionGroups.Cashier),
             (Permissions.EInvoiceIssue,          "Issue VAT e-invoice",               PermissionGroups.Cashier),
+            (Permissions.CashierFloorPlan,       "View cashier floor plan",           PermissionGroups.Cashier),
+            (Permissions.CashierViewTicket,      "View ticket (cashier)",             PermissionGroups.Cashier),
+            (Permissions.CashierViewMenu,        "View cashier menu",                 PermissionGroups.Cashier),
 
             (Permissions.ReportRevenue,          "View revenue reports",              PermissionGroups.Reporting),
             (Permissions.ReportShift,            "View shift reports",                PermissionGroups.Reporting),
@@ -130,6 +133,7 @@ public sealed class AccessSeeder(
 
             (Permissions.ConfigView,             "View configuration values",         PermissionGroups.Access),
             (Permissions.ConfigManage,           "Update configuration values",       PermissionGroups.Access),
+            (Permissions.UpdateRoundingConfig,   "Update rounding precision config",   PermissionGroups.Access),
         };
 
         var existingCodes = await db.Permissions.Select(x => x.Code).ToListAsync(ct);

@@ -17,6 +17,9 @@ internal sealed class ListAreasEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("Areas")
-            .WithName("ListAreas");
+            .WithName("ListAreas")
+            .Produces<ApiResult<IReadOnlyList<ListAreas.Response>>>(StatusCodes.Status200OK)
+            .WithSummary("List areas with optional filters.")
+            .WithDescription("Request: query counterId?:int, search?:string, isActive?:bool. Response: 200 OK — JSON array of ListAreas.Response.");
     }
 }

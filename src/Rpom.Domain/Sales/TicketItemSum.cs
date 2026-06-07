@@ -6,8 +6,9 @@ namespace Rpom.Domain.Sales;
 /// <summary>
 /// Pre-aggregated summary of OrderItem per Ticket — F2 RESTICKETITEM_SUM pattern.
 /// Source of truth for bill display, print, and VAT invoice line aggregation.
-/// Each row = unique bucket (Ticket × Item × Uom × UnitPrice × DiscountPercent
-/// × ChoicePricePerUnit × VatPercent × ServiceChargePercent).
+/// Each row = unique bucket (Ticket × Item × Uom × UnitPrice × ChoicePricePerUnit
+/// × LineDiscountPercent × TicketDiscountPercent × VatPercent × ServiceChargePercent
+/// × ServiceChargeVatPercent).
 /// Maintained by app-layer TicketSumRecomputer (DELETE + INSERT per ticket).
 /// </summary>
 public class TicketItemSum : Entity
@@ -28,24 +29,28 @@ public class TicketItemSum : Entity
 
     public decimal UnitPrice { get; set; }
 
-    /// <summary>Distributed discount % from Ticket-level DiscountPolicy.</summary>
-    public decimal DiscountPercent { get; set; }
+    /// <summary>Line-level discount % (bucket dimension).</summary>
+    public decimal LineDiscountPercent { get; set; }
+
+    /// <summary>Ticket-level discount % (bucket dimension).</summary>
+    public decimal TicketDiscountPercent { get; set; }
 
     /// <summary>Sum of modifier ExtraPrices per unit — signature for modifier bucket.</summary>
     public decimal ChoicePricePerUnit { get; set; }
     public decimal VatPercent { get; set; }
     public decimal ServiceChargePercent { get; set; }
+    public decimal ServiceChargeVatPercent { get; set; }
 
     public decimal TotalQuantity { get; set; }
 
-    /// <summary>TotalQuantity × ChoicePricePerUnit.</summary>
-    public decimal TotalChoiceAmount { get; set; }
+    /// <summary>Σ OrderItem.LineSubtotal for this bucket.</summary>
+    public decimal TotalLineSubtotal { get; set; }
 
-    /// <summary>(UnitPrice + ChoicePricePerUnit) × TotalQuantity before line discount.</summary>
-    public decimal Subtotal { get; set; }
-
-    /// <summary>Subtotal × DiscountPercent / 100.</summary>
+    /// <summary>Σ OrderItem.TotalDiscountAmount for this bucket.</summary>
     public decimal TotalDiscount { get; set; }
+
+    /// <summary>Σ OrderItem.ServiceChargeAmount for this bucket.</summary>
+    public decimal TotalServiceCharge { get; set; }
     public decimal TotalVat { get; set; }
 
     /// <summary>Final amount for this aggregated bucket.</summary>

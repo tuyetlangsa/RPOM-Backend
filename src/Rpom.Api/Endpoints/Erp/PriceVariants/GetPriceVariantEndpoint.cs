@@ -17,6 +17,10 @@ internal sealed class GetPriceVariantEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("PriceVariants")
-            .WithName("GetPriceVariant");
+            .WithName("GetPriceVariant")
+            .Produces<ApiResult<GetPriceVariant.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Get a price variant by id.")
+            .WithDescription("Request: route id (int). Response: 200 OK — JSON GetPriceVariant.Response.");
     }
 }

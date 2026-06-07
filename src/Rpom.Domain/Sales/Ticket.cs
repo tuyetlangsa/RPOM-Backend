@@ -53,26 +53,44 @@ public class Ticket : Entity
     public int? CancellationReasonId { get; set; }
     public string? CancellationNote { get; set; }
 
-    /// <summary>Σ OrderItem.LineTotal (sent items only; cancelled excluded).</summary>
+    /// <summary>Σ OrderItem.LineSubtotal — gross, before Discount/SC/VAT (pricing spec §3.7).</summary>
     public decimal Subtotal { get; set; }
     public int? DiscountPolicyId { get; set; }
+
+    /// <summary>Ticket-level discount % the cashier set / a policy resolved.</summary>
+    public decimal DiscountPercent { get; set; }
 
     /// <summary>Total discount applied (distributed across line items).</summary>
     public decimal DiscountAmount { get; set; }
 
-    /// <summary>Snapshot from Area.ServiceChargePercent (or restaurant profile) at payment time.</summary>
+    /// <summary>Snapshot from Area.ServiceChargePercent at open; re-snapshot on table transfer (pricing spec §3.7, CLAUDE.md §14).</summary>
     public decimal ServiceChargePercent { get; set; }
     public decimal ServiceChargeAmount { get; set; }
 
-    /// <summary>Snapshot of default VAT at payment time.</summary>
+    /// <summary>Snapshot from Area.ServiceChargeVatPercent at open (pricing spec §3.7).</summary>
+    public decimal ServiceChargeVatPercent { get; set; }
+
+    /// <summary>Σ OrderItem.LineDiscountAmount.</summary>
+    public decimal LineDiscountTotal { get; set; }
+
+    /// <summary>Σ OrderItem.TicketDiscountAmount.</summary>
+    public decimal TicketDiscountTotal { get; set; }
+
+    /// <summary>Legacy header VAT% — kept for back-compat; NOT used by recompute (VAT is per-line via OrderItem.VatPercent).</summary>
     public decimal VatPercent { get; set; }
     public decimal VatAmount { get; set; }
 
     /// <summary>Subtotal - DiscountAmount + ServiceChargeAmount + VatAmount.</summary>
     public decimal TotalAmount { get; set; }
 
+    /// <summary>Rounding error: TotalAmount − (Subtotal − Discount + SC + VAT). Printed as "Làm tròn ±X".</summary>
+    public decimal RoundingAdjustment { get; set; }
+
     /// <summary>Σ TicketPaymentDetail.Amount for SUCCESS rows.</summary>
     public decimal PaidAmount { get; set; }
+
+    /// <summary>MAX(0, PaidAmount − TotalAmount) — overpay to be refunded.</summary>
+    public decimal RefundAmount { get; set; }
 
     /// <summary>Cash change given back (only relevant when overpaid in cash).</summary>
     public decimal ChangeAmount { get; set; }

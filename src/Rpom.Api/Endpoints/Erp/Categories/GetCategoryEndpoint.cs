@@ -17,6 +17,10 @@ internal sealed class GetCategoryEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("Categories")
-            .WithName("GetCategory");
+            .WithName("GetCategory")
+            .Produces<ApiResult<GetCategory.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Get a category by id.")
+            .WithDescription("Request: route id (int). Response: 200 OK — JSON GetCategory.Response.");
     }
 }

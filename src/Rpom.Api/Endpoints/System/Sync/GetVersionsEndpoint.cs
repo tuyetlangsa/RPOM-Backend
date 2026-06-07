@@ -20,6 +20,8 @@ internal sealed class GetVersionsEndpoint : IEndpoint
             .RequireAuthorization() // any authed user — no specific permission
             .WithTags("Sync")
             .WithName("GetSyncVersions")
-            .WithSummary("Get current versions of given scopes for cross-aggregate polling.");
+            .Produces<ApiResult<GetVersions.Response>>(StatusCodes.Status200OK)
+            .WithSummary("Get current versions of given scopes for cross-aggregate polling.")
+            .WithDescription("Request: query scopes (comma-separated scope names). Response: 200 OK — JSON GetVersions.Response (scope to version map).");
     }
 }

@@ -19,6 +19,9 @@ internal sealed class ListPriceTablesEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("PriceTables")
-            .WithName("ListPriceTables");
+            .WithName("ListPriceTables")
+            .Produces<ApiResult<IReadOnlyList<ListPriceTables.Response>>>(StatusCodes.Status200OK)
+            .WithSummary("List price tables with optional filters.")
+            .WithDescription("Request: query search?:string, isActive?:bool, beginDateFrom?:date, beginDateTo?:date. Response: 200 OK — JSON array of ListPriceTables.Response.");
     }
 }

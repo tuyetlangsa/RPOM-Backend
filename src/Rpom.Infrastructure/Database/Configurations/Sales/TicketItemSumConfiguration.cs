@@ -16,14 +16,16 @@ internal sealed class TicketItemSumConfiguration : IEntityTypeConfiguration<Tick
         builder.Property(x => x.UomName).IsRequired().HasMaxLength(50);
 
         builder.Property(x => x.UnitPrice).HasPrecision(18, 2);
-        builder.Property(x => x.DiscountPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.LineDiscountPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.TicketDiscountPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.ServiceChargeVatPercent).HasPrecision(5, 2).HasDefaultValue(0m);
         builder.Property(x => x.ChoicePricePerUnit).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.VatPercent).HasPrecision(5, 2).HasDefaultValue(0m);
         builder.Property(x => x.ServiceChargePercent).HasPrecision(5, 2).HasDefaultValue(0m);
 
         builder.Property(x => x.TotalQuantity).HasPrecision(22, 3).HasDefaultValue(0m);
-        builder.Property(x => x.TotalChoiceAmount).HasPrecision(22, 2).HasDefaultValue(0m);
-        builder.Property(x => x.Subtotal).HasPrecision(22, 2).HasDefaultValue(0m);
+        builder.Property(x => x.TotalLineSubtotal).HasPrecision(22, 2).HasDefaultValue(0m);
+        builder.Property(x => x.TotalServiceCharge).HasPrecision(22, 2).HasDefaultValue(0m);
         builder.Property(x => x.TotalDiscount).HasPrecision(22, 2).HasDefaultValue(0m);
         builder.Property(x => x.TotalVat).HasPrecision(22, 2).HasDefaultValue(0m);
         builder.Property(x => x.TotalAmount).HasPrecision(22, 2).HasDefaultValue(0m);
@@ -35,8 +37,9 @@ internal sealed class TicketItemSumConfiguration : IEntityTypeConfiguration<Tick
         builder.HasIndex(x => x.TicketId);
         builder.HasIndex(x => new
             {
-                x.TicketId, x.ItemId, x.UomId, x.UnitPrice, x.DiscountPercent,
-                x.ChoicePricePerUnit, x.VatPercent, x.ServiceChargePercent
+                x.TicketId, x.ItemId, x.UomId, x.UnitPrice, x.ChoicePricePerUnit,
+                x.LineDiscountPercent, x.TicketDiscountPercent,
+                x.VatPercent, x.ServiceChargePercent, x.ServiceChargeVatPercent
             })
             .IsUnique().HasDatabaseName("ux_ticket_item_sum_bucket");
         builder.HasIndex(x => new { x.TicketId, x.DisplayOrder }).HasDatabaseName("ix_ticket_item_sum_render");

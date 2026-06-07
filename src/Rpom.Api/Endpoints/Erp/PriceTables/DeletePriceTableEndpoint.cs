@@ -17,6 +17,11 @@ internal sealed class DeletePriceTableEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("PriceTables")
-            .WithName("DeletePriceTable");
+            .WithName("DeletePriceTable")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Delete a price table.")
+            .WithDescription("Request: route id (int). Response: 204 No Content.");
     }
 }

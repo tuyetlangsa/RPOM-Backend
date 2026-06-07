@@ -18,6 +18,8 @@ internal sealed class ListCountersEndpoint : IEndpoint
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("Counters")
             .WithName("ListCounters")
-            .WithSummary("List counters with optional search + active filter.");
+            .Produces<ApiResult<IReadOnlyList<ListCounters.Response>>>(StatusCodes.Status200OK)
+            .WithSummary("List counters with optional search + active filter.")
+            .WithDescription("Request: query search?:string, isActive?:bool. Response: 200 OK — JSON array of ListCounters.Response.");
     }
 }

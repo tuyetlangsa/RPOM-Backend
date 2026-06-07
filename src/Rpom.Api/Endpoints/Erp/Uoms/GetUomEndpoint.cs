@@ -17,6 +17,10 @@ internal sealed class GetUomEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("Uoms")
-            .WithName("GetUom");
+            .WithName("GetUom")
+            .Produces<ApiResult<GetUom.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Get a unit of measure by id.")
+            .WithDescription("Request: route id (int). Response: 200 OK — JSON GetUom.Response.");
     }
 }

@@ -45,6 +45,28 @@ public class OrderItem : Entity
     /// </summary>
     public decimal Quantity { get; set; } = 1;
     public decimal UnitPrice { get; set; }
+    public decimal ChoicePricePerUnit { get; set; }
+    public decimal VatPercent { get; set; }
+    public decimal ServiceChargePercent { get; set; }
+    public decimal ServiceChargeVatPercent { get; set; }
+
+    /// <summary>Quantity × (UnitPrice + ChoicePricePerUnit), rounded — gross line.</summary>
+    public decimal LineSubtotal { get; set; }
+
+    public decimal LineDiscountPercent { get; set; }
+    public decimal LineDiscountAmount { get; set; }
+    public decimal TicketDiscountPercent { get; set; }
+    public decimal TicketDiscountAmount { get; set; }
+
+    /// <summary>LineDiscountAmount + TicketDiscountAmount (1-cấp: one is always 0).</summary>
+    public decimal TotalDiscountAmount { get; set; }
+
+    public decimal ServiceChargeAmount { get; set; }
+    public decimal VatItemAmount { get; set; }
+    public decimal VatScAmount { get; set; }
+    public decimal VatAmount { get; set; }
+
+    /// <summary>LineSubtotal − TotalDiscountAmount + ServiceChargeAmount + VatAmount.</summary>
     public decimal LineTotal { get; set; }
 
     /// <summary>

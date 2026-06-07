@@ -15,6 +15,9 @@ internal sealed class GetCountersEndpoint : IEndpoint
         })
         .RequireAuthorization()
         .WithTags("Lookups")
-        .WithName("GetCounters");
+        .WithName("GetCounters")
+        .Produces<ApiResult<IReadOnlyList<GetCounters.CounterItem>>>(StatusCodes.Status200OK)
+        .WithSummary("List counters for selection lists.")
+        .WithDescription("Request: none. Response: 200 OK — JSON array of GetCounters.Response.");
     }
 }

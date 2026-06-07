@@ -20,7 +20,13 @@ internal sealed class UpdateAreaEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Areas")
-            .WithName("UpdateArea");
+            .WithName("UpdateArea")
+            .Produces<ApiResult<UpdateArea.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Update an area.")
+            .WithDescription("Request: route id (int); JSON body { counterId:int, name:string, description?:string, displayOrder:short, isActive:bool }. Response: 200 OK — JSON UpdateArea.Response.");
     }
 
     internal sealed record Request(

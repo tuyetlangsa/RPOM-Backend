@@ -17,6 +17,9 @@ internal sealed class GetCurrentCashDrawerEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.StaffLogin)
             .WithTags("CashDrawers")
-            .WithName("GetCurrentCashDrawer");
+            .WithName("GetCurrentCashDrawer")
+            .Produces<ApiResult<GetCurrentCashDrawer.Response>>(StatusCodes.Status200OK)
+            .WithSummary("Get the open cash drawer session for a counter.")
+            .WithDescription("Request: query counterId (int). Response: 200 OK — JSON GetCurrentCashDrawer.Response.");
     }
 }
