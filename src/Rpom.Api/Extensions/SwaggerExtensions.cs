@@ -26,10 +26,13 @@ public static class SwaggerExtensions
             // Microsoft.OpenApi 2.x + Swashbuckle 10.x: AddSecurityRequirement takes a
             // factory Func<OpenApiDocument, OpenApiSecurityRequirement>. The inner
             // OpenApiSecuritySchemeReference carries the scheme Id.
-            o.AddSecurityRequirement(_ => new OpenApiSecurityRequirement
+            o.AddSecurityRequirement(doc => new OpenApiSecurityRequirement
             {
                 {
-                    new OpenApiSecuritySchemeReference(JwtBearerDefaults.AuthenticationScheme),
+                    // Pass the host document so the reference resolves to the registered
+                    // "Bearer" scheme. Without it the requirement serializes to an empty
+                    // object ([{}]) and SwaggerUI never attaches the Authorization header.
+                    new OpenApiSecuritySchemeReference(JwtBearerDefaults.AuthenticationScheme, doc),
                     []
                 }
             });
