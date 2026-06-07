@@ -166,10 +166,26 @@ public static class GetMenu
             var setItemIds = items.Where(i => i.IsSetMenu).Select(i => i.Id).ToList();
             var setSpecs = await LoadSetMenuSpecsAsync(setItemIds, ct);
 
+            // Subtree rollup (Cách A): expand each item's direct categories to include
+            // their visible ancestors (parsed from Category.Path), so clicking a parent
+            // category surfaces all descendant items. Intersect with the visible set so
+            // categoryIds never references a category absent from the response.
+            var pathByVisibleCategory = visibleCategories.ToDictionary(c => c.Id, c => c.Path);
+
+            List<int> VisibleAncestorIds(int directCategoryId) =>
+                pathByVisibleCategory.TryGetValue(directCategoryId, out var path)
+                    ? path.Split(';', StringSplitOptions.RemoveEmptyEntries)
+                          .Select(int.Parse)
+                          .Where(visibleCategoryIds.Contains)
+                          .ToList()
+                    : new List<int>();
+
             var categoryIdsByItem = itemCategoryLinks
                 .Where(l => realItemIds.Contains(l.ItemId))
                 .GroupBy(l => l.ItemId)
-                .ToDictionary(g => g.Key, g => g.Select(x => x.CategoryId).ToList());
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.SelectMany(x => VisibleAncestorIds(x.CategoryId)).Distinct().ToList());
 
             var itemDtos = items.Select(i =>
             {
@@ -196,10 +212,12 @@ public static class GetMenu
                     i.IsSetMenu ? setSpecs.GetValueOrDefault(i.Id) : null);
             }).ToList();
 
-            // itemCount per category (subtree) for UI badge.
+            // itemCount per category (subtree) for UI badge — counts items whose expanded
+            // (ancestor-inclusive) categoryIds contain this category, so a parent tallies
+            // every descendant item.
             var itemCountByCategory = visibleCategories.ToDictionary(
                 c => c.Id,
-                c => itemCategoryLinks.Count(l => l.CategoryId == c.Id && realItemIds.Contains(l.ItemId)));
+                c => categoryIdsByItem.Count(kv => kv.Value.Contains(c.Id)));
 
             var categoryDtos = visibleCategories
                 .OrderBy(c => c.DisplayOrder)

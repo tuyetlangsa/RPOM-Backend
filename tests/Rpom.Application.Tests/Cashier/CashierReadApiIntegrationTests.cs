@@ -134,11 +134,17 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
         };
 
         // Menu catalog: category visible to the area, one priced item linked to it.
+        // Path follows the real convention (numeric id, semicolon-terminated) — set
+        // after save so GetMenu's ancestor-id parsing sees realistic data.
         var category = new Category
         {
-            Code = "CAT01", Name = "Drinks", ParentId = null, Path = "CAT01",
+            Code = "CAT01", Name = "Drinks", ParentId = null, Path = "PLACEHOLDER",
             Level = 0, DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now,
         };
+        _ctx.Add(category);
+        await _ctx.SaveChangesAsync();
+        category.Path = $"{category.Id};";
+
         var areaMenuCategory = new AreaMenuCategory { Area = area, Category = category, CreatedAt = now };
 
         var uom = new Uom { Code = "lon", Name = "Lon", IsActive = true, CreatedAt = now, UpdatedAt = now };
@@ -166,7 +172,7 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
             CreatedAt = now, UpdatedAt = now,
         };
 
-        _ctx.AddRange(counter, area, table, category, areaMenuCategory, uom, item, itemCategory,
+        _ctx.AddRange(counter, area, table, areaMenuCategory, uom, item, itemCategory,
             priceTable, variant, entry);
         await _ctx.SaveChangesAsync();
 
