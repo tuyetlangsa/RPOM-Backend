@@ -17,6 +17,10 @@ internal sealed class GetTicketsOnTableEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.CashierViewTicket)
             .WithTags("Tickets")
-            .WithName("GetTicketsOnTable");
+            .WithName("GetTicketsOnTable")
+            .Produces<ApiResult<GetTicketsOnTable.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("List open tickets on a table.")
+            .WithDescription("Request: route tableId (int). Response: 200 OK — JSON array of GetTicketsOnTable.Response.");
     }
 }

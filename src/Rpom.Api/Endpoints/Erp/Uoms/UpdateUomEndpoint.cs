@@ -19,7 +19,13 @@ internal sealed class UpdateUomEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Uoms")
-            .WithName("UpdateUom");
+            .WithName("UpdateUom")
+            .Produces<ApiResult<UpdateUom.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Update a unit of measure.")
+            .WithDescription("Request: route id (int); JSON body { code:string, name:string, description?:string, isActive:bool }. Response: 200 OK — JSON UpdateUom.Response.");
     }
 
     internal sealed record Request(string Code, string Name, string? Description, bool IsActive);

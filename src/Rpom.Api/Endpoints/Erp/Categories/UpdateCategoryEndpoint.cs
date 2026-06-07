@@ -20,7 +20,13 @@ internal sealed class UpdateCategoryEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Categories")
-            .WithName("UpdateCategory");
+            .WithName("UpdateCategory")
+            .Produces<ApiResult<UpdateCategory.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Update a category.")
+            .WithDescription("Request: route id (int); JSON body { code:string, name:string, description?:string, parentId?:int, displayOrder:short, isActive:bool }. Response: 200 OK — JSON UpdateCategory.Response.");
     }
 
     internal sealed record Request(

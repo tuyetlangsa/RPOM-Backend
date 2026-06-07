@@ -25,7 +25,13 @@ internal sealed class UpdateItemEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Items")
-            .WithName("UpdateItem");
+            .WithName("UpdateItem")
+            .Produces<ApiResult<UpdateItem.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Update an item.")
+            .WithDescription("Request: route id (int); JSON body { code:string, name:string, description?:string, imageUrl?:string, baseUomId:int, vatPercent:decimal, isStockable:bool, hasRecipe:bool, lowStockThreshold?:decimal, kitchenStationId?:int, isActive:bool, categories:[{ categoryId:int, isMain:bool }] }. Response: 200 OK — JSON UpdateItem.Response.");
     }
 
     internal sealed record Request(

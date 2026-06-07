@@ -25,7 +25,12 @@ internal sealed class CreateItemEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Items")
-            .WithName("CreateItem");
+            .WithName("CreateItem")
+            .Produces<ApiResult<CreateItem.Response>>(StatusCodes.Status201Created)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Create an item.")
+            .WithDescription("Request: JSON body { code:string, name:string, description?:string, imageUrl?:string, baseUomId:int, vatPercent:decimal, isStockable:bool, hasRecipe:bool, lowStockThreshold?:decimal, kitchenStationId?:int, isActive:bool, categories:[{ categoryId:int, isMain:bool }] }. Response: 201 Created — Location header; JSON body with new item id.");
     }
 
     internal sealed record Request(

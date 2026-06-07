@@ -17,6 +17,10 @@ internal sealed class GetFloorPlanEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.CashierFloorPlan)
             .WithTags("Areas")
-            .WithName("GetFloorPlan");
+            .WithName("GetFloorPlan")
+            .Produces<ApiResult<GetFloorPlan.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Get cashier floor plan (areas + tables + ticket summary) for a counter.")
+            .WithDescription("Request: query counterId (int). Response: 200 OK — JSON GetFloorPlan.Response (areas to tables with status + latest ticket).");
     }
 }

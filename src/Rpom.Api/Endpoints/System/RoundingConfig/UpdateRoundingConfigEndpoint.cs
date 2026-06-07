@@ -19,7 +19,12 @@ internal sealed class UpdateRoundingConfigEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.UpdateRoundingConfig)
             .WithTags("RoundingConfig")
-            .WithName("UpdateRoundingConfig");
+            .WithName("UpdateRoundingConfig")
+            .Produces<ApiResult<UpdateRoundingConfig.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Update rounding precision for a config key.")
+            .WithDescription("Request: route keyCode (string); JSON body { digits:short }. Response: 200 OK — JSON UpdateRoundingConfig.Response.");
     }
 
     internal sealed record Request(short Digits);

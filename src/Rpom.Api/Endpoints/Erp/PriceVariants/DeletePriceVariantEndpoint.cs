@@ -17,6 +17,11 @@ internal sealed class DeletePriceVariantEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("PriceVariants")
-            .WithName("DeletePriceVariant");
+            .WithName("DeletePriceVariant")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Delete a price variant.")
+            .WithDescription("Request: route id (int). Response: 204 No Content.");
     }
 }

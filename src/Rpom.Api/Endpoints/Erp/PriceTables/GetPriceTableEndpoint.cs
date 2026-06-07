@@ -17,6 +17,10 @@ internal sealed class GetPriceTableEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("PriceTables")
-            .WithName("GetPriceTable");
+            .WithName("GetPriceTable")
+            .Produces<ApiResult<GetPriceTable.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Get a price table by id.")
+            .WithDescription("Request: route id (int). Response: 200 OK — JSON GetPriceTable.Response.");
     }
 }

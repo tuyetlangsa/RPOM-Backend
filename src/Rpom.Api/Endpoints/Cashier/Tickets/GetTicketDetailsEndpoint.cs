@@ -17,6 +17,10 @@ internal sealed class GetTicketDetailsEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.CashierViewTicket)
             .WithTags("Tickets")
-            .WithName("GetTicketDetails");
+            .WithName("GetTicketDetails")
+            .Produces<ApiResult<GetTicketDetails.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Get full ticket detail (5 sections).")
+            .WithDescription("Request: route ticketId (long). Response: 200 OK — JSON GetTicketDetails.Response (Info, ItemDetails, OrderBatches, OrderingItems, Payment).");
     }
 }

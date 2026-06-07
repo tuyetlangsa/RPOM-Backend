@@ -20,7 +20,13 @@ internal sealed class BatchCreateTablesEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Tables")
-            .WithName("BatchCreateTables");
+            .WithName("BatchCreateTables")
+            .Produces<ApiResult<BatchCreateTables.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Batch-create tables in an area.")
+            .WithDescription("Request: JSON body { areaId:int, codePrefix:string, startNumber:int, count:int, seatCount:int, description?:string, isActive:bool }. Response: 200 OK — JSON BatchCreateTables.Response.");
     }
 
     internal sealed record Request(

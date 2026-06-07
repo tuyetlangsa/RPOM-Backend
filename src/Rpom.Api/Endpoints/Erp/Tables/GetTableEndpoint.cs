@@ -17,6 +17,10 @@ internal sealed class GetTableEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("Tables")
-            .WithName("GetTable");
+            .WithName("GetTable")
+            .Produces<ApiResult<GetTable.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Get a table by id.")
+            .WithDescription("Request: route id (int). Response: 200 OK — JSON GetTable.Response.");
     }
 }

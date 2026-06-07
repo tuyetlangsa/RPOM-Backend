@@ -19,7 +19,11 @@ internal sealed class LoginEndpoint : IEndpoint
         .AllowAnonymous()
         .WithTags("Auth")
         .WithName("Login")
-        .WithSummary("Authenticate staff by username + password; return JWT.");
+        .Produces<ApiResult<Login.Response>>(StatusCodes.Status200OK)
+        .ProducesProblem(StatusCodes.Status400BadRequest)
+        .ProducesProblem(StatusCodes.Status401Unauthorized)
+        .WithSummary("Authenticate staff by username + password; return JWT.")
+        .WithDescription("Request: JSON body { username:string, password:string }. Response: 200 OK — JSON Login.Response (JWT token + profile).");
     }
 
     internal sealed record Request(string Username, string Password);

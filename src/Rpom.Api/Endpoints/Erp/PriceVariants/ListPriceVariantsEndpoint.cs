@@ -17,6 +17,10 @@ internal sealed class ListPriceVariantsEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("PriceVariants")
-            .WithName("ListPriceVariants");
+            .WithName("ListPriceVariants")
+            .Produces<ApiResult<IReadOnlyList<ListPriceVariants.Response>>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("List price variants of a price table.")
+            .WithDescription("Request: route priceTableId (int). Response: 200 OK — JSON array of ListPriceVariants.Response.");
     }
 }

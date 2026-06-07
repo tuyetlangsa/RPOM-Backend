@@ -15,6 +15,9 @@ internal sealed class GetShiftsEndpoint : IEndpoint
         })
         .RequireAuthorization()
         .WithTags("Lookups")
-        .WithName("GetShifts");
+        .WithName("GetShifts")
+        .Produces<ApiResult<IReadOnlyList<GetShifts.ShiftItem>>>(StatusCodes.Status200OK)
+        .WithSummary("List shifts for selection lists.")
+        .WithDescription("Request: none. Response: 200 OK — JSON array of GetShifts.Response.");
     }
 }

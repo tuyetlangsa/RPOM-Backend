@@ -17,6 +17,11 @@ internal sealed class DeleteTableEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Tables")
-            .WithName("DeleteTable");
+            .WithName("DeleteTable")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Delete a table.")
+            .WithDescription("Request: route id (int). Response: 204 No Content.");
     }
 }

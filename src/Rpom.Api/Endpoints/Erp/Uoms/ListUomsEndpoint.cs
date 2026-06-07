@@ -17,6 +17,9 @@ internal sealed class ListUomsEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("Uoms")
-            .WithName("ListUoms");
+            .WithName("ListUoms")
+            .Produces<ApiResult<IReadOnlyList<ListUoms.Response>>>(StatusCodes.Status200OK)
+            .WithSummary("List units of measure with optional filters.")
+            .WithDescription("Request: query search?:string, isActive?:bool. Response: 200 OK — JSON array of ListUoms.Response.");
     }
 }

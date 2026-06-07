@@ -22,7 +22,12 @@ internal sealed class CloseCashDrawerEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.CashDrawerClose)
             .WithTags("CashDrawers")
-            .WithName("CloseCashDrawer");
+            .WithName("CloseCashDrawer")
+            .Produces<ApiResult<CloseCashDrawer.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Close a cash drawer session with counted cash.")
+            .WithDescription("Request: route id (long); JSON body { closingCashCounts:[{ denominationId:int, quantity:int }], notes?:string }. Response: 200 OK — JSON CloseCashDrawer.Response.");
     }
 
     internal sealed record Request(

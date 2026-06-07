@@ -19,7 +19,13 @@ internal sealed class UpdateCounterEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Counters")
-            .WithName("UpdateCounter");
+            .WithName("UpdateCounter")
+            .Produces<ApiResult<UpdateCounter.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Update a counter.")
+            .WithDescription("Request: route id (int); JSON body { name:string, note?:string, displayOrder:short, isActive:bool }. Response: 200 OK — JSON UpdateCounter.Response.");
     }
 
     internal sealed record Request(string Name, string? Note, short DisplayOrder, bool IsActive);

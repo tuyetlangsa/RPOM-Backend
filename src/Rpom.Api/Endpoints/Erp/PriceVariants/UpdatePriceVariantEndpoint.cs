@@ -22,7 +22,13 @@ internal sealed class UpdatePriceVariantEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("PriceVariants")
-            .WithName("UpdatePriceVariant");
+            .WithName("UpdatePriceVariant")
+            .Produces<ApiResult<UpdatePriceVariant.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Update a price variant.")
+            .WithDescription("Request: route id (int); JSON body { code:string, name:string, description?:string, beginTime?:time, endTime?:time, dayMask?:int, appliesToAllAreas:bool, areaIds?:int[], isActive:bool }. Response: 200 OK — JSON UpdatePriceVariant.Response.");
     }
 
     internal sealed record Request(

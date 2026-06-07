@@ -17,6 +17,9 @@ internal sealed class ListCategoriesEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("Categories")
-            .WithName("ListCategories");
+            .WithName("ListCategories")
+            .Produces<ApiResult<IReadOnlyList<ListCategories.Response>>>(StatusCodes.Status200OK)
+            .WithSummary("List categories with optional filters.")
+            .WithDescription("Request: query search?:string, isActive?:bool, rootCode?:string. Response: 200 OK — JSON array of ListCategories.Response.");
     }
 }

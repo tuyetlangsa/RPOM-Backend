@@ -17,6 +17,8 @@ internal sealed class GetConfigValuesEndpoint : IEndpoint
         .RequireAuthorization(Permissions.ConfigView)
         .WithTags("Configurations")
         .WithName("GetConfigValues")
-        .WithSummary("List all config values (Owner/Manager).");
+        .Produces<ApiResult<IReadOnlyList<GetConfigValues.ConfigValueItem>>>(StatusCodes.Status200OK)
+        .WithSummary("List all config values (Owner/Manager).")
+        .WithDescription("Request: none. Response: 200 OK — JSON array of GetConfigValues.Response.");
     }
 }

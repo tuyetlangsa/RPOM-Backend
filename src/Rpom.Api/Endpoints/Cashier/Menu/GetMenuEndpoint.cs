@@ -17,6 +17,10 @@ internal sealed class GetMenuEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.CashierViewMenu)
             .WithTags("Menu")
-            .WithName("GetMenu");
+            .WithName("GetMenu")
+            .Produces<ApiResult<GetMenu.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .WithSummary("Get menu tree with resolved prices for a table.")
+            .WithDescription("Request: query tableId (int). Response: 200 OK — JSON GetMenu.Response (category tree + priced items; most-specific price wins).");
     }
 }

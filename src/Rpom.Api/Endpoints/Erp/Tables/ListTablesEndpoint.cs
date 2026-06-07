@@ -18,6 +18,9 @@ internal sealed class ListTablesEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataView)
             .WithTags("Tables")
-            .WithName("ListTables");
+            .WithName("ListTables")
+            .Produces<ApiResult<IReadOnlyList<ListTables.Response>>>(StatusCodes.Status200OK)
+            .WithSummary("List tables with optional filters.")
+            .WithDescription("Request: query counterId?:int, areaId?:int, search?:string, isActive?:bool. Response: 200 OK — JSON array of ListTables.Response.");
     }
 }

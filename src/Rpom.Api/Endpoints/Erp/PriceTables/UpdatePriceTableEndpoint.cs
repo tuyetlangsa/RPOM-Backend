@@ -20,7 +20,13 @@ internal sealed class UpdatePriceTableEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("PriceTables")
-            .WithName("UpdatePriceTable");
+            .WithName("UpdatePriceTable")
+            .Produces<ApiResult<UpdatePriceTable.Response>>(StatusCodes.Status200OK)
+            .ProducesProblem(StatusCodes.Status400BadRequest)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Update a price table.")
+            .WithDescription("Request: route id (int); JSON body { code:string, name:string, description?:string, beginDate?:date, endDate?:date, isActive:bool }. Response: 200 OK — JSON UpdatePriceTable.Response.");
     }
 
     internal sealed record Request(

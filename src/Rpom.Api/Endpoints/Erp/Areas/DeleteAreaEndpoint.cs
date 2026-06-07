@@ -17,6 +17,11 @@ internal sealed class DeleteAreaEndpoint : IEndpoint
             })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("Areas")
-            .WithName("DeleteArea");
+            .WithName("DeleteArea")
+            .Produces(StatusCodes.Status204NoContent)
+            .ProducesProblem(StatusCodes.Status404NotFound)
+            .ProducesProblem(StatusCodes.Status409Conflict)
+            .WithSummary("Delete an area.")
+            .WithDescription("Request: route id (int). Response: 204 No Content.");
     }
 }
