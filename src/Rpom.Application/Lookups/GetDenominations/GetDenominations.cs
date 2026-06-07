@@ -15,7 +15,7 @@ public static class GetDenominations
     {
         public async Task<Result<IReadOnlyList<DenominationItem>>> Handle(Query request, CancellationToken ct)
         {
-            var rows = await dbContext.Denominations
+            List<DenominationItem> rows = await dbContext.Denominations
                 .Where(x => x.IsActive)
                 .OrderByDescending(x => x.FaceValue)
                 .Select(x => new DenominationItem(x.Id, x.FaceValue, x.Name, x.DisplayOrder))

@@ -69,7 +69,7 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
         result.Value.Areas[0].Tables.Should().OnlyContain(t => t.LatestTicket == null);
     }
 
-    [Fact] // TC-M8 + TC-M2: area SC% surfaced; item without price resolved (BasePrice null)
+    [Fact] // TC-M8: area service-charge percent surfaced on the menu response
     public async Task Menu_SurfacesAreaServiceCharge()
     {
         var (tableId, areaScPercent) = await SeedTableWithMenuAsync();
@@ -79,13 +79,104 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
 
         var rc = Substitute.For<IRoundingConfig>();
         foreach (var kv in RoundingKeys.Defaults)
+        {
             rc.GetDigits(kv.Key).Returns(kv.Value);
+        }
 
-        var handler = new GetMenu.Handler(_ctx, clock, rc);
+        var handler = new GetMenu.Handler(_ctx, clock, rc, new Rpom.Infrastructure.Pricing.MenuPriceResolver(_ctx));
         var result = await handler.Handle(new GetMenu.Query(tableId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
         result.Value.ServiceChargePercent.Should().Be(areaScPercent);
+    }
+
+    [Fact] // unpriced items are silently hidden; only the priced one appears
+    public async Task Menu_HidesItemsWithoutPrice()
+    {
+        var tableId = await SeedTableWithPricedAndUnpricedItemsAsync();
+
+        var clock = Substitute.For<IDateTimeProvider>();
+        clock.UtcNow.Returns(DateTime.UtcNow);
+        var rc = Substitute.For<IRoundingConfig>();
+        foreach (var kv in RoundingKeys.Defaults)
+        {
+            rc.GetDigits(kv.Key).Returns(kv.Value);
+        }
+
+        var result = await new GetMenu.Handler(_ctx, clock, rc, new Rpom.Infrastructure.Pricing.MenuPriceResolver(_ctx))
+            .Handle(new GetMenu.Query(tableId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().ContainSingle(i => i.Code == "PRICED");
+        result.Value.Items.Should().NotContain(i => i.Code == "NOPRICE");
+        result.Value.Items.Should().OnlyContain(i => i.BasePrice != null && i.DisplayPrice != null);
+    }
+
+    /// <summary>One priced + one unpriced item in the same area category. Returns the table id.</summary>
+    private async Task<int> SeedTableWithPricedAndUnpricedItemsAsync()
+    {
+        var now = DateTime.UtcNow;
+        var counter = new Counter { Name = "Counter H", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
+        var area = new Area
+        {
+            Counter = counter,
+            Name = "Area H",
+            DisplayOrder = 1,
+            IsActive = true,
+            ServiceChargePercent = 0m,
+            ServiceChargeVatPercent = 0m,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        var table = new Table
+        {
+            Area = area,
+            Code = "TH01",
+            SeatCount = 4,
+            Status = TableStatus.Available,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        var category = new Category
+        {
+            Code = "CATH",
+            Name = "Cat H",
+            ParentId = null,
+            Path = "PLACEHOLDER",
+            Level = 0,
+            DisplayOrder = 1,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        _ctx.Add(category);
+        await _ctx.SaveChangesAsync();
+        category.Path = $"{category.Id};";
+
+        var amc = new AreaMenuCategory { Area = area, Category = category, CreatedAt = now };
+        var uom = new Uom { Code = "cai", Name = "Cái", IsActive = true, CreatedAt = now, UpdatedAt = now };
+        var priced = new Item { Code = "PRICED", Name = "Có giá", BaseUom = uom, VatPercent = 10m, IsStockable = false, IsActive = true, CreatedAt = now, UpdatedAt = now };
+        var unpriced = new Item { Code = "NOPRICE", Name = "Không giá", BaseUom = uom, VatPercent = 10m, IsStockable = false, IsActive = true, CreatedAt = now, UpdatedAt = now };
+        var icP = new ItemCategory { Item = priced, Category = category, IsMain = true, CreatedAt = now };
+        var icU = new ItemCategory { Item = unpriced, Category = category, IsMain = true, CreatedAt = now };
+
+        var priceTable = new PriceTable { Code = "PTH", Name = "Default", IsActive = true, CreatedAt = now, UpdatedAt = now };
+        var variant = new PriceVariant
+        {
+            PriceTable = priceTable,
+            Code = "PVH",
+            Name = "Base",
+            AppliesToAllAreas = true,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        var entry = new PriceEntry { PriceVariant = variant, Item = priced, Price = 50000m, IsVatIncluded = false, CreatedAt = now, UpdatedAt = now };
+
+        _ctx.AddRange(counter, area, table, amc, uom, priced, unpriced, icP, icU, priceTable, variant, entry);
+        await _ctx.SaveChangesAsync();
+        return table.Id;
     }
 
     /// <summary>Counter→Area→Table only (no tickets). Returns the counter id.</summary>
@@ -96,13 +187,24 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
         var counter = new Counter { Name = "Counter 1", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var area = new Area
         {
-            Counter = counter, Name = "Area A", DisplayOrder = 1, IsActive = true,
-            ServiceChargePercent = 5m, ServiceChargeVatPercent = 8m, CreatedAt = now, UpdatedAt = now,
+            Counter = counter,
+            Name = "Area A",
+            DisplayOrder = 1,
+            IsActive = true,
+            ServiceChargePercent = 5m,
+            ServiceChargeVatPercent = 8m,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var table = new Table
         {
-            Area = area, Code = "T01", SeatCount = 4, Status = TableStatus.Available,
-            IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Area = area,
+            Code = "T01",
+            SeatCount = 4,
+            Status = TableStatus.Available,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         _ctx.AddRange(counter, area, table);
@@ -124,13 +226,24 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
         var counter = new Counter { Name = "Counter M", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var area = new Area
         {
-            Counter = counter, Name = "Area M", DisplayOrder = 1, IsActive = true,
-            ServiceChargePercent = areaScPercent, ServiceChargeVatPercent = 8m, CreatedAt = now, UpdatedAt = now,
+            Counter = counter,
+            Name = "Area M",
+            DisplayOrder = 1,
+            IsActive = true,
+            ServiceChargePercent = areaScPercent,
+            ServiceChargeVatPercent = 8m,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var table = new Table
         {
-            Area = area, Code = "TM01", SeatCount = 4, Status = TableStatus.Available,
-            IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Area = area,
+            Code = "TM01",
+            SeatCount = 4,
+            Status = TableStatus.Available,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         // Menu catalog: category visible to the area, one priced item linked to it.
@@ -138,8 +251,15 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
         // after save so GetMenu's ancestor-id parsing sees realistic data.
         var category = new Category
         {
-            Code = "CAT01", Name = "Drinks", ParentId = null, Path = "PLACEHOLDER",
-            Level = 0, DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "CAT01",
+            Name = "Drinks",
+            ParentId = null,
+            Path = "PLACEHOLDER",
+            Level = 0,
+            DisplayOrder = 1,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.Add(category);
         await _ctx.SaveChangesAsync();
@@ -150,26 +270,47 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
         var uom = new Uom { Code = "lon", Name = "Lon", IsActive = true, CreatedAt = now, UpdatedAt = now };
         var item = new Item
         {
-            Code = "BIA01", Name = "Bia", BaseUom = uom, VatPercent = 10m,
-            IsStockable = false, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "BIA01",
+            Name = "Bia",
+            BaseUom = uom,
+            VatPercent = 10m,
+            IsStockable = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var itemCategory = new ItemCategory { Item = item, Category = category, IsMain = true, CreatedAt = now };
 
         // Active price table → all-areas variant → entry for the item.
         var priceTable = new PriceTable
         {
-            Code = "PT01", Name = "Default", IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "PT01",
+            Name = "Default",
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var variant = new PriceVariant
         {
-            PriceTable = priceTable, Code = "PV01", Name = "Base",
-            BeginTime = null, EndTime = null, DayMask = null, AppliesToAllAreas = true,
-            IsActive = true, CreatedAt = now, UpdatedAt = now,
+            PriceTable = priceTable,
+            Code = "PV01",
+            Name = "Base",
+            BeginTime = null,
+            EndTime = null,
+            DayMask = null,
+            AppliesToAllAreas = true,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var entry = new PriceEntry
         {
-            PriceVariant = variant, Item = item, Price = 50000m, IsVatIncluded = false,
-            CreatedAt = now, UpdatedAt = now,
+            PriceVariant = variant,
+            Item = item,
+            Price = 50000m,
+            IsVatIncluded = false,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         _ctx.AddRange(counter, area, table, areaMenuCategory, uom, item, itemCategory,

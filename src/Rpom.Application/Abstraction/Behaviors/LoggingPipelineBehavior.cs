@@ -16,11 +16,11 @@ internal sealed class LoggingPipelineBehavior<TRequest, TResponse>(
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        var requestName = typeof(TRequest).Name;
+        string requestName = typeof(TRequest).Name;
 
         logger.LogInformation("Processing request {RequestName}", requestName);
 
-        var result = await next();
+        TResponse result = await next();
 
         if (result.IsSuccess)
         {

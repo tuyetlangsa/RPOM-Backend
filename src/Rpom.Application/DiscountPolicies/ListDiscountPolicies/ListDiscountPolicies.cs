@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Domain.Common;
+using Rpom.Domain.Operations;
 
 namespace Rpom.Application.DiscountPolicies.ListDiscountPolicies;
 
@@ -27,19 +28,25 @@ public static class ListDiscountPolicies
     {
         public async Task<Result<IReadOnlyList<Response>>> Handle(Query request, CancellationToken ct)
         {
-            var q = db.DiscountPolicies.AsQueryable();
+            IQueryable<DiscountPolicy> q = db.DiscountPolicies.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var s = request.Search.Trim().ToLower();
+                string s = request.Search.Trim().ToLower();
                 q = q.Where(p => p.Code.ToLower().Contains(s) || p.Name.ToLower().Contains(s));
             }
-            if (request.IsActive is { } active)
-                q = q.Where(p => p.IsActive == active);
-            if (!string.IsNullOrWhiteSpace(request.DiscountType))
-                q = q.Where(p => p.DiscountType == request.DiscountType);
 
-            var list = await q
+            if (request.IsActive is { } active)
+            {
+                q = q.Where(p => p.IsActive == active);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.DiscountType))
+            {
+                q = q.Where(p => p.DiscountType == request.DiscountType);
+            }
+
+            List<Response> list = await q
                 .OrderBy(p => p.Code)
                 .Select(p => new Response(
                     p.Id, p.Code, p.Name, p.Description, p.DiscountType, p.IsAutoApply,

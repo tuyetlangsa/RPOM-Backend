@@ -1,16 +1,16 @@
 namespace Rpom.Application.Access;
 
 /// <summary>
-/// Permission catalog — source of truth for permission codes.
-/// <para>
-/// Convention: <c>{aggregate}:{action}</c> colon-namespaced (e.g. <c>ticket:open</c>).
-/// Strings used as policy names in <c>.RequireAuthorization("...")</c> AND
-/// as <c>Permission.Code</c> column values seeded into DB by AccessSeeder.
-/// </para>
-/// <para>
-/// To add a new permission: add a const here, then add a row in AccessSeeder
-/// with the matching PermissionGroup. No DB migration needed.
-/// </para>
+///     Permission catalog — source of truth for permission codes.
+///     <para>
+///         Convention: <c>{aggregate}:{action}</c> colon-namespaced (e.g. <c>ticket:open</c>).
+///         Strings used as policy names in <c>.RequireAuthorization("...")</c> AND
+///         as <c>Permission.Code</c> column values seeded into DB by AccessSeeder.
+///     </para>
+///     <para>
+///         To add a new permission: add a const here, then add a row in AccessSeeder
+///         with the matching PermissionGroup. No DB migration needed.
+///     </para>
 /// </summary>
 public static class Permissions
 {
@@ -42,9 +42,13 @@ public static class Permissions
     // ============ Cashier — payment + cash drawer ============
     /// <summary>Open a cash drawer at a counter (count opening cash).</summary>
     public const string CashDrawerOpen = "cash_drawer:open";
-    /// <summary>Close a cash drawer (count closing cash). Can be issued to a different
-    /// staff than the opener — e.g. Manager force-closing on cashier behalf.</summary>
+
+    /// <summary>
+    ///     Close a cash drawer (count closing cash). Can be issued to a different
+    ///     staff than the opener — e.g. Manager force-closing on cashier behalf.
+    /// </summary>
     public const string CashDrawerClose = "cash_drawer:close";
+
     public const string PaymentCash = "payment:cash";
     public const string PaymentQr = "payment:qr";
     public const string PaymentCancelPending = "payment:cancel_pending";

@@ -7,8 +7,8 @@ using Rpom.Domain.Configuration;
 namespace Rpom.Infrastructure.Database.Seeding;
 
 /// <summary>
-/// Idempotent seeder for the 14 RoundingConfig keys (pricing spec §1).
-/// Inserts only keys missing from DB; never overwrites Owner-edited digits.
+///     Idempotent seeder for the 14 RoundingConfig keys (pricing spec §1).
+///     Inserts only keys missing from DB; never overwrites Owner-edited digits.
 /// </summary>
 public sealed class RoundingConfigSeeder(
     IServiceScopeFactory serviceScopeFactory,
@@ -16,8 +16,8 @@ public sealed class RoundingConfigSeeder(
 {
     public async Task SeedAsync(CancellationToken ct = default)
     {
-        using var scope = serviceScopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        using IServiceScope scope = serviceScopeFactory.CreateScope();
+        ApplicationDbContext db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
         var existing = (await db.Set<RoundingConfig>()
             .Select(x => x.KeyCode)
@@ -29,7 +29,7 @@ public sealed class RoundingConfigSeeder(
             {
                 KeyCode = kv.Key,
                 Digits = kv.Value,
-                Description = $"Rounding digits for {kv.Key}",
+                Description = $"Rounding digits for {kv.Key}"
             })
             .ToList();
 

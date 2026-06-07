@@ -7,34 +7,42 @@ using Rpom.Domain.Sales;
 namespace Rpom.Infrastructure.Pricing;
 
 internal sealed class TicketRecomputeService(
-    IDbContext dbContext, IRoundingConfig rc, IDateTimeProvider clock)
+    IDbContext dbContext,
+    IRoundingConfig rc,
+    IDateTimeProvider clock)
     : ITicketRecomputeService
 {
     public async Task RecomputeAsync(long ticketId, CancellationToken ct)
     {
-        var ticket = await dbContext.Tickets
+        Ticket ticket = await dbContext.Tickets
             .FirstAsync(t => t.Id == ticketId, ct);
 
-        var orderItems = await dbContext.OrderItems
+        List<OrderItem> orderItems = await dbContext.OrderItems
             .Where(o => o.TicketId == ticketId && o.Status != OrderItemStatus.Cancelled && o.Quantity != 0)
             .ToListAsync(ct);
 
-        var now = clock.UtcNow;
+        DateTime now = clock.UtcNow;
         var lineResults = new List<LinePricingResult>(orderItems.Count);
 
-        foreach (var o in orderItems)
+        foreach (OrderItem o in orderItems)
         {
             // Step 0 — re-snapshot from ticket header (cashier may have just changed these)
             o.TicketDiscountPercent = ticket.DiscountPercent;
             o.ServiceChargePercent = ticket.ServiceChargePercent;
             o.ServiceChargeVatPercent = ticket.ServiceChargeVatPercent;
 
+            // Detect FIXED-amount distribution: percent=0 but amount>0 was pre-set by handler.
+            bool isFixedAmount = o.LineDiscountPercent == 0m && o.TicketDiscountPercent == 0m
+                && (o.LineDiscountAmount > 0m || o.TicketDiscountAmount > 0m);
+
             var input = new LinePricingInput(
                 o.Quantity, o.UnitPrice, o.ChoicePricePerUnit,
                 o.VatPercent, o.ServiceChargePercent, o.ServiceChargeVatPercent,
-                o.LineDiscountPercent, o.TicketDiscountPercent);
+                o.LineDiscountPercent, o.TicketDiscountPercent,
+                ForcedLineDiscountAmount: isFixedAmount ? o.LineDiscountAmount : null,
+                ForcedTicketDiscountAmount: isFixedAmount ? o.TicketDiscountAmount : null);
 
-            var r = PricingCalculator.ComputeLine(input, rc);
+            LinePricingResult r = PricingCalculator.ComputeLine(input, rc);
 
             o.LineSubtotal = r.LineSubtotal;
             o.LineDiscountAmount = r.LineDiscountAmount;
@@ -52,7 +60,7 @@ internal sealed class TicketRecomputeService(
 
         await RebuildBucketsAsync(ticket, orderItems, now, ct);
 
-        var h = PricingCalculator.ComputeHeader(lineResults, rc);
+        HeaderPricingResult h = PricingCalculator.ComputeHeader(lineResults, rc);
         ticket.Subtotal = h.Subtotal;
         ticket.LineDiscountTotal = h.LineDiscountTotal;
         ticket.TicketDiscountTotal = h.TicketDiscountTotal;
@@ -68,7 +76,7 @@ internal sealed class TicketRecomputeService(
     private async Task RebuildBucketsAsync(
         Ticket ticket, IReadOnlyList<OrderItem> orderItems, DateTime now, CancellationToken ct)
     {
-        var existing = await dbContext.TicketItemSums
+        List<TicketItemSum> existing = await dbContext.TicketItemSums
             .Where(s => s.TicketId == ticket.Id)
             .ToListAsync(ct);
         dbContext.TicketItemSums.RemoveRange(existing);
@@ -76,17 +84,23 @@ internal sealed class TicketRecomputeService(
         var groups = orderItems
             .GroupBy(o => new
             {
-                o.ItemId, o.UomId, o.UnitPrice, o.ChoicePricePerUnit,
-                o.LineDiscountPercent, o.TicketDiscountPercent,
-                o.VatPercent, o.ServiceChargePercent, o.ServiceChargeVatPercent
+                o.ItemId,
+                o.UomId,
+                o.UnitPrice,
+                o.ChoicePricePerUnit,
+                o.LineDiscountPercent,
+                o.TicketDiscountPercent,
+                o.VatPercent,
+                o.ServiceChargePercent,
+                o.ServiceChargeVatPercent
             })
             .OrderBy(g => g.Min(o => o.SentAt))
             .ToList();
 
-        var displayOrder = 1;
+        int displayOrder = 1;
         foreach (var g in groups)
         {
-            var first = g.First();
+            OrderItem first = g.First();
             dbContext.TicketItemSums.Add(new TicketItemSum
             {
                 TicketId = ticket.Id,
@@ -112,7 +126,7 @@ internal sealed class TicketRecomputeService(
                 MaxOrderItemId = g.Max(o => o.Id),
                 DisplayOrder = displayOrder++,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             });
         }
     }

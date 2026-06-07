@@ -33,10 +33,12 @@ public static class UpdateRoundingConfig
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var row = await dbContext.RoundingConfigs
+            RoundingConfig? row = await dbContext.RoundingConfigs
                 .FirstOrDefaultAsync(x => x.KeyCode == request.KeyCode, ct);
             if (row is null)
+            {
                 return Result.Failure<Response>(RoundingConfigErrors.NotFound);
+            }
 
             row.Digits = request.Digits;
             row.UpdatedAt = clock.UtcNow;

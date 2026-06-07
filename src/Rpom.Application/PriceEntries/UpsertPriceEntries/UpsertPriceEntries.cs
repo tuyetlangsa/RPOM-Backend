@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -12,8 +13,8 @@ using Rpom.Domain.Menu;
 namespace Rpom.Application.PriceEntries.UpsertPriceEntries;
 
 /// <summary>
-/// Full-snapshot bulk upsert. FE gửi nguyên list entries hiện tại của variant;
-/// BE diff với DB: thêm mới, cập nhật giá, xoá row không có trong payload.
+///     Full-snapshot bulk upsert. FE gửi nguyên list entries hiện tại của variant;
+///     BE diff với DB: thêm mới, cập nhật giá, xoá row không có trong payload.
 /// </summary>
 public static class UpsertPriceEntries
 {
@@ -52,41 +53,48 @@ public static class UpsertPriceEntries
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var variantExists = await dbContext.PriceVariants
+            bool variantExists = await dbContext.PriceVariants
                 .AnyAsync(v => v.Id == request.PriceVariantId, ct);
-            if (!variantExists) return Result.Failure<Response>(PriceEntryErrors.VariantNotFound);
+            if (!variantExists)
+            {
+                return Result.Failure<Response>(PriceEntryErrors.VariantNotFound);
+            }
 
             // Duplicate ItemId trong payload
             var itemIds = request.Entries.Select(e => e.ItemId).ToList();
             if (itemIds.Count != itemIds.Distinct().Count())
+            {
                 return Result.Failure<Response>(PriceEntryErrors.DuplicateItem);
+            }
 
             // Validate Item tồn tại
             if (itemIds.Count > 0)
             {
                 var distinctIds = itemIds.Distinct().ToList();
-                var foundCount = await dbContext.Items.CountAsync(i => distinctIds.Contains(i.Id), ct);
+                int foundCount = await dbContext.Items.CountAsync(i => distinctIds.Contains(i.Id), ct);
                 if (foundCount != distinctIds.Count)
+                {
                     return Result.Failure<Response>(PriceEntryErrors.ItemNotFound);
+                }
             }
 
-            var existing = await dbContext.PriceEntries
+            List<PriceEntry> existing = await dbContext.PriceEntries
                 .Where(e => e.PriceVariantId == request.PriceVariantId)
                 .ToListAsync(ct);
 
-            var now = clock.UtcNow;
-            var staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
             var payloadByItem = request.Entries.ToDictionary(e => e.ItemId);
             var existingByItem = existing.ToDictionary(e => e.ItemId);
 
-            var inserted = 0;
-            var updated = 0;
-            var deleted = 0;
+            int inserted = 0;
+            int updated = 0;
+            int deleted = 0;
 
             // Update + Insert
-            foreach (var input in request.Entries)
+            foreach (EntryInput input in request.Entries)
             {
-                if (existingByItem.TryGetValue(input.ItemId, out var row))
+                if (existingByItem.TryGetValue(input.ItemId, out PriceEntry? row))
                 {
                     if (row.Price != input.Price || row.IsVatIncluded != input.IsVatIncluded)
                     {
@@ -105,14 +113,14 @@ public static class UpsertPriceEntries
                         Price = input.Price,
                         IsVatIncluded = input.IsVatIncluded,
                         CreatedAt = now,
-                        UpdatedAt = now,
+                        UpdatedAt = now
                     });
                     inserted++;
                 }
             }
 
             // Delete những row tồn tại nhưng không có trong payload
-            foreach (var row in existing)
+            foreach (PriceEntry row in existing)
             {
                 if (!payloadByItem.ContainsKey(row.ItemId))
                 {
@@ -123,7 +131,7 @@ public static class UpsertPriceEntries
 
             if (inserted > 0 || updated > 0 || deleted > 0)
             {
-                var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+                StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
                 dbContext.AuditLogs.Add(new AuditLog
                 {
                     EntityType = nameof(PriceVariant),
@@ -132,7 +140,8 @@ public static class UpsertPriceEntries
                     ActorStaffAccountId = staffId,
                     ActorFullName = staff.FullName,
                     Timestamp = now,
-                    Summary = $"PriceEntries bulk upsert: +{inserted} ~{updated} -{deleted} on variant {request.PriceVariantId}",
+                    Summary =
+                        $"PriceEntries bulk upsert: +{inserted} ~{updated} -{deleted} on variant {request.PriceVariantId}"
                 });
                 await dbContext.SaveChangesAsync(ct);
                 await versionService.BumpAsync(VersionScopes.Pricing,

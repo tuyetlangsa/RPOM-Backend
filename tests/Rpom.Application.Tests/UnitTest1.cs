@@ -1,4 +1,4 @@
-﻿namespace Rpom.Application.Tests;
+namespace Rpom.Application.Tests;
 
 public class UnitTest1
 {

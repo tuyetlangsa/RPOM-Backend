@@ -4,9 +4,9 @@ using Rpom.Domain.Common;
 namespace Rpom.Domain.Sales;
 
 /// <summary>
-/// 1 round of sending to kitchen. A ticket has multiple Orders (multiple rounds).
-/// On DRAFT → SENT: CartItem rows become OrderItem rows; cart is cleared.
-/// Class name kept as "Order" — table name will be quoted ("orders") in EF config.
+///     1 round of sending to kitchen. A ticket has multiple Orders (multiple rounds).
+///     On DRAFT → SENT: CartItem rows become OrderItem rows; cart is cleared.
+///     Class name kept as "Order" — table name will be quoted ("orders") in EF config.
 /// </summary>
 public class Order : Entity
 {
@@ -16,7 +16,7 @@ public class Order : Entity
     /// <summary>Sequential within ticket: 1 (round 1), 2 (round 2), ... for "Đợt 1", "Đợt 2" display.</summary>
     public short OrderNumber { get; set; }
 
-    /// <summary>DRAFT | SENT | CANCELLED (see <see cref="OrderStatus"/>).</summary>
+    /// <summary>DRAFT | SENT | CANCELLED (see <see cref="OrderStatus" />).</summary>
     public string Status { get; set; } = OrderStatus.Draft;
 
     /// <summary>Set when transitioning DRAFT → SENT; NULL otherwise.</summary>
@@ -24,6 +24,7 @@ public class Order : Entity
 
     /// <summary>Waiter who created this round. NULL for QR self-order (Guest).</summary>
     public int? CreatedByStaffId { get; set; }
+
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
 

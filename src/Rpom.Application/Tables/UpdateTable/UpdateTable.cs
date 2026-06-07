@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -12,8 +13,8 @@ using Rpom.Domain.Restaurant;
 namespace Rpom.Application.Tables.UpdateTable;
 
 /// <summary>
-/// Update master-data fields on a Table. Status is NOT updatable here —
-/// it is driven by Ticket lifecycle in a separate command.
+///     Update master-data fields on a Table. Status is NOT updatable here —
+///     it is driven by Ticket lifecycle in a separate command.
 /// </summary>
 public static class UpdateTable
 {
@@ -56,26 +57,35 @@ public static class UpdateTable
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var entity = await dbContext.Tables.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<Response>(TableErrors.NotFound);
+            Table? entity = await dbContext.Tables.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+            if (entity is null)
+            {
+                return Result.Failure<Response>(TableErrors.NotFound);
+            }
 
             if (entity.AreaId != request.AreaId)
             {
-                var areaExists = await dbContext.Areas.AnyAsync(x => x.Id == request.AreaId, ct);
-                if (!areaExists) return Result.Failure<Response>(TableErrors.AreaNotFound);
+                bool areaExists = await dbContext.Areas.AnyAsync(x => x.Id == request.AreaId, ct);
+                if (!areaExists)
+                {
+                    return Result.Failure<Response>(TableErrors.AreaNotFound);
+                }
             }
 
-            var code = request.Code.Trim();
+            string code = request.Code.Trim();
             if (entity.AreaId != request.AreaId || entity.Code != code)
             {
-                var dup = await dbContext.Tables.AnyAsync(
+                bool dup = await dbContext.Tables.AnyAsync(
                     x => x.Id != request.Id && x.AreaId == request.AreaId && x.Code == code, ct);
-                if (dup) return Result.Failure<Response>(TableErrors.CodeDuplicateInArea);
+                if (dup)
+                {
+                    return Result.Failure<Response>(TableErrors.CodeDuplicateInArea);
+                }
             }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
-            var summary = BuildSummary(entity, request, code);
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            string summary = BuildSummary(entity, request, code);
 
             entity.AreaId = request.AreaId;
             entity.Code = code;
@@ -84,7 +94,7 @@ public static class UpdateTable
             entity.IsActive = request.IsActive;
             entity.UpdatedAt = now;
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(Table),
@@ -93,7 +103,7 @@ public static class UpdateTable
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = summary,
+                Summary = summary
             });
 
             await dbContext.SaveChangesAsync(ct);
@@ -108,15 +118,30 @@ public static class UpdateTable
         {
             var diffs = new List<string>();
             if (before.AreaId != after.AreaId)
+            {
                 diffs.Add($"areaId: {before.AreaId} → {after.AreaId}");
+            }
+
             if (before.Code != normalizedCode)
+            {
                 diffs.Add($"code: '{before.Code}' → '{normalizedCode}'");
+            }
+
             if (before.SeatCount != after.SeatCount)
+            {
                 diffs.Add($"seatCount: {before.SeatCount} → {after.SeatCount}");
+            }
+
             if ((before.Description ?? "") != (after.Description?.Trim() ?? ""))
+            {
                 diffs.Add("description changed");
+            }
+
             if (before.IsActive != after.IsActive)
+            {
                 diffs.Add($"isActive: {before.IsActive} → {after.IsActive}");
+            }
+
             return diffs.Count == 0 ? "Table updated (no changes)" : string.Join("; ", diffs);
         }
     }

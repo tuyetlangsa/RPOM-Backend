@@ -1,8 +1,8 @@
 namespace Rpom.Application.Abstraction.Pricing;
 
 /// <summary>
-/// Reads rounding digit counts. Implementation caches all 14 keys
-/// (IMemoryCache, 5-min TTL) and invalidates on UpdateRoundingConfig.
+///     Reads rounding digit counts. Implementation caches all 14 keys
+///     (IMemoryCache, 5-min TTL) and invalidates on UpdateRoundingConfig.
 /// </summary>
 public interface IRoundingConfig
 {

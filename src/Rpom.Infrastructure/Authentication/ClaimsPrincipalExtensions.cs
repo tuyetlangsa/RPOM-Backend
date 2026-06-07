@@ -6,8 +6,8 @@ public static class ClaimsPrincipalExtensions
 {
     public static int GetStaffAccountId(this ClaimsPrincipal? principal)
     {
-        var sub = principal?.FindFirst(CustomClaims.Sub)?.Value;
-        return int.TryParse(sub, out var id)
+        string? sub = principal?.FindFirst(CustomClaims.Sub)?.Value;
+        return int.TryParse(sub, out int id)
             ? id
             : throw new ApplicationException("Staff identifier is unavailable");
     }
@@ -15,13 +15,13 @@ public static class ClaimsPrincipalExtensions
     public static string GetUsername(this ClaimsPrincipal? principal)
     {
         return principal?.FindFirst(CustomClaims.Username)?.Value
-            ?? throw new ApplicationException("Username claim is missing");
+               ?? throw new ApplicationException("Username claim is missing");
     }
 
     public static HashSet<string> GetPermissions(this ClaimsPrincipal? principal)
     {
-        var permissionClaims = principal?.FindAll(CustomClaims.Permission)
-            ?? throw new ApplicationException("Permissions are unavailable");
+        IEnumerable<Claim> permissionClaims = principal?.FindAll(CustomClaims.Permission)
+                                              ?? throw new ApplicationException("Permissions are unavailable");
 
         return permissionClaims.Select(c => c.Value).ToHashSet();
     }

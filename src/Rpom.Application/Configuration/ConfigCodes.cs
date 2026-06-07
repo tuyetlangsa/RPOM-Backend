@@ -1,9 +1,9 @@
 namespace Rpom.Application.Configuration;
 
 /// <summary>
-/// Catalog of all known config codes. Adding a new config:
-/// (1) add const here, (2) add seed default in ConfigValueSeeder.
-/// Codes use dot-namespace convention <c>{aggregate}.{key}</c>.
+///     Catalog of all known config codes. Adding a new config:
+///     (1) add const here, (2) add seed default in ConfigValueSeeder.
+///     Codes use dot-namespace convention <c>{aggregate}.{key}</c>.
 /// </summary>
 public static class ConfigCodes
 {

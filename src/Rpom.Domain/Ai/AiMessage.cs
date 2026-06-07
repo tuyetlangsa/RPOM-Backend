@@ -3,9 +3,9 @@ using Rpom.Domain.Common;
 namespace Rpom.Domain.Ai;
 
 /// <summary>
-/// Single message in an AiConversation. Weak entity — cannot exist without parent.
-/// Append-only by service contract. Actor derived from parent OwnerStaffId for USER,
-/// "system" for non-USER messages (no CreatedByStaffId column).
+///     Single message in an AiConversation. Weak entity — cannot exist without parent.
+///     Append-only by service contract. Actor derived from parent OwnerStaffId for USER,
+///     "system" for non-USER messages (no CreatedByStaffId column).
 /// </summary>
 public class AiMessage : Entity
 {
@@ -14,7 +14,7 @@ public class AiMessage : Entity
     /// <summary>Parent conversation. Cascade delete with conversation.</summary>
     public long ConversationId { get; set; }
 
-    /// <summary>USER | ASSISTANT | TOOL_CALL | SYSTEM (see <see cref="AiMessageRole"/>).</summary>
+    /// <summary>USER | ASSISTANT | TOOL_CALL | SYSTEM (see <see cref="AiMessageRole" />).</summary>
     public string Role { get; set; } = null!;
 
     /// <summary>Message body. For USER/ASSISTANT/SYSTEM: text. For TOOL_CALL: JSON of tool input/output.</summary>
@@ -25,6 +25,7 @@ public class AiMessage : Entity
 
     /// <summary>LLM token count snapshot — for cost tracking + context-window management.</summary>
     public int? TokenCount { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     public virtual AiConversation Conversation { get; set; } = null!;

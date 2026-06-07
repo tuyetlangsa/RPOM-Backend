@@ -11,7 +11,6 @@ using Rpom.Application.DiscountPolicies.GetDiscountPolicy;
 using Rpom.Application.DiscountPolicies.ListDiscountPolicies;
 using Rpom.Application.DiscountPolicies.UpdateDiscountPolicy;
 using Rpom.Domain.Access;
-using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
 using Rpom.Domain.Operations;
 using Rpom.Domain.Restaurant;
@@ -277,8 +276,14 @@ public sealed class DiscountPolicyTests : IAsyncLifetime
         var role = new Role { Code = "OWNER", Name = "Owner", IsSystemRole = true, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var staff = new StaffAccount
         {
-            Username = "owner", PasswordHash = "x", FullName = "Owner", Role = role,
-            IsActive = true, IsLocked = false, CreatedAt = now, UpdatedAt = now,
+            Username = "owner",
+            PasswordHash = "x",
+            FullName = "Owner",
+            Role = role,
+            IsActive = true,
+            IsLocked = false,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.AddRange(role, staff);
         await _ctx.SaveChangesAsync();
@@ -292,14 +297,26 @@ public sealed class DiscountPolicyTests : IAsyncLifetime
         var counter = new Counter { Name = "CQ", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var area = new Area
         {
-            Counter = counter, Name = "AQ", DisplayOrder = 1, IsActive = true,
-            ServiceChargePercent = 0m, ServiceChargeVatPercent = 0m, CreatedAt = now, UpdatedAt = now,
+            Counter = counter,
+            Name = "AQ",
+            DisplayOrder = 1,
+            IsActive = true,
+            ServiceChargePercent = 0m,
+            ServiceChargeVatPercent = 0m,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var uom = new Uom { Code = "uQ", Name = "Cái", IsActive = true, CreatedAt = now, UpdatedAt = now };
         var item = new Item
         {
-            Code = "COMBO_Q", Name = "Combo Q", BaseUom = uom, VatPercent = 10m,
-            IsStockable = false, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "COMBO_Q",
+            Name = "Combo Q",
+            BaseUom = uom,
+            VatPercent = 10m,
+            IsStockable = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.AddRange(counter, area, uom, item);
         await _ctx.SaveChangesAsync();
@@ -313,29 +330,53 @@ public sealed class DiscountPolicyTests : IAsyncLifetime
         var counter = new Counter { Name = "C", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var area = new Area
         {
-            Counter = counter, Name = "A", DisplayOrder = 1, IsActive = true,
-            ServiceChargePercent = 0m, ServiceChargeVatPercent = 0m, CreatedAt = now, UpdatedAt = now,
+            Counter = counter,
+            Name = "A",
+            DisplayOrder = 1,
+            IsActive = true,
+            ServiceChargePercent = 0m,
+            ServiceChargeVatPercent = 0m,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var table = new Table
         {
-            Area = area, Code = "T01", SeatCount = 4, Status = TableStatus.Available,
-            IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Area = area,
+            Code = "T01",
+            SeatCount = 4,
+            Status = TableStatus.Available,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var shift = new Shift { Code = "S1", Name = "Sáng", BeginTime = new TimeOnly(6, 0), EndTime = new TimeOnly(14, 0), IsActive = true, CreatedAt = now, UpdatedAt = now };
         var drawer = new Rpom.Domain.Sales.CashDrawer.CashDrawerSession
         {
-            Counter = counter, OpenedByStaffAccountId = _staffId, Status = "OPEN",
-            OpeningCash = 0m, OpenedAt = now, CreatedAt = now, UpdatedAt = now,
+            Counter = counter,
+            OpenedByStaffAccountId = _staffId,
+            Status = "OPEN",
+            OpeningCash = 0m,
+            OpenedAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.AddRange(counter, area, table, shift, drawer);
         await _ctx.SaveChangesAsync();
 
         var ticket = new Ticket
         {
-            Code = "TK-1", TableId = table.Id, AreaId = area.Id, CounterId = counter.Id,
-            CashDrawerSessionId = drawer.Id, ShiftId = shift.Id, GuestCount = 1,
-            Status = TicketStatus.Open, OpenedAt = now, DiscountPolicyId = policyId,
-            CreatedAt = now, UpdatedAt = now,
+            Code = "TK-1",
+            TableId = table.Id,
+            AreaId = area.Id,
+            CounterId = counter.Id,
+            CashDrawerSessionId = drawer.Id,
+            ShiftId = shift.Id,
+            GuestCount = 1,
+            Status = TicketStatus.Open,
+            OpenedAt = now,
+            DiscountPolicyId = policyId,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.Add(ticket);
         await _ctx.SaveChangesAsync();

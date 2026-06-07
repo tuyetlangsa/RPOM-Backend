@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -52,17 +53,22 @@ public static class CreatePriceTable
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
             if (request.BeginDate.HasValue && request.EndDate.HasValue
-                && request.BeginDate.Value > request.EndDate.Value)
+                                           && request.BeginDate.Value > request.EndDate.Value)
+            {
                 return Result.Failure<Response>(PriceTableErrors.DateRangeInvalid);
+            }
 
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
-            var duplicate = await dbContext.PriceTables
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
+            bool duplicate = await dbContext.PriceTables
                 .AnyAsync(x => x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(PriceTableErrors.CodeDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(PriceTableErrors.CodeDuplicate);
+            }
 
-            var now = clock.UtcNow;
-            var staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
 
             var entity = new PriceTable
             {
@@ -73,11 +79,11 @@ public static class CreatePriceTable
                 EndDate = request.EndDate,
                 IsActive = request.IsActive,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             };
             dbContext.PriceTables.Add(entity);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(PriceTable),
@@ -86,7 +92,7 @@ public static class CreatePriceTable
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"PriceTable created: {entity.Code} — {entity.Name}",
+                Summary = $"PriceTable created: {entity.Code} — {entity.Name}"
             });
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.Pricing, $"PriceTable.Create(id={entity.Id})", ct);

@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -76,26 +77,36 @@ public static class CreateItem
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
 
-            var duplicate = await dbContext.Items.AnyAsync(x => x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(ItemErrors.CodeDuplicate);
+            bool duplicate = await dbContext.Items.AnyAsync(x => x.Code.ToLower() == codeLower, ct);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(ItemErrors.CodeDuplicate);
+            }
 
             var uom = await dbContext.Uoms
                 .Where(u => u.Id == request.BaseUomId && u.IsActive)
                 .Select(u => new { u.Id, u.Code, u.Name })
                 .FirstOrDefaultAsync(ct);
-            if (uom is null) return Result.Failure<Response>(ItemErrors.UomNotFound);
+            if (uom is null)
+            {
+                return Result.Failure<Response>(ItemErrors.UomNotFound);
+            }
 
             string? stationName = null;
             if (request.KitchenStationId.HasValue)
             {
-                var st = await dbContext.KitchenStations
+                string? st = await dbContext.KitchenStations
                     .Where(s => s.Id == request.KitchenStationId.Value && s.IsActive)
                     .Select(s => s.Name)
                     .FirstOrDefaultAsync(ct);
-                if (st is null) return Result.Failure<Response>(ItemErrors.KitchenStationNotFound);
+                if (st is null)
+                {
+                    return Result.Failure<Response>(ItemErrors.KitchenStationNotFound);
+                }
+
                 stationName = st;
             }
 
@@ -105,10 +116,12 @@ public static class CreateItem
                 .Select(c => new { c.Id, c.Name })
                 .ToListAsync(ct);
             if (cats.Count != categoryIds.Count)
+            {
                 return Result.Failure<Response>(ItemErrors.CategoryNotFound);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             var entity = new Item
             {
@@ -124,22 +137,22 @@ public static class CreateItem
                 KitchenStationId = request.KitchenStationId,
                 IsActive = request.IsActive,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             };
 
-            foreach (var c in request.Categories)
+            foreach (CategoryInput c in request.Categories)
             {
                 entity.ItemCategories.Add(new ItemCategory
                 {
                     CategoryId = c.CategoryId,
                     IsMain = c.IsMain,
-                    CreatedAt = now,
+                    CreatedAt = now
                 });
             }
 
             dbContext.Items.Add(entity);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
 
             try
             {
@@ -158,7 +171,7 @@ public static class CreateItem
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Item created: {entity.Code} — {entity.Name}",
+                Summary = $"Item created: {entity.Code} — {entity.Name}"
             });
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.Menu, $"Item.Create(id={entity.Id})", ct);

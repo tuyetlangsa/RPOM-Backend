@@ -9,7 +9,7 @@ internal sealed class PermissionAuthorizationHandler : AuthorizationHandler<Perm
         AuthorizationHandlerContext context,
         PermissionRequirement requirement)
     {
-        var permissions = context.User.GetPermissions();
+        HashSet<string> permissions = context.User.GetPermissions();
 
         if (permissions.Contains(requirement.Permission))
         {

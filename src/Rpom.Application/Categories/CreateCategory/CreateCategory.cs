@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -55,22 +56,28 @@ public static class CreateCategory
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
-            var duplicate = await dbContext.Categories
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
+            bool duplicate = await dbContext.Categories
                 .AnyAsync(x => x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(CategoryErrors.CodeDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(CategoryErrors.CodeDuplicate);
+            }
 
             Category? parent = null;
             if (request.ParentId.HasValue)
             {
                 parent = await dbContext.Categories
                     .FirstOrDefaultAsync(x => x.Id == request.ParentId.Value, ct);
-                if (parent is null) return Result.Failure<Response>(CategoryErrors.ParentNotFound);
+                if (parent is null)
+                {
+                    return Result.Failure<Response>(CategoryErrors.ParentNotFound);
+                }
             }
 
-            var now = clock.UtcNow;
-            var staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
 
             var entity = new Category
             {
@@ -83,7 +90,7 @@ public static class CreateCategory
                 CreatedAt = now,
                 UpdatedAt = now,
                 Path = "", // set after save (need Id)
-                Level = CategoryTreeHelpers.ComputeLevel(parent),
+                Level = CategoryTreeHelpers.ComputeLevel(parent)
             };
             dbContext.Categories.Add(entity);
             await dbContext.SaveChangesAsync(ct);
@@ -91,7 +98,7 @@ public static class CreateCategory
             entity.Path = CategoryTreeHelpers.ComputePath(parent, entity.Id);
             await dbContext.SaveChangesAsync(ct);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(Category),
@@ -100,7 +107,8 @@ public static class CreateCategory
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Category created: {entity.Code} — {entity.Name} (parent={entity.ParentId?.ToString() ?? "root"})",
+                Summary =
+                    $"Category created: {entity.Code} — {entity.Name} (parent={entity.ParentId?.ToString() ?? "root"})"
             });
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.Menu, $"Category.Create(id={entity.Id})", ct);

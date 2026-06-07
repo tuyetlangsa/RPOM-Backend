@@ -2568,6 +2568,39 @@ namespace Rpom.Infrastructure.Database.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Rpom.Domain.Restaurant.TableLock", b =>
+                {
+                    b.Property<int>("TableId")
+                        .HasColumnType("integer")
+                        .HasColumnName("table_id");
+
+                    b.Property<DateTime>("AcquiredAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("acquired_at");
+
+                    b.Property<DateTime>("LastHeartbeatAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("last_heartbeat_at");
+
+                    b.Property<int>("StaffAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("staff_account_id");
+
+                    b.Property<string>("StaffName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("character varying(150)")
+                        .HasColumnName("staff_name");
+
+                    b.HasKey("TableId")
+                        .HasName("pk_table_locks");
+
+                    b.HasIndex("StaffAccountId")
+                        .HasDatabaseName("ix_table_lock_staff");
+
+                    b.ToTable("table_locks", "public");
+                });
+
             modelBuilder.Entity("Rpom.Domain.Sales.CancellationReason", b =>
                 {
                     b.Property<int>("Id")
@@ -4783,6 +4816,18 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasConstraintName("fk_tables_areas_area_id");
 
                     b.Navigation("Area");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Restaurant.TableLock", b =>
+                {
+                    b.HasOne("Rpom.Domain.Restaurant.Table", "Table")
+                        .WithMany()
+                        .HasForeignKey("TableId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_table_locks_tables_table_id");
+
+                    b.Navigation("Table");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Sales.CartItem", b =>

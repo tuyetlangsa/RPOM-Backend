@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -46,15 +47,18 @@ public static class CreateCounter
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var name = request.Name.Trim();
-            var nameLower = name.ToLower();
+            string name = request.Name.Trim();
+            string nameLower = name.ToLower();
 
-            var duplicate = await dbContext.Counters
+            bool duplicate = await dbContext.Counters
                 .AnyAsync(x => x.Name.ToLower() == nameLower, ct);
-            if (duplicate) return Result.Failure<Response>(CounterErrors.NameDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(CounterErrors.NameDuplicate);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             var entity = new Counter
             {
@@ -63,11 +67,11 @@ public static class CreateCounter
                 DisplayOrder = request.DisplayOrder,
                 IsActive = request.IsActive,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             };
             dbContext.Counters.Add(entity);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
 
             try
             {
@@ -86,7 +90,7 @@ public static class CreateCounter
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Counter created: {entity.Name}",
+                Summary = $"Counter created: {entity.Name}"
             });
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Counter.Create(id={entity.Id})", ct);

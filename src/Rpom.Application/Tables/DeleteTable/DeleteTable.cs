@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -17,7 +18,10 @@ public static class DeleteTable
 
     internal sealed class Validator : AbstractValidator<Command>
     {
-        public Validator() { RuleFor(x => x.Id).GreaterThan(0); }
+        public Validator()
+        {
+            RuleFor(x => x.Id).GreaterThan(0);
+        }
     }
 
     internal sealed class Handler(
@@ -28,19 +32,24 @@ public static class DeleteTable
     {
         public async Task<Result> Handle(Command request, CancellationToken ct)
         {
-            var entity = await dbContext.Tables.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure(TableErrors.NotFound);
+            Table? entity = await dbContext.Tables.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+            if (entity is null)
+            {
+                return Result.Failure(TableErrors.NotFound);
+            }
 
             if (entity.Status == TableStatus.Occupied)
+            {
                 return Result.Failure(TableErrors.CannotDeleteOccupied);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
-            var snapshotCode = entity.Code;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            string snapshotCode = entity.Code;
 
             dbContext.Tables.Remove(entity);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(Table),
@@ -49,7 +58,7 @@ public static class DeleteTable
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Table deleted: {snapshotCode}",
+                Summary = $"Table deleted: {snapshotCode}"
             });
 
             await dbContext.SaveChangesAsync(ct);

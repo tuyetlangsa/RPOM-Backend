@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -49,11 +50,14 @@ public static class CreateArea
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var counterExists = await dbContext.Counters.AnyAsync(x => x.Id == request.CounterId, ct);
-            if (!counterExists) return Result.Failure<Response>(AreaErrors.CounterNotFound);
+            bool counterExists = await dbContext.Counters.AnyAsync(x => x.Id == request.CounterId, ct);
+            if (!counterExists)
+            {
+                return Result.Failure<Response>(AreaErrors.CounterNotFound);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             var entity = new Area
             {
@@ -63,11 +67,11 @@ public static class CreateArea
                 DisplayOrder = request.DisplayOrder,
                 IsActive = request.IsActive,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             };
             dbContext.Areas.Add(entity);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             await dbContext.SaveChangesAsync(ct);
 
             dbContext.AuditLogs.Add(new AuditLog
@@ -78,7 +82,7 @@ public static class CreateArea
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Area created: {entity.Name} (counter={entity.CounterId})",
+                Summary = $"Area created: {entity.Name} (counter={entity.CounterId})"
             });
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Area.Create(id={entity.Id})", ct);

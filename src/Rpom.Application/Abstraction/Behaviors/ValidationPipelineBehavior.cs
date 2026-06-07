@@ -1,3 +1,4 @@
+using System.Reflection;
 using FluentValidation;
 using FluentValidation.Results;
 using MediatR;
@@ -16,7 +17,7 @@ internal sealed class ValidationPipelineBehavior<TRequest, TResponse>(
         RequestHandlerDelegate<TResponse> next,
         CancellationToken cancellationToken)
     {
-        var validationFailures = await ValidateAsync(request);
+        ValidationFailure[] validationFailures = await ValidateAsync(request);
 
         if (validationFailures.Length == 0)
         {
@@ -26,9 +27,9 @@ internal sealed class ValidationPipelineBehavior<TRequest, TResponse>(
         if (typeof(TResponse).IsGenericType &&
             typeof(TResponse).GetGenericTypeDefinition() == typeof(Result<>))
         {
-            var resultType = typeof(TResponse).GetGenericArguments()[0];
+            Type resultType = typeof(TResponse).GetGenericArguments()[0];
 
-            var failureMethod = typeof(Result<>)
+            MethodInfo? failureMethod = typeof(Result<>)
                 .MakeGenericType(resultType)
                 .GetMethod(nameof(Result<object>.ValidationFailure));
 

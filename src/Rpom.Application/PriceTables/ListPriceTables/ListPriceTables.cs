@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Domain.Common;
+using Rpom.Domain.Menu;
 
 namespace Rpom.Application.PriceTables.ListPriceTables;
 
@@ -29,19 +30,29 @@ public static class ListPriceTables
     {
         public async Task<Result<IReadOnlyList<Response>>> Handle(Query request, CancellationToken ct)
         {
-            var q = dbContext.PriceTables.AsQueryable();
-            if (request.IsActive.HasValue) q = q.Where(x => x.IsActive == request.IsActive.Value);
+            IQueryable<PriceTable> q = dbContext.PriceTables.AsQueryable();
+            if (request.IsActive.HasValue)
+            {
+                q = q.Where(x => x.IsActive == request.IsActive.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var s = request.Search.Trim().ToLower();
+                string s = request.Search.Trim().ToLower();
                 q = q.Where(x => x.Code.ToLower().Contains(s) || x.Name.ToLower().Contains(s));
             }
-            if (request.BeginDateFrom.HasValue)
-                q = q.Where(x => x.BeginDate != null && x.BeginDate >= request.BeginDateFrom.Value);
-            if (request.BeginDateTo.HasValue)
-                q = q.Where(x => x.BeginDate != null && x.BeginDate <= request.BeginDateTo.Value);
 
-            var rows = await q
+            if (request.BeginDateFrom.HasValue)
+            {
+                q = q.Where(x => x.BeginDate != null && x.BeginDate >= request.BeginDateFrom.Value);
+            }
+
+            if (request.BeginDateTo.HasValue)
+            {
+                q = q.Where(x => x.BeginDate != null && x.BeginDate <= request.BeginDateTo.Value);
+            }
+
+            List<Response> rows = await q
                 .OrderByDescending(x => x.IsActive).ThenBy(x => x.Code)
                 .Select(x => new Response(
                     x.Id, x.Code, x.Name, x.Description, x.BeginDate, x.EndDate, x.IsActive,

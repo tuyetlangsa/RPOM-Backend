@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -45,27 +46,33 @@ public static class BatchCreateTables
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var areaExists = await dbContext.Areas.AnyAsync(x => x.Id == request.AreaId, ct);
-            if (!areaExists) return Result.Failure<Response>(TableErrors.AreaNotFound);
+            bool areaExists = await dbContext.Areas.AnyAsync(x => x.Id == request.AreaId, ct);
+            if (!areaExists)
+            {
+                return Result.Failure<Response>(TableErrors.AreaNotFound);
+            }
 
-            var prefix = request.CodePrefix.Trim();
-            var lastNumber = request.StartNumber + request.Count - 1;
+            string prefix = request.CodePrefix.Trim();
+            int lastNumber = request.StartNumber + request.Count - 1;
             // Padding: nếu số cuối ≥ 10 thì pad theo độ dài số cuối, để code sort gọn
-            var width = lastNumber.ToString().Length;
+            int width = lastNumber.ToString().Length;
             var codes = Enumerable.Range(request.StartNumber, request.Count)
                 .Select(n => prefix + n.ToString().PadLeft(width, '0'))
                 .ToList();
 
             // Check trùng trong cùng Area, batch trong 1 query
-            var existing = await dbContext.Tables
+            List<string> existing = await dbContext.Tables
                 .Where(t => t.AreaId == request.AreaId && codes.Contains(t.Code))
                 .Select(t => t.Code)
                 .ToListAsync(ct);
-            if (existing.Count > 0) return Result.Failure<Response>(TableErrors.CodeDuplicateInArea);
+            if (existing.Count > 0)
+            {
+                return Result.Failure<Response>(TableErrors.CodeDuplicateInArea);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
-            var description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            string? description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
 
             var entities = codes.Select(code => new Table
             {
@@ -76,11 +83,11 @@ public static class BatchCreateTables
                 Status = TableStatus.Available,
                 IsActive = request.IsActive,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             }).ToList();
             dbContext.Tables.AddRange(entities);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
 
             try
             {
@@ -99,7 +106,7 @@ public static class BatchCreateTables
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Batch created {entities.Count} tables: {codes[0]}..{codes[^1]} (area={request.AreaId})",
+                Summary = $"Batch created {entities.Count} tables: {codes[0]}..{codes[^1]} (area={request.AreaId})"
             });
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Table.BatchCreate(count={entities.Count})", ct);

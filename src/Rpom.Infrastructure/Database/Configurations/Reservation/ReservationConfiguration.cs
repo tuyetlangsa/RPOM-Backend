@@ -1,7 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using ReservationEntity = Rpom.Domain.Reservation.Reservation;
 using Rpom.Domain.Reservation;
+using ReservationEntity = Rpom.Domain.Reservation.Reservation;
 
 namespace Rpom.Infrastructure.Database.Configurations.Reservation;
 

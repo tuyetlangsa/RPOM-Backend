@@ -35,22 +35,34 @@ public static class GetPriceVariant
                 .Where(x => x.Id == request.Id)
                 .Select(x => new
                 {
-                    x.Id, x.PriceTableId, x.Code, x.Name, x.Description,
-                    x.BeginTime, x.EndTime, x.DayMask, x.AppliesToAllAreas,
-                    x.IsActive, x.CreatedAt, x.UpdatedAt,
+                    x.Id,
+                    x.PriceTableId,
+                    x.Code,
+                    x.Name,
+                    x.Description,
+                    x.BeginTime,
+                    x.EndTime,
+                    x.DayMask,
+                    x.AppliesToAllAreas,
+                    x.IsActive,
+                    x.CreatedAt,
+                    x.UpdatedAt,
                     AreaIds = dbContext.PriceVariantAreas
                         .Where(a => a.PriceVariantId == x.Id)
                         .Select(a => a.AreaId).ToList(),
-                    EntryCount = dbContext.PriceEntries.Count(e => e.PriceVariantId == x.Id),
+                    EntryCount = dbContext.PriceEntries.Count(e => e.PriceVariantId == x.Id)
                 })
                 .FirstOrDefaultAsync(ct);
 
-            if (v is null) return Result.Failure<Response>(PriceVariantErrors.NotFound);
+            if (v is null)
+            {
+                return Result.Failure<Response>(PriceVariantErrors.NotFound);
+            }
 
-            var spec =
+            int spec =
                 (v.BeginTime is not null || v.EndTime is not null ? 1 : 0)
-              + (v.DayMask is not null ? 1 : 0)
-              + (v.AppliesToAllAreas ? 0 : 1);
+                + (v.DayMask is not null ? 1 : 0)
+                + (v.AppliesToAllAreas ? 0 : 1);
 
             return Result.Success(new Response(
                 v.Id, v.PriceTableId, v.Code, v.Name, v.Description,

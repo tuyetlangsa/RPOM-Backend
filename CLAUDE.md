@@ -1,23 +1,289 @@
-# CLAUDE.md
+# CLAUDE.md — Rpom Backend Rules
 
-Architecture + conventions for Rpom backend. Read this first when implementing or modifying the codebase.
+Đọc file này TRƯỚC khi viết hay sửa code Rpom-backend. Mọi rule trong đây OVERRIDE default behavior.
 
-## What Rpom is
+---
 
-Restaurant POS and Operations Management Platform — full-service mid-range Vietnamese restaurants. Backend serves 4 frontends from a single API:
+## 0. Communication
 
-- **NextERP** *(Next.js)* — Owner / Manager / Admin web app: master data, reports, AI Operations Assistant
-- **NextCashier** *(React + Vite)* — Cashier app: payment, shift open/close
-- **NextOrder** *(React + Vite)* — Order Staff app: floor plan, take orders
-- **NextKitchen** *(React + Vite)* — Kitchen Display System (KDS)
-- **NextGuest** *(future)* — anonymous QR self-order
+- **Chat với dev**: tiếng Việt.
+- **Code / identifiers / comments**: tiếng Anh.
+- **Doc artifact**: tiếng Anh.
+- **Trả lời ngắn gọn**: bullet, không giảng đạo, không kể lể quá trình.
+- **Trung thực**: không suy đoán API/SP/cột mà chưa verify. Nếu chưa thấy nguồn → nói thẳng "tôi chưa biết, cần share source".
+- **Bị cãi**: nếu dev push back, đọc lại file/source thật trước khi đồng ý hoặc bảo vệ lập luận. Cite `file:line`. Không capitulate khi có evidence; không cố chấp khi sai.
 
-Source-of-truth docs:
-- `~/CapstoneProject/docs/RPOM_Logical_ERD.md` + `.dbml` (latest v0.18 — 51 tables across 9 areas)
-- `~/CapstoneProject/docs/RPOM_Glossary.md` (entities, business rules)
-- `~/CapstoneProject/docs/RPOM_AI_Operations_Assistant_V1.md`
+---
 
-## Common commands
+## 1. Stack & Architecture
+
+- **ASP.NET Core 10** + EF Core + Postgres (pgvector cho RAG).
+- **Pragmatic Clean Architecture + CQRS via MediatR.**
+- Dependency:
+  ```
+  Domain         (no refs)
+     ↑
+  Application    (→ Domain)
+     ↑
+  Infrastructure (→ Application, Domain)
+     ↑
+  Api / Worker   (→ Application, Infrastructure)
+  ```
+- **No separate Contracts project.** Endpoint Request/Response records nested inside endpoint file. Handler Command/Query/Response nested inside handler file.
+
+---
+
+## 2. CQRS Handler Pattern — PER USE CASE (BLOCKING)
+
+**MỖI use case = 1 file**, chứa:
+- `Command(...)` hoặc `Query(...)` record
+- `Response(...)` record **nested in same file, per use case** — NEVER shared across use cases
+- `Handler : ICommandHandler<,>` hoặc `IQueryHandler<,>`
+- `Validator : AbstractValidator<Command>` (nếu cần)
+
+**CẤM**:
+- ❌ Suffix `Dto`, `Model`, `ViewModel` — chỉ dùng `Response`, `Request`, `Command`, `Query`.
+- ❌ Shared response record cho List/Get/Create/Update của cùng aggregate. Mỗi use case có response RIÊNG, dù schema giống nhau 95%.
+- ❌ Folder `Dtos/` hoặc `Models/` chứa shared types cross-usecase.
+
+**Đúng**:
+```csharp
+// src/Rpom.Application/Tickets/GetTicketDetails/GetTicketDetails.cs
+public static class GetTicketDetails
+{
+    public sealed record Query(long TicketId) : IQuery<Response>;
+
+    public sealed record Response(
+        Info TicketInfo,
+        IReadOnlyList<ItemDetail> ItemDetails,
+        IReadOnlyList<OrderBatch> OrderedItems,
+        IReadOnlyList<OrderingItem> OrderingItems,
+        Payment Payment);
+
+    public sealed record Info(long TicketId, string TicketCode, ...);
+    public sealed record ItemDetail(long Id, int ItemId, string ItemName, ...);
+    public sealed record OrderBatch(long OrderId, int OrderNumber, ...);
+    public sealed record OrderingItem(long CartItemId, int ItemId, ...);
+    public sealed record Payment(decimal TotalAmount, decimal PaidAmount, ...);
+
+    internal sealed class Handler(IDbContext db) : IQueryHandler<Query, Response>
+    {
+        public async Task<Result<Response>> Handle(Query q, CancellationToken ct) { ... }
+    }
+}
+```
+
+**Sai**:
+```csharp
+// ❌ Shared DTO file
+public record TicketDto(long Id, ...);   // dùng cho cả List + Get → sai
+
+// ❌ Generic suffix
+public record TicketDetailDto(...);      // sai — dùng "Response"
+
+// ❌ External file
+public record TicketResponse(...);       // ngoài folder usecase → sai
+```
+
+---
+
+## 3. Endpoint Pattern (BLOCKING)
+
+Endpoint dùng **convention-based discovery**, KHÔNG có controller.
+
+1. Class implement `Rpom.Api.Endpoints.IEndpoint`, dưới folder **persona** (`Endpoints/Erp/`, `Endpoints/Cashier/`, `Endpoints/Order/`, `Endpoints/Kitchen/`, `Endpoints/Guest/`, `Endpoints/System/`).
+2. `MapEndpoint(IEndpointRouteBuilder app)`:
+   - `app.MapGet/Post/Put/Delete(...)`
+   - `.WithTags("<Aggregate>")` — tag theo **aggregate**, KHÔNG theo persona (vd `"Tickets"`, `"Items"`)
+   - `.RequireAuthorization(Permissions.<Code>)` cho mọi endpoint auth'd
+   - Send `Query/Command` qua `ISender` (MediatR)
+   - Convert `Result<T>` qua extension methods ở `Rpom.Api.Results`
+3. **KHÔNG manual register** — `EndpointExtensions.AddEndpoints()` scan assembly tự động.
+
+```csharp
+internal sealed class GetTicketDetailsEndpoint : IEndpoint
+{
+    public void MapEndpoint(IEndpointRouteBuilder app)
+    {
+        app.MapGet("api/cashier/tickets/{ticketId:long}",
+            async (long ticketId, ISender sender) =>
+            {
+                var result = await sender.Send(new GetTicketDetails.Query(ticketId));
+                return result.MatchOk();
+            })
+            .RequireAuthorization(Permissions.CashierViewTicket)
+            .WithTags("Tickets")
+            .WithName("GetTicketDetails");
+    }
+}
+```
+
+---
+
+## 4. Result<T> & Errors
+
+- Handler **KHÔNG throw** cho expected failure. Dùng `Result.Failure(error)` / `Result.Success(value)`.
+- Errors định nghĩa per aggregate trong `<Aggregate>Errors.cs` ở `Rpom.Domain/`.
+- Naming error: `<Aggregate>.<Reason>` (vd `Ticket.NotFound`, `PriceVariant.OverlapConflict`).
+- Endpoint convert qua `Match*` extensions: `MatchOk`, `MatchCreated`, `MatchNoContent`.
+- Throw exception **CHỈ** cho: infrastructure failure (DB down), programmer bug (null khi không thể null), validation behavior (FluentValidation throws → pipeline catch).
+
+---
+
+## 5. Naming Convention (BLOCKING)
+
+### Tables + Fields
+- **PascalCase**, NO Hungarian prefix, NO underscore-between-words.
+- `Id` PK, `<Entity>Id` FK suffix (vd `CounterId`).
+- Date thuần: suffix `*Date` (`BeginDate`, `EndDate`). Type `date`.
+- Timestamp: suffix `*At` (`CreatedAt`, `UpdatedAt`, `ClosedAt`). Type `datetime2(3)` (Postgres `timestamp(3)`).
+- Bool: prefix `Is*` / `Has*` (`IsActive`, `HasRecipe`).
+- Money: `decimal(18,2)` cho final, `decimal(18,5)` cho intermediate compute.
+- Percent: `decimal(5,2)` (cho phép tối đa 999.99%).
+
+### Audit columns
+- Master: `CreatedAt`, `UpdatedAt`, `IsActive`.
+- Transactional: `CreatedAt`, `UpdatedAt`, `Version` int (nếu cần optimistic concurrency).
+- Append-only: chỉ `CreatedAt`.
+- Junction: chỉ `CreatedAt`.
+- **KHÔNG có** `CreatedById` / `UpdatedById` ở bất kỳ table — actor lưu trong `AuditLog`.
+
+### Soft delete
+- `IsActive bool default true` trên master tables.
+- Operational status (Ticket, Order, Reservation, ...) dùng enum varchar(20) (`OPEN`, `CLOSED`, `CANCELLED`, ...).
+
+---
+
+## 6. Permissions (BLOCKING)
+
+- **Flat string permissions** (vd `ticket:view_cashier`, `item:create`).
+- Catalog ở `Rpom.Application/Access/Permissions.cs` (const string).
+- Seed vào DB qua `AccessSeeder`.
+- Endpoint: `.RequireAuthorization(Permissions.<Code>)`.
+- `PermissionAuthorizationPolicyProvider` tự tạo policy → `PermissionAuthorizationHandler` check claim.
+
+### Permission lifecycle
+1. Login (`POST /api/auth/login`) → BCrypt verify → JWT chỉ chứa `sub` (StaffAccountId). **KHÔNG embed permissions trong JWT.**
+2. Per request → `CustomClaimsTransformation` chạy → query `staff_account_permissions` → augment ClaimsPrincipal với `permission` claims.
+3. **Counter context KHÔNG ở JWT.** Cashier open `CashDrawerSession` (POST `/api/cash-drawers`) bound to `(StaffAccountId, CounterId)`. Operational endpoint lookup OPEN session qua `ICurrentStaff` runtime.
+
+### Role
+- Label only — KHÔNG carry permissions trong schema.
+- Dùng làm default permission template lúc tạo StaffAccount.
+- System roles: Owner, Manager, Cashier, Order Staff, Kitchen Staff, Admin Vendor — KHÔNG delete được (`IsSystemRole=true`).
+
+### Permission Group
+- UI grouping only — không phải runtime auth.
+
+---
+
+## 7. Domain Events + Outbox
+
+- Aggregate raise event qua `entity.Raise(new XxxDomainEvent(...))`.
+- `InsertOutboxMessagesInterceptor` persist event vào `OutboxMessages` table khi `SaveChangesAsync`.
+- Quartz `ProcessOutboxJob` dispatch event.
+- Handler decorate `IdempotentDomainEventHandler<>` → tracked qua `OutboxMessageConsumers`, re-delivery safe.
+- Implement `IDomainEventHandler<TEvent>` ở `Rpom.Infrastructure` — auto-discovered.
+
+---
+
+## 8. AuditLog (BLOCKING)
+
+- **1 bảng polymorphic** `AuditLog`, KHÔNG FK.
+- Schema: `Id`, `EntityType`, `EntityId`, `Action`, `ActorStaffAccountId`, `ActorFullName`, `Timestamp`, `Summary`.
+- Action: `CREATE`, `UPDATE`, `DELETE` + business action (`REOPEN`, `APPROVE`, `VOID`, `OPEN_SHIFT`, `CLOSE_SHIFT`, ...).
+- Handler ghi `AuditLog` trực tiếp: `db.AuditLogs.Add(new AuditLog { ... })` trong cùng `SaveChangesAsync` với business mutation.
+- **KHÔNG có** `IAuditLogger` abstraction — inline cho gọn.
+- **KHÔNG ghi AuditLog cho**: read-only query, derived data (vd `TicketItemSum`), per-row poll cursor update.
+
+---
+
+## 9. DomainVersion Bump (BLOCKING)
+
+Sau `SaveChangesAsync` thành công, **mọi Command handler relevant phải bump scope** qua `IVersionService.BumpAsync`.
+
+```csharp
+await db.SaveChangesAsync(ct);
+await versionService.BumpAsync(VersionScopes.Menu, $"Item.Create(id={entity.Id})", ct);
+```
+
+Catalog scope: `MENU`, `PRICING`, `FLOOR_PLAN`, `KITCHEN`, `ACCESS`, `CONFIG`.
+
+Quy tắc bump đầy đủ ở `docs/RPOM_Versioning_Strategy.md` §6.
+
+**Quy tắc CẤM**:
+- ❌ Bump TRƯỚC `SaveChangesAsync` (nếu rollback thì version đã tăng — sai).
+- ❌ Bump scope KHÔNG liên quan để "force refresh" — sai.
+- ❌ Expose endpoint POST/PUT để bump thủ công — chỉ qua handler.
+
+---
+
+## 10. Concurrency Strategy
+
+Per `docs/RPOM_Versioning_Strategy.md` §17 — 3 cơ chế:
+
+| Cơ chế | Khi dùng | Cost |
+|---|---|---|
+| **Optimistic `Version` int** + EF `IsConcurrencyToken` | Single-row edit có thể conflict | Rẻ — không lock |
+| **SELECT FOR UPDATE** trong transaction | Multi-step check-act đa bảng (`SendToKitchen`, recompute) | Trung — lock hết transaction |
+| **UPSERT** 1 statement (`INSERT ON CONFLICT DO UPDATE`) | Counter increment đơn giản | Rẻ nhất |
+
+Map scenario → cơ chế ở Versioning Spec §17.6. Tham khảo trước khi build feature.
+
+**Anti-patterns**:
+- ❌ `SELECT FOR UPDATE` cho counter increment.
+- ❌ Optimistic Version cho multi-step check-act đa bảng.
+- ❌ Catch `DbUpdateConcurrencyException` rồi retry vô hạn.
+- ❌ Bump `Version` thủ công — EF tự handle qua `IsConcurrencyToken`.
+
+---
+
+## 11. Snapshot Pattern (BLOCKING cho transactional lines)
+
+OrderItem, CartItem, TicketItemSum, TicketPaymentDetail PHẢI snapshot:
+- `ItemCode`, `ItemName` từ Item lúc add (audit-immutable).
+- `UomCode`, `UomName` từ Uom lúc add.
+- `UnitPrice` từ PriceEntry (pre-VAT pre-SC).
+- `VatPercent` từ Item.
+- `ServiceChargePercent`, `ServiceChargeVatPercent` từ Ticket (đã snapshot từ Area lúc open).
+
+Snapshot field **KHÔNG đổi** khi master Item rename/reprice. Bill cũ luôn render đúng thông tin tại thời điểm order.
+
+---
+
+## 12. Money / Rounding (BLOCKING)
+
+Đọc `docs/superpowers/specs/2026-06-06-pricing-billing-spec.md` trước khi đụng pricing.
+
+- **`UnitPrice` luôn pre-VAT, pre-SC** trên CartItem/OrderItem. KHÔNG lưu cờ `IsVatIncluded` ở line — chỉ ở `PriceEntry` (config gốc).
+- **Normalize tại GetMenu API**: BE compute `BasePrice` (pre-VAT) + `DisplayPrice` (all-in) trả về FE. FE submit `BasePrice` khi add cart.
+- **Rounding precision** qua `RoundingConfig` table + `IRoundingConfig.GetDigits(keyCode)` helper. KHÔNG hardcode `Math.Round(value, N)` — luôn `Money.Round(value, rc, "I_ROUNDXXX")`.
+- **Rounding mode hardcode**: `MidpointRounding.AwayFromZero`. KHÔNG configurable v1.
+- **Discount 1 cấp**: Line + Ticket cùng compute, cái lớn thắng, cái thua zero.
+- **SC tính trên LineSubtotal GỐC** (trước Discount). VAT items tính trên `LineSubtotal − Discount`. VAT của SC riêng (`Area.ServiceChargeVatPercent`).
+- **`Ticket.RoundingAdjustment`** lưu sai số làm tròn = `TotalAmount − (Subtotal − Discount + SC + VAT)`.
+
+---
+
+## 13. Recompute Service (BLOCKING)
+
+- **Eager** — mọi mutation gọi `Recompute` trong cùng transaction handler.
+- `TicketRecomputeService.RecomputeAsync(ticketId)` cho mọi mutation cấp Ticket (OrderItem, Discount, Transfer, Merge, ...).
+- `CartRecomputeService.RecomputeAsync(orderId)` cho mọi mutation cấp Cart (CartItem, CartItemDetail).
+- `RefreshPaymentTotalsService.RefreshAsync(ticketId)` cho mutation Payment — KHÔNG full recompute.
+- Trigger matrix ở pricing-billing-spec §5. Mọi handler tương ứng PHẢI gọi service tương ứng.
+
+---
+
+## 14. Snapshot Pattern Vs Lookup
+
+- **Snapshot**: Cart/Order/Ticket/Payment lines lưu copy của Item/Uom/Modifier/Area config tại thời điểm add. Audit-immutable.
+- **Lookup**: GetMenu / GetFloorPlan lookup runtime, không snapshot.
+- **Ticket header snapshot khi Open**: `ServiceChargePercent`, `ServiceChargeVatPercent` từ Area lúc open ticket. Khi Transfer Table → re-snapshot và recompute.
+
+---
+
+## 15. Common Commands
 
 ```bash
 dotnet build
@@ -28,111 +294,127 @@ dotnet ef database update --project src/Rpom.Infrastructure --startup-project sr
 docker compose up --build
 ```
 
-## Architecture
+---
 
-Pragmatic Clean Architecture + CQRS via MediatR. Dependency direction:
+## 16. Project Layout
 
 ```
-Domain (no refs)
-   ↑
-Application (→ Domain)
-   ↑
-Infrastructure (→ Application, → Domain)
-   ↑
-Api (→ Application, Infrastructure)
-Worker (→ Application, Infrastructure)
+src/
+├── Rpom.Domain/                  — entity per aggregate folder (Access/Restaurant/Menu/...)
+│   ├── Common/                   — Entity, AggregateRoot, Result<T>, Error, DomainEvent, OutboxMessage
+│   ├── <Aggregate>/              — entities + <Aggregate>Errors.cs
+│   └── ...
+├── Rpom.Application/
+│   ├── Abstraction/              — IDbContext, IPermissionService, ICurrentStaff, IDateTimeProvider, IVersionService, IRoundingConfig, ...
+│   ├── Behaviors/                — Validation, Logging, ExceptionHandling pipeline
+│   ├── Common/                   — Money, Page<T>, ...
+│   └── <Aggregate>/<UseCase>/<UseCase>.cs — 1 file per use case
+├── Rpom.Infrastructure/
+│   ├── Database/                 — ApplicationDbContext, EF configs, migrations, seeders
+│   ├── Authentication/           — JWT, BCrypt, permission claims
+│   ├── Versioning/               — VersionService implementation
+│   ├── Money/                    — RoundingConfig cache, Money helper impl
+│   └── ...
+├── Rpom.Api/
+│   ├── Endpoints/<Persona>/<Aggregate>/<UseCase>Endpoint.cs
+│   ├── Results/                  — Result<T> → HTTP extensions
+│   └── Program.cs
+└── Rpom.Worker/                  — Quartz jobs (cron, outbox dispatch)
+
+tests/
+├── Rpom.Domain.UnitTests/
+├── Rpom.Application.UnitTests/
+└── Rpom.Api.IntegrationTests/
 ```
 
-**Pragmatic deviations from strict Clean:**
-- Domain may reference `Pgvector` (for `RagDocumentChunk.Embedding`) — DB-specific type leak accepted for simplicity.
-- No separate `Contracts` project for DTOs — endpoint Request/Response records are nested in endpoint file.
+---
 
-### Project roles
+## 17. Migration Workflow
 
-- **Rpom.Domain** — entities organized by aggregate (`Access`, `Restaurant`, `Menu`, `Operations`, `Sales`, `Reservation`, `Inventory`, `Ai`, `Audit`). `Common/` has shared `Entity`, `AggregateRoot`, `Result<T>`, `Error`, `DomainEvent`, `OutboxMessage`.
-- **Rpom.Application** — MediatR handlers, FluentValidation validators, abstractions (`IDbContext`, `IPermissionService`, `ICurrentStaff`, `IDateTimeProvider`, `IAiAgent`, `IRagSearchService`, `IAuditLogger`), pipeline behaviors (`ValidationBehavior`, `LoggingBehavior`, `ExceptionHandlingBehavior`).
-- **Rpom.Infrastructure** — EF Core (`ApplicationDbContext`, pgvector via Npgsql), migrations, JWT bearer, BCrypt password hashing, Quartz scheduler (Postgres-persisted), outbox (`InsertOutboxMessagesInterceptor` + `ProcessOutboxJob`), `AuditLogger` (centralized polymorphic AuditLog writer), AI services.
-- **Rpom.Api** — Minimal API endpoints organized by **persona folder** (`Endpoints/Erp/`, `Endpoints/Order/`, `Endpoints/Cashier/`, `Endpoints/Kitchen/`, `Endpoints/Guest/`, `Endpoints/System/`). Swagger tags by **aggregate** (`.WithTags("Tickets")`, `.WithTags("Items")`...). Serilog request logging.
-- **Rpom.Worker** — Quartz background jobs (AI low-stock cron, EOD summary cron, reservation NO_SHOW finalize cron, RAG re-index cron).
+1. Thay đổi entity / EF config.
+2. `dotnet ef migrations add <DescriptiveName>`.
+3. Review file `*.cs` generated — check up/down đúng. Nếu add NOT NULL với default → kiểm tra dữ liệu cũ.
+4. Run `dotnet build` đảm bảo migration compile.
+5. Smoke test local DB (drop schema + migrate).
+6. KHÔNG commit migration nếu chưa apply local.
 
-## Endpoint pattern (CRITICAL — every new route follows this)
+---
 
-Endpoints use convention-based discovery — NOT controllers.
+## 18. Testing
 
-1. Create class implementing `Rpom.Api.Endpoints.IEndpoint` under appropriate persona folder.
-2. In `MapEndpoint(IEndpointRouteBuilder app)`:
-   - Call `app.MapGet/Post/Put/Delete(...)`
-   - `.WithTags("<Aggregate>")` — aggregate-based tag, NOT persona
-   - `.RequireAuthorization(Permissions.<Code>)` — required for all auth'd endpoints
-   - Send `Command` / `Query` via `ISender` (MediatR)
-   - Use `Result<T>` extension methods from `Rpom.Api.Results` to convert to HTTP
-3. **NO manual registration** — `EndpointExtensions.AddEndpoints()` scans assembly; `MapEndpoints()` calls each at startup.
+- Unit test domain logic (entity invariant, value object) — KHÔNG hit DB.
+- Unit test application handler — mock `IDbContext` qua in-memory hoặc `IDbContextFactory<TestDbContext>`.
+- Integration test endpoint qua `WebApplicationFactory<Program>` + Postgres test container (Testcontainers).
+- Smoke test sau khi merge feature lớn — chạy seed script + call endpoint qua curl.
 
-Example skeleton:
-```csharp
-internal sealed class CreateItemEndpoint : IEndpoint
-{
-    public void MapEndpoint(IEndpointRouteBuilder app)
-    {
-        app.MapPost("items", async ([FromBody] Request request, ISender sender) =>
-        {
-            Result<Guid> result = await sender.Send(new CreateItem.Command(request.Name, ...));
-            return result.MatchCreated(id => $"/items/{id}");
-        })
-        .RequireAuthorization(Permissions.CreateItem)
-        .WithTags("Items")
-        .WithName("CreateItem");
-    }
+---
 
-    internal sealed record Request(string Name, /* ... */);
-}
-```
+## 19. Git Workflow
 
-## CQRS handler pattern
+- **Branch**: feature branch per use case nhỏ, hoặc per feature lớn cho phase nhiều use case.
+- **Commit message** — author `tuyetlangsa <longheo242@gmail.com>`, KHÔNG Co-Authored-By Claude line:
+  - Title: ≤ 70 chars, imperative.
+  - Body: max 3-5 bullets, focus "why" hơn "what".
+  - KHÔNG enumerate file.
+- **Tuyệt đối KHÔNG**: `--no-verify`, `--no-gpg-sign`, `--amend` (trừ khi dev request), force push to main.
+- **KHÔNG push** lên remote trừ khi dev explicit.
+- KHÔNG commit `.env`, credentials.
 
-Each use case = 1 file with nested `Command/Query` record, `Response` record, `Handler : ICommandHandler<,>` / `IQueryHandler<,>` (defined in `Rpom.Application/Abstraction/Messaging/`), and `Validator : AbstractValidator<Command>`.
+---
 
-Handlers:
-- Resolve current user via `ICurrentStaff.StaffAccountId`
-- Mutate via `IDbContext`
-- Raise domain events via `entity.Raise(new XxxDomainEvent(...))`
-- Return `Result<T>` / `Result` — NEVER throw for expected failures, use `Errors` constants
+## 20. Anti-patterns CẤM
 
-## Permission flow (custom — not Identity / Auth0)
+- ❌ Suffix `Dto`, `Model`, `ViewModel` trên record/class.
+- ❌ Shared response cho List/Get/Create/Update cùng aggregate.
+- ❌ Folder `Dtos/`, `Models/` chứa shared types.
+- ❌ Throw exception cho expected failure (dùng `Result.Failure`).
+- ❌ `CreatedById` / `UpdatedById` cột trên entity table (dùng AuditLog).
+- ❌ Embed permissions vào JWT.
+- ❌ Embed Counter context vào JWT (dùng `CashDrawerSession` runtime lookup).
+- ❌ Manual register endpoint trong `Program.cs` (convention-based discovery).
+- ❌ `WithTags("<persona>")` ở endpoint (dùng aggregate).
+- ❌ Bump `DomainVersion` trước `SaveChangesAsync`.
+- ❌ Hardcode `Math.Round(value, N)` trong recompute (dùng `Money.Round(value, rc, "key")`).
+- ❌ Mix optimistic + pessimistic lock trên cùng row.
+- ❌ Catch `DbUpdateConcurrencyException` + retry vô hạn.
+- ❌ Generic comment kiểu "// updated by handler" trên field (chỉ comment WHY).
+- ❌ Bê F2 patterns blindly — luôn cherry-pick + simplify. Dropped list ở pricing-billing-spec §1.
 
-1. **Login** *(POST /api/auth/login)*: verify BCrypt → issue JWT with only `sub` claim (StaffAccountId). Permissions NOT baked into JWT.
-2. **Per request**: `CustomClaimsTransformation` runs after JWT validation → calls `IPermissionService.GetPermissionsAsync(staffAccountId)` → query `staff_account_permissions` table → augment `ClaimsPrincipal` with `permission` claims.
-3. **Endpoint check**: `.RequireAuthorization("ticket:reopen")` → `PermissionAuthorizationPolicyProvider` auto-creates policy → `PermissionAuthorizationHandler` checks `claims.Contains("ticket:reopen")`.
-4. **Counter selection**: separate endpoint `POST /api/auth/select-counter` re-issues JWT with `counterId` claim added. Operational endpoints scope by `counterId` claim.
+---
 
-Permissions are flat strings (e.g. `ticket:reopen`, `item:create`, `report:revenue`). Catalog defined in `Rpom.Api/Permissions.cs` (const strings) + seeded into DB.
+## 21. Source-of-truth Docs
 
-`PermissionGroup` is **UI grouping only** — not part of runtime auth (just buckets permissions in the picker UI).
-`Role` is a **label** on StaffAccount — does NOT carry permissions. Used for default permission template on account creation (defaults coded in seeder).
+| Topic | File |
+|---|---|
+| Glossary, entities, business rules | `~/CapstoneProject/docs/RPOM_Glossary.md` |
+| Logical ERD | `~/CapstoneProject/docs/RPOM_Logical_ERD.md` + `.dbml` (v0.18+ — 51 tables across 9 areas) |
+| Versioning & polling | `~/CapstoneProject/docs/RPOM_Versioning_Strategy.md` |
+| Pricing model | `~/CapstoneProject/docs/RPOM_Pricing_Spec.md` |
+| Cashier pricing/billing fields | `~/CapstoneProject/docs/superpowers/specs/2026-06-06-pricing-billing-spec.md` |
+| Cashier read APIs design | `~/CapstoneProject/docs/superpowers/specs/2026-06-06-cashier-apis-design.md` |
+| Business flows F1-F7, E1-E4 | `~/CapstoneProject/docs/RPOM_Business_Flows.md` |
+| KF1 staff scheduling user stories | `~/CapstoneProject/docs/KF1_StaffScheduling_UserStories_UseCases.md` |
+| KF2 sales operation user stories | `~/CapstoneProject/docs/KF2_SalesOperation_UserStories_UseCases.md` |
+| F2 reference (cherry-pick patterns only) | `~/CapstoneProject/docs/table definitions.sql` + memory `feedback_f2_reference` |
 
-## Domain events + outbox
+**LUÔN đọc docs liên quan TRƯỚC khi implement.** Đừng đoán business rule từ shape của code. Memory `feedback_read_docs_first` đã ghi rõ.
 
-Domain events raised on aggregates are persisted to `OutboxMessages` table by `InsertOutboxMessagesInterceptor` during `SaveChangesAsync`. Quartz `ProcessOutboxJob` dispatches them. Each handler decorated with `IdempotentDomainEventHandler<>` so re-delivery is safe (tracked in `OutboxMessageConsumers`).
+---
 
-When adding a new domain event handler: implement `IDomainEventHandler<TEvent>` in `Rpom.Infrastructure` — auto-discovered.
+## 22. Context-specific Reminders
 
-## Audit log (centralized polymorphic)
+- **Capstone scope, single-tenant, VND only.** Mọi feature multi-currency/multi-warehouse/multi-tenant đã drop.
+- **Polling, không WebSocket.** Aggregate version + per-row UpdatedAt cursor.
+- **AuditLog không có viewer screen riêng** — panel embed trên màn detail của entity.
+- **Reservation không tạo placeholder ticket** — hold derived từ time + buffer config.
+- **Discount 1 cấp** (cái lớn thắng), không cộng dồn.
+- **Không có tip, deposit, excise tax, hourly billing** — defer v2.
+- **Modifier IS an Item** (Glossary §3.9) — không có table riêng Modifier.
 
-`AuditLog` table is single source of truth for "who did what". Schema:
-- `Id`, `EntityType`, `EntityId` (polymorphic, NO FK), `Action` (CREATE/UPDATE/DELETE + business actions like REOPEN, APPROVE, VOID)
-- `ActorStaffAccountId`, `ActorFullName` (snapshot)
-- `Timestamp`, `Summary` (optional human-readable)
+---
 
-**Entity tables do NOT have `CreatedById` / `UpdatedById` columns** — only `CreatedAt` / `UpdatedAt`. Actor info lives in AuditLog.
+## 23. Khi Sửa Hay Mở Rộng Rule
 
-Use `IAuditLogger.LogAsync(entityType, entityId, action, summary)` from handlers — NEVER write to AuditLog directly via DbContext.
+Cập nhật file này TRƯỚC khi code. Memory sẽ stale, file này là source of truth.
 
-## Conventions
-
-- **Naming**: PascalCase tables + fields, `Id` PK, `<Entity>Id` FK suffix, `IsActive`/`HasRecipe` bool prefix, `*Date` for `date`, `*At` for `datetime2(3)` timestamps (`CreatedAt`, `UpdatedAt`).
-- **Polling-friendly**: `UpdatedAt datetime2(3)` on Ticket, Order, CartItem, OrderItem, Reservation, ItemStock, AiNotification, Table — used as poll cursor (`WHERE UpdatedAt > @since`).
-- **Version int**: Optimistic concurrency on Ticket + ScheduleAssignment + ShiftSession only.
-- **Snapshot fields**: OrderItem stores ItemCode/ItemName/UnitPrice copied from Item at order time — preserves historical accuracy if Item renamed/repriced.
-- **Result pattern**: Handlers never throw for expected failures; use `Result.Failure(SomeError)`. Errors live in `<Aggregate>Errors.cs` per aggregate.
-- **Cancellation tokens**: every async method takes `CancellationToken ct` last.
-- **internal sealed**: default visibility for handlers/endpoints; expose `public` only when consumed across project boundaries.
+Đổi rule mà chưa update CLAUDE.md → re-apply rule cũ.

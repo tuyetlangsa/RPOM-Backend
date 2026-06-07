@@ -26,26 +26,26 @@ internal sealed class ProcessOutboxJob(
     {
         logger.LogInformation("{Module} - Beginning to process outbox messages", ModuleName);
 
-        var outboxMessages = await GetOutboxMessagesAsync();
+        IReadOnlyList<OutboxMessageResponse> outboxMessages = await GetOutboxMessagesAsync();
 
-        foreach (var outboxMessage in outboxMessages)
+        foreach (OutboxMessageResponse outboxMessage in outboxMessages)
         {
             Exception? exception = null;
 
             try
             {
-                var domainEvent = JsonConvert.DeserializeObject<IDomainEvent>(
+                IDomainEvent domainEvent = JsonConvert.DeserializeObject<IDomainEvent>(
                     outboxMessage.Content,
                     SerializerSettings.Instance)!;
 
-                using var scope = serviceScopeFactory.CreateScope();
+                using IServiceScope scope = serviceScopeFactory.CreateScope();
 
-                var handlers = DomainEventHandlersFactory.GetHandlers(
+                IEnumerable<IDomainEventHandler> handlers = DomainEventHandlersFactory.GetHandlers(
                     domainEvent.GetType(),
                     scope.ServiceProvider,
                     AssemblyReference.Assembly);
 
-                foreach (var domainEventHandler in handlers)
+                foreach (IDomainEventHandler domainEventHandler in handlers)
                 {
                     await domainEventHandler.Handle(domainEvent, context.CancellationToken);
                 }
@@ -69,7 +69,7 @@ internal sealed class ProcessOutboxJob(
 
     private async Task<IReadOnlyList<OutboxMessageResponse>> GetOutboxMessagesAsync()
     {
-        var messages = await dbContext.OutboxMessages
+        List<OutboxMessageResponse> messages = await dbContext.OutboxMessages
             .Where(m => m.ProcessedOnUtc == null)
             .OrderBy(m => m.OccurredOnUtc)
             .Take(outboxOptions.Value.BatchSize)
@@ -85,7 +85,7 @@ internal sealed class ProcessOutboxJob(
 
     private async Task UpdateOutboxMessageAsync(OutboxMessageResponse outboxMessage, Exception? exception)
     {
-        var message = await dbContext.OutboxMessages
+        OutboxMessage? message = await dbContext.OutboxMessages
             .FirstOrDefaultAsync(m => m.Id == outboxMessage.Id);
 
         if (message is not null)

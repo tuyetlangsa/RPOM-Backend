@@ -17,7 +17,8 @@ internal sealed class BomLineConfiguration : IEntityTypeConfiguration<BomLine>
 
         builder.HasIndex(x => x.SellableItemId);
         builder.HasIndex(x => x.MaterialItemId);
-        builder.HasIndex(x => new { x.SellableItemId, x.MaterialItemId }).IsUnique().HasDatabaseName("ux_bom_line_recipe");
+        builder.HasIndex(x => new { x.SellableItemId, x.MaterialItemId }).IsUnique()
+            .HasDatabaseName("ux_bom_line_recipe");
 
         builder.HasOne(x => x.SellableItem)
             .WithMany()

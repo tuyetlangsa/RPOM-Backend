@@ -3,10 +3,10 @@ using Rpom.Domain.Common;
 namespace Rpom.Domain.Access;
 
 /// <summary>
-/// Restaurant staff user account. Identity for all auth + audit. Hub entity
-/// referenced by 8 subject areas. Effective permissions = SELECT FROM
-/// StaffAccountPermission WHERE StaffAccountId = @id (flat, no inheritance).
-/// Actor info for audit captured in AuditLog with EntityType='StaffAccount'.
+///     Restaurant staff user account. Identity for all auth + audit. Hub entity
+///     referenced by 8 subject areas. Effective permissions = SELECT FROM
+///     StaffAccountPermission WHERE StaffAccountId = @id (flat, no inheritance).
+///     Actor info for audit captured in AuditLog with EntityType='StaffAccount'.
 /// </summary>
 public class StaffAccount : Entity
 {
@@ -15,6 +15,7 @@ public class StaffAccount : Entity
 
     /// <summary>BCrypt hash; plain password never stored.</summary>
     public string PasswordHash { get; set; } = null!;
+
     public string FullName { get; set; } = null!;
     public string? Phone { get; set; }
     public string? Email { get; set; }
@@ -30,9 +31,12 @@ public class StaffAccount : Entity
 
     /// <summary>Updated by login flow; NULL for never-logged accounts.</summary>
     public DateTime? LastLoginAt { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 
     public virtual Role Role { get; set; } = null!;
-    public virtual ICollection<StaffAccountPermission> StaffAccountPermissions { get; set; } = new List<StaffAccountPermission>();
+
+    public virtual ICollection<StaffAccountPermission> StaffAccountPermissions { get; set; } =
+        new List<StaffAccountPermission>();
 }

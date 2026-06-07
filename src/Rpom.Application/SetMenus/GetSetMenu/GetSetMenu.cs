@@ -36,9 +36,12 @@ public static class GetSetMenu
                 .Where(s => s.ItemId == request.ItemId)
                 .Select(s => new { s.ItemId, ItemCode = s.Item.Code, ItemName = s.Item.Name, s.Description })
                 .FirstOrDefaultAsync(ct);
-            if (setMenu is null) return Result.Failure<Response>(SetMenuErrors.NotASetMenu);
+            if (setMenu is null)
+            {
+                return Result.Failure<Response>(SetMenuErrors.NotASetMenu);
+            }
 
-            var details = await db.SetMenuDetails
+            List<DetailRef> details = await db.SetMenuDetails
                 .Where(d => d.SetMenuItemId == request.ItemId)
                 .OrderBy(d => d.DisplayOrder)
                 .Select(d => new DetailRef(

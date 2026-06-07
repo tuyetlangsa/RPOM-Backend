@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Rpom.Domain.Access;
 using Rpom.Domain.Ai;
 using Rpom.Domain.Audit;
@@ -15,8 +16,8 @@ using Rpom.Domain.Sales.CashDrawer;
 namespace Rpom.Application.Abstraction.Data;
 
 /// <summary>
-/// EF Core DbContext abstraction exposed to the Application layer.
-/// One DbSet per Domain entity (51 entities across 8 areas + cross-cutting).
+///     EF Core DbContext abstraction exposed to the Application layer.
+///     One DbSet per Domain entity (51 entities across 8 areas + cross-cutting).
 /// </summary>
 public interface IDbContext
 {
@@ -31,6 +32,7 @@ public interface IDbContext
     DbSet<Counter> Counters { get; }
     DbSet<Area> Areas { get; }
     DbSet<Table> Tables { get; }
+    DbSet<TableLock> TableLocks { get; }
 
     // --- Area C: Menu & Catalog ---
     DbSet<Uom> Uoms { get; }
@@ -100,6 +102,8 @@ public interface IDbContext
     // --- Outbox infrastructure ---
     DbSet<OutboxMessage> OutboxMessages { get; }
     DbSet<OutboxMessageConsumer> OutboxMessageConsumers { get; }
+
+    DatabaseFacade Database { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

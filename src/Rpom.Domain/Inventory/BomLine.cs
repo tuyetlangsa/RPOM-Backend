@@ -4,10 +4,10 @@ using Rpom.Domain.Menu;
 namespace Rpom.Domain.Inventory;
 
 /// <summary>
-/// Recipe line. Self-ref junction Item ↔ Item — defines "to make 1 SellableItem,
-/// consume Quantity of MaterialItem". App-enforced: SellableItem.HasRecipe=true,
-/// MaterialItem.IsStockable=true, no self-loop, no recipe cycles.
-/// Triggered DEDUCT on OrderItem PENDING → PROCESSING transition.
+///     Recipe line. Self-ref junction Item ↔ Item — defines "to make 1 SellableItem,
+///     consume Quantity of MaterialItem". App-enforced: SellableItem.HasRecipe=true,
+///     MaterialItem.IsStockable=true, no self-loop, no recipe cycles.
+///     Triggered DEDUCT on OrderItem PENDING → PROCESSING transition.
 /// </summary>
 public class BomLine : Entity
 {
@@ -24,6 +24,7 @@ public class BomLine : Entity
 
     /// <summary>Unit for Quantity — must be MaterialItem.BaseUomId or in MaterialItem's ItemUomConversion.</summary>
     public int UomId { get; set; }
+
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

@@ -40,23 +40,31 @@ public static class Login
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken cancellationToken)
         {
-            var staff = await dbContext.StaffAccounts
+            StaffAccount? staff = await dbContext.StaffAccounts
                 .Include(x => x.Role)
                 .FirstOrDefaultAsync(x => x.Username == request.Username, cancellationToken);
 
             if (staff is null)
+            {
                 return Result.Failure<Response>(AccessErrors.InvalidCredentials);
+            }
 
             if (!staff.IsActive)
+            {
                 return Result.Failure<Response>(AccessErrors.AccountInactive);
+            }
 
             if (staff.IsLocked)
+            {
                 return Result.Failure<Response>(AccessErrors.AccountLocked);
+            }
 
             if (!passwordHasher.Verify(request.Password, staff.PasswordHash))
+            {
                 return Result.Failure<Response>(AccessErrors.InvalidCredentials);
+            }
 
-            var now = dateTimeProvider.UtcNow;
+            DateTime now = dateTimeProvider.UtcNow;
             staff.LastLoginAt = now;
             staff.UpdatedAt = now;
 
@@ -77,15 +85,15 @@ public static class Login
             // login as a clock-in event in a future feature. For now login
             // only issues a JWT — cash drawer is opened separately at the
             // cashier app via POST /api/cash-drawers when needed.
-            var token = jwtTokenService.IssueAccessToken(staff.Id, staff.Username);
+            AccessTokenResult token = jwtTokenService.IssueAccessToken(staff.Id, staff.Username);
 
             return Result.Success(new Response(
-                AccessToken: token.Token,
-                ExpiresAt: token.ExpiresAt,
-                StaffAccountId: staff.Id,
-                Username: staff.Username,
-                FullName: staff.FullName,
-                RoleCode: staff.Role.Code));
+                token.Token,
+                token.ExpiresAt,
+                staff.Id,
+                staff.Username,
+                staff.FullName,
+                staff.Role.Code));
         }
     }
 }

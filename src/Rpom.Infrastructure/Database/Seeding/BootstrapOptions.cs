@@ -1,9 +1,9 @@
 namespace Rpom.Infrastructure.Database.Seeding;
 
 /// <summary>
-/// Initial Owner account credentials, used by <see cref="AccessSeeder"/> on first
-/// startup. Idempotent — if an account with <see cref="OwnerUsername"/> already
-/// exists, seeding is a no-op. Bound from configuration section "Bootstrap".
+///     Initial Owner account credentials, used by <see cref="AccessSeeder" /> on first
+///     startup. Idempotent — if an account with <see cref="OwnerUsername" /> already
+///     exists, seeding is a no-op. Bound from configuration section "Bootstrap".
 /// </summary>
 public sealed class BootstrapOptions
 {

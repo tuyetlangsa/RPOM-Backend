@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -23,8 +24,15 @@ public static class UpdateChoiceCategory
         bool IsActive) : ICommand<Response>;
 
     public sealed record Response(
-        int Id, string Name, string? Note, short MinChoice, short? MaxChoice,
-        short DisplayOrder, bool IsActive, DateTime CreatedAt, DateTime UpdatedAt);
+        int Id,
+        string Name,
+        string? Note,
+        short MinChoice,
+        short? MaxChoice,
+        short DisplayOrder,
+        bool IsActive,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
 
     internal sealed class Validator : AbstractValidator<Command>
     {
@@ -49,17 +57,23 @@ public static class UpdateChoiceCategory
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var entity = await db.ChoiceCategories.FirstOrDefaultAsync(c => c.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<Response>(ChoiceCategoryErrors.NotFound);
+            ChoiceCategory? entity = await db.ChoiceCategories.FirstOrDefaultAsync(c => c.Id == request.Id, ct);
+            if (entity is null)
+            {
+                return Result.Failure<Response>(ChoiceCategoryErrors.NotFound);
+            }
 
-            var name = request.Name.Trim();
-            var nameLower = name.ToLower();
-            var duplicate = await db.ChoiceCategories
+            string name = request.Name.Trim();
+            string nameLower = name.ToLower();
+            bool duplicate = await db.ChoiceCategories
                 .AnyAsync(c => c.Id != request.Id && c.Name.ToLower() == nameLower, ct);
-            if (duplicate) return Result.Failure<Response>(ChoiceCategoryErrors.NameDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(ChoiceCategoryErrors.NameDuplicate);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             entity.Name = name;
             entity.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
@@ -69,7 +83,7 @@ public static class UpdateChoiceCategory
             entity.IsActive = request.IsActive;
             entity.UpdatedAt = now;
 
-            var staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             db.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(ChoiceCategory),
@@ -78,7 +92,7 @@ public static class UpdateChoiceCategory
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"ChoiceCategory updated: {entity.Name}",
+                Summary = $"ChoiceCategory updated: {entity.Name}"
             });
 
             try
@@ -89,6 +103,7 @@ public static class UpdateChoiceCategory
             {
                 return Result.Failure<Response>(ChoiceCategoryErrors.NameDuplicate);
             }
+
             await versionService.BumpAsync(VersionScopes.Menu, $"ChoiceCategory.Update(id={entity.Id})", ct);
 
             return Result.Success(new Response(

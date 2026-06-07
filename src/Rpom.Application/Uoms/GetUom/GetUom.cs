@@ -23,7 +23,7 @@ public static class GetUom
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
         {
-            var row = await dbContext.Uoms
+            Response? row = await dbContext.Uoms
                 .Where(x => x.Id == request.Id)
                 .Select(x => new Response(
                     x.Id, x.Code, x.Name, x.Description, x.IsActive, x.CreatedAt, x.UpdatedAt))

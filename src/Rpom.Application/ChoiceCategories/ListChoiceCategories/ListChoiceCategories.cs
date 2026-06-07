@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Domain.Common;
+using Rpom.Domain.Menu;
 
 namespace Rpom.Application.ChoiceCategories.ListChoiceCategories;
 
@@ -25,17 +26,20 @@ public static class ListChoiceCategories
     {
         public async Task<Result<IReadOnlyList<Response>>> Handle(Query request, CancellationToken ct)
         {
-            var q = db.ChoiceCategories.AsQueryable();
+            IQueryable<ChoiceCategory> q = db.ChoiceCategories.AsQueryable();
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var s = request.Search.Trim().ToLower();
+                string s = request.Search.Trim().ToLower();
                 q = q.Where(c => c.Name.ToLower().Contains(s));
             }
-            if (request.IsActive is { } active)
-                q = q.Where(c => c.IsActive == active);
 
-            var list = await q
+            if (request.IsActive is { } active)
+            {
+                q = q.Where(c => c.IsActive == active);
+            }
+
+            List<Response> list = await q
                 .OrderBy(c => c.DisplayOrder).ThenBy(c => c.Name)
                 .Select(c => new Response(
                     c.Id, c.Name, c.Note, c.MinChoice, c.MaxChoice, c.DisplayOrder, c.IsActive,
