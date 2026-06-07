@@ -150,28 +150,58 @@ public sealed class LookupSeeder(
         db.Tables.AddRange(
             new Table
             {
-                AreaId = sanh.Id, Code = "T01", SeatCount = 4, Description = "Bàn cạnh cửa sổ",
-                Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now
+                AreaId = sanh.Id,
+                Code = "T01",
+                SeatCount = 4,
+                Description = "Bàn cạnh cửa sổ",
+                Status = TableStatus.Available,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
             },
             new Table
             {
-                AreaId = sanh.Id, Code = "T02", SeatCount = 4, Description = null, Status = TableStatus.Available,
-                IsActive = true, CreatedAt = now, UpdatedAt = now
+                AreaId = sanh.Id,
+                Code = "T02",
+                SeatCount = 4,
+                Description = null,
+                Status = TableStatus.Available,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
             },
             new Table
             {
-                AreaId = sanh.Id, Code = "T03", SeatCount = 6, Description = "Bàn dài 6 chỗ",
-                Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now
+                AreaId = sanh.Id,
+                Code = "T03",
+                SeatCount = 6,
+                Description = "Bàn dài 6 chỗ",
+                Status = TableStatus.Available,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
             },
             new Table
             {
-                AreaId = vip.Id, Code = "VIP1", SeatCount = 8, Description = "VIP cửa kính",
-                Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now
+                AreaId = vip.Id,
+                Code = "VIP1",
+                SeatCount = 8,
+                Description = "VIP cửa kính",
+                Status = TableStatus.Available,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
             },
             new Table
             {
-                AreaId = vip.Id, Code = "VIP2", SeatCount = 10, Description = null, Status = TableStatus.Available,
-                IsActive = true, CreatedAt = now, UpdatedAt = now
+                AreaId = vip.Id,
+                Code = "VIP2",
+                SeatCount = 10,
+                Description = null,
+                Status = TableStatus.Available,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
             }
         );
         await db.SaveChangesAsync(ct);

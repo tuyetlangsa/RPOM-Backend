@@ -40,8 +40,15 @@ public static class GetChoiceCategory
                 .Where(c => c.Id == request.Id)
                 .Select(c => new
                 {
-                    c.Id, c.Name, c.Note, c.MinChoice, c.MaxChoice, c.DisplayOrder, c.IsActive,
-                    c.CreatedAt, c.UpdatedAt
+                    c.Id,
+                    c.Name,
+                    c.Note,
+                    c.MinChoice,
+                    c.MaxChoice,
+                    c.DisplayOrder,
+                    c.IsActive,
+                    c.CreatedAt,
+                    c.UpdatedAt
                 })
                 .FirstOrDefaultAsync(ct);
             if (cc is null)

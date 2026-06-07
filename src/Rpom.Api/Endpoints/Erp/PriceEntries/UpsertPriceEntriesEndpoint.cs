@@ -28,8 +28,10 @@ internal sealed class UpsertPriceEntriesEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Upsert price entries of a price variant.")
-            .WithDescription(
-                "Request: route priceVariantId (int); JSON body { entries:[{ itemId:int, price:decimal, isVatIncluded:bool }] }. Response: 200 OK — JSON UpsertPriceEntries.Response.");
+            .WithDescription("""
+    Request: route priceVariantId (int); JSON body { entries:[{ itemId:int, price:decimal,
+    isVatIncluded:bool }] }. Response: 200 OK — JSON UpsertPriceEntries.Response.
+""");
     }
 
     internal sealed record Request(IReadOnlyList<EntryRequest>? Entries);

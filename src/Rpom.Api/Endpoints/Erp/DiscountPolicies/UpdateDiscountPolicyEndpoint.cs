@@ -32,8 +32,13 @@ internal sealed class UpdateDiscountPolicyEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Update a discount policy (replace-all conditions).")
-            .WithDescription(
-                "Request: route id (int); JSON body { code:string, name:string, description?:string, discountType:'TICKET_THRESHOLD'|'QUANTITY_ITEM', isAutoApply:bool, daysOfWeek?:string, isActive:bool, conditions:[{ thresholdAmount?:decimal, itemId?:int, quantityThreshold?:decimal, areaId?:int, applyType:'PERCENT'|'FIXED', discountValue:decimal, displayOrder:short }] }. Response: 200 OK — JSON UpdateDiscountPolicy.Response.");
+            .WithDescription("""
+    Request: route id (int); JSON body { code:string, name:string, description?:string,
+    discountType:'TICKET_THRESHOLD'|'QUANTITY_ITEM', isAutoApply:bool, daysOfWeek?:string,
+    isActive:bool, conditions:[{ thresholdAmount?:decimal, itemId?:int, quantityThreshold?:decimal,
+    areaId?:int, applyType:'PERCENT'|'FIXED', discountValue:decimal, displayOrder:short }] }. Response:
+    200 OK — JSON UpdateDiscountPolicy.Response.
+""");
     }
 
     internal sealed record Request(

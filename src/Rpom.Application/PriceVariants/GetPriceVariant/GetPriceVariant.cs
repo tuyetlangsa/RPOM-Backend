@@ -35,9 +35,18 @@ public static class GetPriceVariant
                 .Where(x => x.Id == request.Id)
                 .Select(x => new
                 {
-                    x.Id, x.PriceTableId, x.Code, x.Name, x.Description,
-                    x.BeginTime, x.EndTime, x.DayMask, x.AppliesToAllAreas,
-                    x.IsActive, x.CreatedAt, x.UpdatedAt,
+                    x.Id,
+                    x.PriceTableId,
+                    x.Code,
+                    x.Name,
+                    x.Description,
+                    x.BeginTime,
+                    x.EndTime,
+                    x.DayMask,
+                    x.AppliesToAllAreas,
+                    x.IsActive,
+                    x.CreatedAt,
+                    x.UpdatedAt,
                     AreaIds = dbContext.PriceVariantAreas
                         .Where(a => a.PriceVariantId == x.Id)
                         .Select(a => a.AreaId).ToList(),

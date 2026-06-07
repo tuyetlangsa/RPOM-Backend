@@ -235,7 +235,12 @@ public static class CreatePriceVariant
                 .Where(v => v.PriceTableId == priceTableId && v.Id != excludeId)
                 .Select(v => new
                 {
-                    v.Id, v.Code, v.BeginTime, v.EndTime, v.DayMask, v.AppliesToAllAreas,
+                    v.Id,
+                    v.Code,
+                    v.BeginTime,
+                    v.EndTime,
+                    v.DayMask,
+                    v.AppliesToAllAreas,
                     AreaIds = dbContext.PriceVariantAreas
                         .Where(a => a.PriceVariantId == v.Id)
                         .Select(a => a.AreaId).ToList()

@@ -27,8 +27,13 @@ internal sealed class UpdateCartItemEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Update a cart line: qty, notes, or reconfigure set-menu modifiers.")
-            .WithDescription(
-                "Request: route ticketId (long) + cartItemId (long); JSON body { quantity:decimal, notes?:string, details?:[{ choiceCategoryId?:int, itemId:int, componentType:string, quantity:decimal, notes?:string }] }. For set menus: FE sends the complete desired modifier set; BE diffs against existing — matched updates, qty=0 deletes, new inserts, then validates. Main qty=0 removes the cart line. Response: 200 OK — JSON body { cartItemId, lineTotal }.");
+            .WithDescription("""
+    Request: route ticketId (long) + cartItemId (long); JSON body { quantity:decimal, notes?:string,
+    details?:[{ choiceCategoryId?:int, itemId:int, componentType:string, quantity:decimal, notes?:string
+    }] }. For set menus: FE sends the complete desired modifier set; BE diffs against existing — matched
+    updates, qty=0 deletes, new inserts, then validates. Main qty=0 removes the cart line. Response: 200
+    OK — JSON body { cartItemId, lineTotal }.
+""");
     }
 
     internal sealed record Request(decimal Quantity, string? Notes, IReadOnlyList<UpdateCartItem.DetailInput>? Details);

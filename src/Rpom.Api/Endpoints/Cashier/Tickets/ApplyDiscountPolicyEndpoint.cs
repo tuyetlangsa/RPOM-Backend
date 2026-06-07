@@ -25,7 +25,12 @@ internal sealed class ApplyDiscountPolicyEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Apply a discount policy to the ticket.")
-            .WithDescription("Request: route ticketId (long); JSON body { discountPolicyId:int }. Evaluates policy conditions against the ticket; picks the best match. PERCENT: sets Ticket.DiscountPercent or per-line LineDiscountPercent. FIXED: distributes amount across lines proportionally. One policy at a time — remove first to switch. Response: 200 OK — JSON body { ticketId, discountAmount, totalAmount }.");
+            .WithDescription("""
+    Request: route ticketId (long); JSON body { discountPolicyId:int }. Evaluates policy conditions
+    against the ticket; picks the best match. PERCENT: sets Ticket.DiscountPercent or per-line
+    LineDiscountPercent. FIXED: distributes amount across lines proportionally. One policy at a time —
+    remove first to switch. Response: 200 OK — JSON body { ticketId, discountAmount, totalAmount }.
+""");
     }
 
     internal sealed record Request(int DiscountPolicyId);

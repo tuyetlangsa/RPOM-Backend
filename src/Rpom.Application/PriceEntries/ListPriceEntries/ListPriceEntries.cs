@@ -38,9 +38,15 @@ public static class ListPriceEntries
                     i => i.Id,
                     (e, i) => new
                     {
-                        e.Id, e.PriceVariantId, e.ItemId,
-                        ItemCode = i.Code, ItemName = i.Name,
-                        e.Price, e.IsVatIncluded, e.CreatedAt, e.UpdatedAt
+                        e.Id,
+                        e.PriceVariantId,
+                        e.ItemId,
+                        ItemCode = i.Code,
+                        ItemName = i.Name,
+                        e.Price,
+                        e.IsVatIncluded,
+                        e.CreatedAt,
+                        e.UpdatedAt
                     })
                 .OrderBy(r => r.ItemName)
                 .ToListAsync(ct);

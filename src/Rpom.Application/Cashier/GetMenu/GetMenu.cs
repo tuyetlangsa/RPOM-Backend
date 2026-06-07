@@ -98,8 +98,11 @@ public static class GetMenu
                 .Where(t => t.Id == request.TableId)
                 .Select(t => new
                 {
-                    t.Id, t.AreaId, AreaName = t.Area.Name,
-                    t.Area.ServiceChargePercent, t.Area.ServiceChargeVatPercent
+                    t.Id,
+                    t.AreaId,
+                    AreaName = t.Area.Name,
+                    t.Area.ServiceChargePercent,
+                    t.Area.ServiceChargeVatPercent
                 })
                 .FirstOrDefaultAsync(ct);
             if (table is null)
@@ -117,7 +120,15 @@ public static class GetMenu
 
             var allCategories = await db.Categories
                 .Where(c => c.IsActive)
-                .Select(c => new { c.Id, c.Code, c.Name, c.ParentId, c.Path, c.DisplayOrder })
+                .Select(c => new
+                {
+                    c.Id,
+                    c.Code,
+                    c.Name,
+                    c.ParentId,
+                    c.Path,
+                    c.DisplayOrder
+                })
                 .ToListAsync(ct);
 
             var visibleCategories = allCategories
@@ -136,11 +147,19 @@ public static class GetMenu
                 .Where(i => itemIds.Contains(i.Id) && i.IsActive)
                 .Select(i => new
                 {
-                    i.Id, i.Code, i.Name, i.Description, i.ImageUrl, i.BaseUomId,
-                    UomCode = i.BaseUom.Code, UomName = i.BaseUom.Name,
-                    i.VatPercent, i.KitchenStationId,
+                    i.Id,
+                    i.Code,
+                    i.Name,
+                    i.Description,
+                    i.ImageUrl,
+                    i.BaseUomId,
+                    UomCode = i.BaseUom.Code,
+                    UomName = i.BaseUom.Name,
+                    i.VatPercent,
+                    i.KitchenStationId,
                     KitchenStationName = i.KitchenStation != null ? i.KitchenStation.Name : null,
-                    i.IsStockable, IsSetMenu = i.SetMenu != null
+                    i.IsStockable,
+                    IsSetMenu = i.SetMenu != null
                 })
                 .ToListAsync(ct);
             var realItemIds = items.Select(i => i.Id).ToList();
@@ -246,8 +265,13 @@ public static class GetMenu
                 .OrderBy(d => d.DisplayOrder)
                 .Select(d => new
                 {
-                    d.SetMenuItemId, d.DetailType, d.ComponentItemId, d.ChoiceCategoryId,
-                    d.Quantity, d.IsFixed, d.DisplayOrder,
+                    d.SetMenuItemId,
+                    d.DetailType,
+                    d.ComponentItemId,
+                    d.ChoiceCategoryId,
+                    d.Quantity,
+                    d.IsFixed,
+                    d.DisplayOrder,
                     ComponentName = d.ComponentItem != null ? d.ComponentItem.Name : null,
                     ComponentUomCode = d.ComponentItem != null ? d.ComponentItem.BaseUom.Code : null,
                     ComponentUomName = d.ComponentItem != null ? d.ComponentItem.BaseUom.Name : null,
@@ -261,7 +285,14 @@ public static class GetMenu
 
             var choiceCategories = await db.ChoiceCategories
                 .Where(cc => choiceCategoryIds.Contains(cc.Id) && cc.IsActive)
-                .Select(cc => new { cc.Id, cc.Name, cc.MinChoice, cc.MaxChoice, cc.DisplayOrder })
+                .Select(cc => new
+                {
+                    cc.Id,
+                    cc.Name,
+                    cc.MinChoice,
+                    cc.MaxChoice,
+                    cc.DisplayOrder
+                })
                 .ToListAsync(ct);
 
             var modifiers = await db.Modifiers
@@ -269,8 +300,14 @@ public static class GetMenu
                 .OrderBy(m => m.DisplayOrder)
                 .Select(m => new
                 {
-                    m.ChoiceCategoryId, ModifierId = m.ItemId, m.ItemId, m.Item.Name, m.ExtraPrice, m.MinPerModifier,
-                    m.MaxPerModifier, m.DisplayOrder
+                    m.ChoiceCategoryId,
+                    ModifierId = m.ItemId,
+                    m.ItemId,
+                    m.Item.Name,
+                    m.ExtraPrice,
+                    m.MinPerModifier,
+                    m.MaxPerModifier,
+                    m.DisplayOrder
                 })
                 .ToListAsync(ct);
             var modifiersByCc = modifiers.GroupBy(m => m.ChoiceCategoryId)

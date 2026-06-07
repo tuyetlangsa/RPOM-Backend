@@ -45,7 +45,9 @@ public static class DiscountEvaluator
         {
             var allowed = daysOfWeek.Split(',').Select(d => int.Parse(d.Trim())).ToHashSet();
             if (!allowed.Contains(today))
+            {
                 return null;
+            }
         }
 
         ConditionSpec? best = null;
@@ -54,7 +56,9 @@ public static class DiscountEvaluator
         {
             // Optional area scope.
             if (c.AreaId is { } areaId && areaId != ticketAreaId)
+            {
                 continue;
+            }
 
             bool matched = discountType switch
             {
@@ -69,10 +73,14 @@ public static class DiscountEvaluator
             };
 
             if (!matched)
+            {
                 continue;
+            }
 
             if (best is null || c.DiscountValue > best.DiscountValue)
+            {
                 best = c;
+            }
         }
 
         return best is null

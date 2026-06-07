@@ -26,8 +26,11 @@ internal sealed class CreateChoiceCategoryEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create a choice category.")
-            .WithDescription(
-                "Request: JSON body { name:string, note?:string, minChoice:short, maxChoice?:short, displayOrder:short, isActive:bool }. Response: 201 Created — Location header; JSON body with new choice-category id.");
+            .WithDescription("""
+    Request: JSON body { name:string, note?:string, minChoice:short, maxChoice?:short,
+    displayOrder:short, isActive:bool }. Response: 201 Created — Location header; JSON body with new
+    choice-category id.
+""");
     }
 
     internal sealed record Request(

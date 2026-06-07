@@ -28,8 +28,10 @@ internal sealed class OpenCashDrawerEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Open a new cash drawer session for a counter.")
-            .WithDescription(
-                "Request: JSON body { counterId:int, openingCashCounts:[{ denominationId:int, quantity:int }], notes?:string }. Response: 201 Created — Location header; JSON body with new session id.");
+            .WithDescription("""
+    Request: JSON body { counterId:int, openingCashCounts:[{ denominationId:int, quantity:int }],
+    notes?:string }. Response: 201 Created — Location header; JSON body with new session id.
+""");
     }
 
     internal sealed record Request(

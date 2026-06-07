@@ -72,8 +72,12 @@ public static class AddCartItem
                 .Where(t => t.Id == request.TicketId)
                 .Select(t => new
                 {
-                    t.Id, t.TableId, t.AreaId, t.Status,
-                    t.ServiceChargePercent, t.ServiceChargeVatPercent
+                    t.Id,
+                    t.TableId,
+                    t.AreaId,
+                    t.Status,
+                    t.ServiceChargePercent,
+                    t.ServiceChargeVatPercent
                 })
                 .FirstOrDefaultAsync(ct);
             if (ticket is null)
@@ -96,8 +100,13 @@ public static class AddCartItem
                 .Where(i => i.Id == request.ItemId && i.IsActive)
                 .Select(i => new
                 {
-                    i.Id, i.Code, i.Name, i.VatPercent, i.BaseUomId,
-                    UomCode = i.BaseUom.Code, UomName = i.BaseUom.Name,
+                    i.Id,
+                    i.Code,
+                    i.Name,
+                    i.VatPercent,
+                    i.BaseUomId,
+                    UomCode = i.BaseUom.Code,
+                    UomName = i.BaseUom.Name,
                     IsSetMenu = i.SetMenu != null
                 })
                 .FirstOrDefaultAsync(ct);
@@ -228,7 +237,11 @@ public static class AddCartItem
                 .Where(m => ccIds.Contains(m.ChoiceCategoryId) && m.IsActive)
                 .Select(m => new
                 {
-                    m.ChoiceCategoryId, m.ItemId, m.MinPerModifier, m.MaxPerModifier, m.ExtraPrice,
+                    m.ChoiceCategoryId,
+                    m.ItemId,
+                    m.MinPerModifier,
+                    m.MaxPerModifier,
+                    m.ExtraPrice,
                     ItemName = m.Item.Name
                 })
                 .ToListAsync(ct);

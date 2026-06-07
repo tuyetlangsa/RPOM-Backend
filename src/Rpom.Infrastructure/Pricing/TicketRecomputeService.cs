@@ -84,9 +84,15 @@ internal sealed class TicketRecomputeService(
         var groups = orderItems
             .GroupBy(o => new
             {
-                o.ItemId, o.UomId, o.UnitPrice, o.ChoicePricePerUnit,
-                o.LineDiscountPercent, o.TicketDiscountPercent,
-                o.VatPercent, o.ServiceChargePercent, o.ServiceChargeVatPercent
+                o.ItemId,
+                o.UomId,
+                o.UnitPrice,
+                o.ChoicePricePerUnit,
+                o.LineDiscountPercent,
+                o.TicketDiscountPercent,
+                o.VatPercent,
+                o.ServiceChargePercent,
+                o.ServiceChargeVatPercent
             })
             .OrderBy(g => g.Min(o => o.SentAt))
             .ToList();

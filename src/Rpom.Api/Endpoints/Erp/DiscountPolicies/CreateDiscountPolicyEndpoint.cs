@@ -32,8 +32,13 @@ internal sealed class CreateDiscountPolicyEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create a discount policy with its conditions.")
-            .WithDescription(
-                "Request: JSON body { code:string, name:string, description?:string, discountType:'TICKET_THRESHOLD'|'QUANTITY_ITEM', isAutoApply:bool, daysOfWeek?:string, isActive:bool, conditions:[{ thresholdAmount?:decimal, itemId?:int, quantityThreshold?:decimal, areaId?:int, applyType:'PERCENT'|'FIXED', discountValue:decimal, displayOrder:short }] }. Response: 201 Created — Location header; JSON body with new policy id.");
+            .WithDescription("""
+    Request: JSON body { code:string, name:string, description?:string,
+    discountType:'TICKET_THRESHOLD'|'QUANTITY_ITEM', isAutoApply:bool, daysOfWeek?:string,
+    isActive:bool, conditions:[{ thresholdAmount?:decimal, itemId?:int, quantityThreshold?:decimal,
+    areaId?:int, applyType:'PERCENT'|'FIXED', discountValue:decimal, displayOrder:short }] }. Response:
+    201 Created — Location header; JSON body with new policy id.
+""");
     }
 
     internal sealed record Request(

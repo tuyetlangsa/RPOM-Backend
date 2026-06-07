@@ -39,9 +39,18 @@ public static class ListPriceVariants
                 .ThenBy(v => v.Code)
                 .Select(v => new
                 {
-                    v.Id, v.PriceTableId, v.Code, v.Name, v.Description,
-                    v.BeginTime, v.EndTime, v.DayMask, v.AppliesToAllAreas,
-                    v.IsActive, v.CreatedAt, v.UpdatedAt,
+                    v.Id,
+                    v.PriceTableId,
+                    v.Code,
+                    v.Name,
+                    v.Description,
+                    v.BeginTime,
+                    v.EndTime,
+                    v.DayMask,
+                    v.AppliesToAllAreas,
+                    v.IsActive,
+                    v.CreatedAt,
+                    v.UpdatedAt,
                     AreaIds = dbContext.PriceVariantAreas
                         .Where(a => a.PriceVariantId == v.Id)
                         .Select(a => a.AreaId).ToList(),

@@ -40,22 +40,37 @@ public static class ApplyDiscountPolicy
                 .Where(t => t.Id == request.TicketId)
                 .Select(t => new { t.Id, t.TableId, t.AreaId, t.Status, t.Subtotal })
                 .FirstOrDefaultAsync(ct);
-            if (ticket is null) return Result.Failure<Response>(TicketErrors.NotFound);
-            if (ticket.Status != TicketStatus.Open) return Result.Failure<Response>(TicketErrors.NotOpen);
+            if (ticket is null)
+            {
+                return Result.Failure<Response>(TicketErrors.NotFound);
+            }
+
+            if (ticket.Status != TicketStatus.Open)
+            {
+                return Result.Failure<Response>(TicketErrors.NotOpen);
+            }
 
             var held = await guard.EnsureHeldAsync(ticket.TableId, currentStaff.StaffAccountId, ct);
-            if (held.IsFailure) return Result.Failure<Response>(held.Error);
+            if (held.IsFailure)
+            {
+                return Result.Failure<Response>(held.Error);
+            }
 
             // One policy at a time.
             var currentTicket = await db.Tickets.FirstAsync(t => t.Id == ticket.Id, ct);
             if (currentTicket.DiscountPolicyId is not null)
+            {
                 return Result.Failure<Response>(DiscountErrors.AlreadyApplied);
+            }
 
             var policy = await db.DiscountPolicies
                 .Where(p => p.Id == request.DiscountPolicyId && p.IsActive)
                 .Include(p => p.Conditions.OrderBy(c => c.DisplayOrder))
                 .FirstOrDefaultAsync(ct);
-            if (policy is null) return Result.Failure<Response>(DiscountErrors.PolicyNotFound);
+            if (policy is null)
+            {
+                return Result.Failure<Response>(DiscountErrors.PolicyNotFound);
+            }
 
             // DaysOfWeek gate.
             var today = ((int)clock.UtcNow.DayOfWeek + 6) % 7 + 1; // Mon=1..Sun=7
@@ -63,7 +78,9 @@ public static class ApplyDiscountPolicy
             {
                 var allowed = policy.DaysOfWeek.Split(',').Select(d => int.Parse(d.Trim())).ToHashSet();
                 if (!allowed.Contains(today))
+                {
                     return Result.Failure<Response>(DiscountErrors.DaysOfWeekMismatch);
+                }
             }
 
             // Build item buckets from non-cancelled order items.
@@ -86,7 +103,9 @@ public static class ApplyDiscountPolicy
                 ticket.Subtotal, ticket.AreaId, buckets, conditionSpecs);
 
             if (evalResult is null)
+            {
                 return Result.Failure<Response>(DiscountErrors.NotApplicable);
+            }
 
             // ---- Apply ----
             var now = clock.UtcNow;
@@ -152,10 +171,16 @@ public static class ApplyDiscountPolicy
                 ? orderItems
                 : orderItems.Where(o => o.ItemId == evalResult.MatchedItemId).ToList();
 
-            if (affected.Count == 0) return;
+            if (affected.Count == 0)
+            {
+                return;
+            }
 
             decimal totalSubtotal = affected.Sum(o => o.LineSubtotal);
-            if (totalSubtotal <= 0m) return;
+            if (totalSubtotal <= 0m)
+            {
+                return;
+            }
 
             decimal remaining = evalResult.DiscountValue;
             var ordered = affected.OrderBy(o => o.SentAt).ToList();
@@ -167,9 +192,13 @@ public static class ApplyDiscountPolicy
                 {
                     // Last line absorbs rounding error — ensures exact sum.
                     if (discountType == DiscountType.TicketThreshold)
+                    {
                         o.TicketDiscountAmount = remaining;
+                    }
                     else
+                    {
                         o.LineDiscountAmount = remaining;
+                    }
                 }
                 else
                 {
@@ -177,9 +206,14 @@ public static class ApplyDiscountPolicy
                         evalResult.DiscountValue * o.LineSubtotal / totalSubtotal,
                         rc, RoundingKeys.LineDiscount);
                     if (discountType == DiscountType.TicketThreshold)
+                    {
                         o.TicketDiscountAmount = share;
+                    }
                     else
+                    {
                         o.LineDiscountAmount = share;
+                    }
+
                     remaining -= share;
                 }
 

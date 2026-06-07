@@ -26,8 +26,10 @@ internal sealed class CreatePriceTableEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create a price table.")
-            .WithDescription(
-                "Request: JSON body { code:string, name:string, description?:string, beginDate?:date, endDate?:date, isActive:bool }. Response: 201 Created — Location header; JSON body with new price-table id.");
+            .WithDescription("""
+    Request: JSON body { code:string, name:string, description?:string, beginDate?:date, endDate?:date,
+    isActive:bool }. Response: 201 Created — Location header; JSON body with new price-table id.
+""");
     }
 
     internal sealed record Request(

@@ -16,7 +16,6 @@ using Rpom.Domain.Access;
 using Rpom.Domain.Menu;
 using Rpom.Domain.Operations;
 using Rpom.Domain.Restaurant;
-using Rpom.Domain.Sales;
 using Rpom.Domain.Sales.CashDrawer;
 using Rpom.Infrastructure.Database;
 using Rpom.Infrastructure.Pricing;
@@ -76,8 +75,13 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
         var now = DateTime.UtcNow;
         var policy = new DiscountPolicy
         {
-            Code = "INACTIVE", Name = "Inactive", DiscountType = DiscountType.TicketThreshold,
-            IsAutoApply = false, IsActive = false, CreatedAt = now, UpdatedAt = now,
+            Code = "INACTIVE",
+            Name = "Inactive",
+            DiscountType = DiscountType.TicketThreshold,
+            IsAutoApply = false,
+            IsActive = false,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.DiscountPolicies.Add(policy);
         await _ctx.SaveChangesAsync();
@@ -205,7 +209,11 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
     private IRoundingConfig Rc()
     {
         var rc = Substitute.For<IRoundingConfig>();
-        foreach (var kv in RoundingKeys.Defaults) rc.GetDigits(kv.Key).Returns(kv.Value);
+        foreach (var kv in RoundingKeys.Defaults)
+        {
+            rc.GetDigits(kv.Key).Returns(kv.Value);
+        }
+
         return rc;
     }
 
@@ -230,25 +238,45 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
         // TICKET_THRESHOLD PERCENT policy: subtotal ≥ 10k → 10%
         var policy = new DiscountPolicy
         {
-            Code = "TICKET10", Name = "Bill trên 10k giảm 10%", DiscountType = DiscountType.TicketThreshold,
-            IsAutoApply = false, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "TICKET10",
+            Name = "Bill trên 10k giảm 10%",
+            DiscountType = DiscountType.TicketThreshold,
+            IsAutoApply = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var condition = new DiscountPolicyCondition
         {
-            DiscountPolicy = policy, ThresholdAmount = 10_000m, ApplyType = DiscountApplyType.Percent,
-            DiscountValue = 10m, DisplayOrder = 1, CreatedAt = now, UpdatedAt = now,
+            DiscountPolicy = policy,
+            ThresholdAmount = 10_000m,
+            ApplyType = DiscountApplyType.Percent,
+            DiscountValue = 10m,
+            DisplayOrder = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         // TICKET_THRESHOLD FIXED policy: subtotal ≥ 10k → 5,000đ
         var fixedPolicy = new DiscountPolicy
         {
-            Code = "FIXED5K", Name = "Giảm thẳng 5k", DiscountType = DiscountType.TicketThreshold,
-            IsAutoApply = false, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "FIXED5K",
+            Name = "Giảm thẳng 5k",
+            DiscountType = DiscountType.TicketThreshold,
+            IsAutoApply = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var fixedCondition = new DiscountPolicyCondition
         {
-            DiscountPolicy = fixedPolicy, ThresholdAmount = 10_000m, ApplyType = DiscountApplyType.Fixed,
-            DiscountValue = 5_000m, DisplayOrder = 1, CreatedAt = now, UpdatedAt = now,
+            DiscountPolicy = fixedPolicy,
+            ThresholdAmount = 10_000m,
+            ApplyType = DiscountApplyType.Fixed,
+            DiscountValue = 5_000m,
+            DisplayOrder = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         _ctx.AddRange(role, staff, counter, area, table, shift, uom, item1, item2,

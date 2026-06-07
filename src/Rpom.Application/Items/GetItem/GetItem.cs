@@ -40,18 +40,26 @@ public static class GetItem
                 .Where(x => x.Id == request.Id)
                 .Select(x => new
                 {
-                    x.Id, x.Code, x.Name, x.Description, x.ImageUrl,
+                    x.Id,
+                    x.Code,
+                    x.Name,
+                    x.Description,
+                    x.ImageUrl,
                     x.BaseUomId,
                     BaseUomCode = x.BaseUom.Code,
                     BaseUomName = x.BaseUom.Name,
-                    x.VatPercent, x.IsStockable, x.HasRecipe, x.LowStockThreshold,
+                    x.VatPercent,
+                    x.IsStockable,
+                    x.HasRecipe,
+                    x.LowStockThreshold,
                     x.KitchenStationId,
                     KitchenStationName = x.KitchenStation != null ? x.KitchenStation.Name : null,
                     x.IsActive,
                     Categories = x.ItemCategories
                         .Select(ic => new CategoryAssignment(ic.CategoryId, ic.Category.Name, ic.IsMain))
                         .ToList(),
-                    x.CreatedAt, x.UpdatedAt
+                    x.CreatedAt,
+                    x.UpdatedAt
                 })
                 .FirstOrDefaultAsync(ct);
 

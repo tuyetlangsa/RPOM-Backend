@@ -22,12 +22,19 @@ public static class RoundingKeys
     public static readonly IReadOnlyDictionary<string, short> Defaults =
         new Dictionary<string, short>
         {
-            [PriceDetail] = 2, [MenuDisplay] = 0,
-            [LineSubtotal] = 2, [LineDiscount] = 2,
-            [LineSc] = 2, [LineVatItem] = 0,
-            [LineVatSc] = 0, [LineTotal] = 0,
-            [TicketSubtotal] = 2, [TicketDiscount] = 2,
-            [TicketSc] = 2, [TicketVat] = 0,
-            [TicketTotal] = 0, [TicketAdjust] = 2
+            [PriceDetail] = 2,
+            [MenuDisplay] = 0,
+            [LineSubtotal] = 2,
+            [LineDiscount] = 2,
+            [LineSc] = 2,
+            [LineVatItem] = 0,
+            [LineVatSc] = 0,
+            [LineTotal] = 0,
+            [TicketSubtotal] = 2,
+            [TicketDiscount] = 2,
+            [TicketSc] = 2,
+            [TicketVat] = 0,
+            [TicketTotal] = 0,
+            [TicketAdjust] = 2
         };
 }

@@ -27,8 +27,10 @@ internal sealed class BatchCreateTablesEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Batch-create tables in an area.")
-            .WithDescription(
-                "Request: JSON body { areaId:int, codePrefix:string, startNumber:int, count:int, seatCount:int, description?:string, isActive:bool }. Response: 200 OK — JSON BatchCreateTables.Response.");
+            .WithDescription("""
+    Request: JSON body { areaId:int, codePrefix:string, startNumber:int, count:int, seatCount:int,
+    description?:string, isActive:bool }. Response: 200 OK — JSON BatchCreateTables.Response.
+""");
     }
 
     internal sealed record Request(

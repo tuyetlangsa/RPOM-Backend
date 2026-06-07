@@ -22,7 +22,9 @@ internal sealed class ListDiscountPoliciesEndpoint : IEndpoint
             .WithName("ListDiscountPolicies")
             .Produces<ApiResult<IReadOnlyList<ListDiscountPolicies.Response>>>()
             .WithSummary("List discount policies with optional filters.")
-            .WithDescription(
-                "Request: query search?:string, isActive?:bool, discountType?:'TICKET_THRESHOLD'|'QUANTITY_ITEM'. Response: 200 OK — JSON array of ListDiscountPolicies.Response (incl. conditionCount).");
+            .WithDescription("""
+    Request: query search?:string, isActive?:bool, discountType?:'TICKET_THRESHOLD'|'QUANTITY_ITEM'.
+    Response: 200 OK — JSON array of ListDiscountPolicies.Response (incl. conditionCount).
+""");
     }
 }

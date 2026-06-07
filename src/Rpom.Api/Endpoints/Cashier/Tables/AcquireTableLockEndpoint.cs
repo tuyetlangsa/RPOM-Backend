@@ -24,7 +24,9 @@ internal sealed class AcquireTableLockEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Acquire or heartbeat the operation lock on a table.")
-            .WithDescription(
-                "Request: route tableId (int). Idempotent for the holder; refreshes the heartbeat. Response: 200 OK — JSON AcquireTableLock.Response. 409 if another staff holds a live lock.");
+            .WithDescription("""
+    Request: route tableId (int). Idempotent for the holder; refreshes the heartbeat. Response: 200 OK —
+    JSON AcquireTableLock.Response. 409 if another staff holds a live lock.
+""");
     }
 }

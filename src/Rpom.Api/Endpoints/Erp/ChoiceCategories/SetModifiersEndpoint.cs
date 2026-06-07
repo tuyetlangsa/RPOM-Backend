@@ -29,8 +29,11 @@ internal sealed class SetModifiersEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Replace all modifiers of a choice category.")
-            .WithDescription(
-                "Request: route id (int); JSON body { modifiers:[{ itemId:int, extraPrice:decimal, minPerModifier:int, maxPerModifier:int, displayOrder:short, isActive:bool }] }. Response: 200 OK — JSON SetModifiers.Response { choiceCategoryId, inserted, updated, deleted, total }.");
+            .WithDescription("""
+    Request: route id (int); JSON body { modifiers:[{ itemId:int, extraPrice:decimal,
+    minPerModifier:int, maxPerModifier:int, displayOrder:short, isActive:bool }] }. Response: 200 OK —
+    JSON SetModifiers.Response { choiceCategoryId, inserted, updated, deleted, total }.
+""");
     }
 
     internal sealed record Request(IReadOnlyList<ModifierRequest>? Modifiers);

@@ -29,7 +29,9 @@ internal sealed class ListItemsEndpoint : IEndpoint
             .WithName("ListItems")
             .Produces<ApiResult<Page<ListItems.Item>>>()
             .WithSummary("List items (paged) with optional filters.")
-            .WithDescription(
-                "Request: query categoryId?:int, search?:string, isActive?:bool, pageNumber?:int=1, pageSize?:int=50. Response: 200 OK — JSON Page<ListItems.Response> (items + pagination).");
+            .WithDescription("""
+    Request: query categoryId?:int, search?:string, isActive?:bool, pageNumber?:int=1, pageSize?:int=50.
+    Response: 200 OK — JSON Page<ListItems.Response> (items + pagination).
+""");
     }
 }

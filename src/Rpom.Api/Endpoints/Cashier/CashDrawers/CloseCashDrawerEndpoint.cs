@@ -28,8 +28,10 @@ internal sealed class CloseCashDrawerEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Close a cash drawer session with counted cash.")
-            .WithDescription(
-                "Request: route id (long); JSON body { closingCashCounts:[{ denominationId:int, quantity:int }], notes?:string }. Response: 200 OK — JSON CloseCashDrawer.Response.");
+            .WithDescription("""
+    Request: route id (long); JSON body { closingCashCounts:[{ denominationId:int, quantity:int }],
+    notes?:string }. Response: 200 OK — JSON CloseCashDrawer.Response.
+""");
     }
 
     internal sealed record Request(

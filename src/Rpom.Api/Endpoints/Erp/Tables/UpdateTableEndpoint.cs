@@ -27,8 +27,10 @@ internal sealed class UpdateTableEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Update a table.")
-            .WithDescription(
-                "Request: route id (int); JSON body { areaId:int, code:string, seatCount:int, description?:string, isActive:bool }. Response: 200 OK — JSON UpdateTable.Response.");
+            .WithDescription("""
+    Request: route id (int); JSON body { areaId:int, code:string, seatCount:int, description?:string,
+    isActive:bool }. Response: 200 OK — JSON UpdateTable.Response.
+""");
     }
 
     internal sealed record Request(int AreaId, string Code, int SeatCount, string? Description, bool IsActive);

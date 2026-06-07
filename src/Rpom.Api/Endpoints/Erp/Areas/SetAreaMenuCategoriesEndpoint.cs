@@ -26,8 +26,10 @@ internal sealed class SetAreaMenuCategoriesEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Replace the categories assigned to an area's menu.")
-            .WithDescription(
-                "Request: route areaId (int); JSON body { categoryIds:int[] } (empty clears the menu). Response: 200 OK — JSON SetAreaMenuCategories.Response { areaId, inserted, deleted, total }.");
+            .WithDescription("""
+    Request: route areaId (int); JSON body { categoryIds:int[] } (empty clears the menu). Response: 200
+    OK — JSON SetAreaMenuCategories.Response { areaId, inserted, deleted, total }.
+""");
     }
 
     internal sealed record Request(IReadOnlyList<int>? CategoryIds);

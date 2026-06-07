@@ -55,7 +55,10 @@ public sealed class TicketRecomputeIntegrationTests : IAsyncLifetime
     {
         var rc = Substitute.For<IRoundingConfig>();
         foreach (var kv in RoundingKeys.Defaults)
+        {
             rc.GetDigits(kv.Key).Returns(kv.Value);
+        }
+
         return rc;
     }
 
@@ -98,27 +101,49 @@ public sealed class TicketRecomputeIntegrationTests : IAsyncLifetime
         var counter = new Counter { Name = "Counter 1", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var area = new Area
         {
-            Counter = counter, Name = "Area A", DisplayOrder = 1, IsActive = true,
-            ServiceChargePercent = 10m, ServiceChargeVatPercent = 10m, CreatedAt = now, UpdatedAt = now,
+            Counter = counter,
+            Name = "Area A",
+            DisplayOrder = 1,
+            IsActive = true,
+            ServiceChargePercent = 10m,
+            ServiceChargeVatPercent = 10m,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var table = new Table { Area = area, Code = "T01", SeatCount = 4, Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now };
 
         var shift = new Shift
         {
-            Code = "S_MORNING", Name = "Morning", BeginTime = new TimeOnly(6, 0), EndTime = new TimeOnly(14, 0),
-            IsNextDay = false, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "S_MORNING",
+            Name = "Morning",
+            BeginTime = new TimeOnly(6, 0),
+            EndTime = new TimeOnly(14, 0),
+            IsNextDay = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         var role = new Role { Code = "CASHIER", Name = "Cashier", IsSystemRole = true, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var staff = new StaffAccount
         {
-            Username = "cashier1", PasswordHash = "x", FullName = "Cashier One",
-            Role = role, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Username = "cashier1",
+            PasswordHash = "x",
+            FullName = "Cashier One",
+            Role = role,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var drawer = new CashDrawerSession
         {
-            Counter = counter, OpenedByStaff = staff, OpenedAt = now, OpeningCash = 0m,
-            Status = CashDrawerStatus.Open, CreatedAt = now, UpdatedAt = now,
+            Counter = counter,
+            OpenedByStaff = staff,
+            OpenedAt = now,
+            OpeningCash = 0m,
+            Status = CashDrawerStatus.Open,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         var uom = new Uom { Code = "lon", Name = "Lon", IsActive = true, CreatedAt = now, UpdatedAt = now };
@@ -128,31 +153,65 @@ public sealed class TicketRecomputeIntegrationTests : IAsyncLifetime
         var ticket = new Ticket
         {
             Code = "T-2026-0001",
-            Table = table, Area = area, Counter = counter, CashDrawerSession = drawer, Shift = shift,
-            GuestCount = 1, Status = TicketStatus.Open, OpenedAt = now,
-            ServiceChargePercent = 10m, ServiceChargeVatPercent = 10m,
-            CreatedAt = now, UpdatedAt = now,
+            Table = table,
+            Area = area,
+            Counter = counter,
+            CashDrawerSession = drawer,
+            Shift = shift,
+            GuestCount = 1,
+            Status = TicketStatus.Open,
+            OpenedAt = now,
+            ServiceChargePercent = 10m,
+            ServiceChargeVatPercent = 10m,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         var order = new Order
         {
-            Ticket = ticket, OrderNumber = 1, Status = OrderStatus.Sent, SentAt = now,
-            CreatedAt = now, UpdatedAt = now,
+            Ticket = ticket,
+            OrderNumber = 1,
+            Status = OrderStatus.Sent,
+            SentAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         var biaLine = new OrderItem
         {
-            Order = order, Ticket = ticket, Item = bia, ItemCode = "BIA01", ItemName = "Bia",
-            Uom = uom, UomCode = "lon", UomName = "Lon",
-            Quantity = 2m, UnitPrice = 50000m, VatPercent = 10m,
-            Status = OrderItemStatus.Pending, SentAt = now, CreatedAt = now, UpdatedAt = now,
+            Order = order,
+            Ticket = ticket,
+            Item = bia,
+            ItemCode = "BIA01",
+            ItemName = "Bia",
+            Uom = uom,
+            UomCode = "lon",
+            UomName = "Lon",
+            Quantity = 2m,
+            UnitPrice = 50000m,
+            VatPercent = 10m,
+            Status = OrderItemStatus.Pending,
+            SentAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var phoLine = new OrderItem
         {
-            Order = order, Ticket = ticket, Item = pho, ItemCode = "PHO01", ItemName = "Pho",
-            Uom = uom, UomCode = "to", UomName = "To",
-            Quantity = 1m, UnitPrice = 80000m, VatPercent = 8m,
-            Status = OrderItemStatus.Pending, SentAt = now, CreatedAt = now, UpdatedAt = now,
+            Order = order,
+            Ticket = ticket,
+            Item = pho,
+            ItemCode = "PHO01",
+            ItemName = "Pho",
+            Uom = uom,
+            UomCode = "to",
+            UomName = "To",
+            Quantity = 1m,
+            UnitPrice = 80000m,
+            VatPercent = 8m,
+            Status = OrderItemStatus.Pending,
+            SentAt = now,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         _ctx.AddRange(counter, area, table, shift, role, staff, drawer, uom, bia, pho, ticket, order, biaLine, phoLine);

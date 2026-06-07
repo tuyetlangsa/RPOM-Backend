@@ -26,8 +26,10 @@ internal sealed class CreateAreaEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create an area under a counter.")
-            .WithDescription(
-                "Request: JSON body { counterId:int, name:string, description?:string, displayOrder:short, isActive:bool }. Response: 201 Created — Location header; JSON body with new area id.");
+            .WithDescription("""
+    Request: JSON body { counterId:int, name:string, description?:string, displayOrder:short,
+    isActive:bool }. Response: 201 Created — Location header; JSON body with new area id.
+""");
     }
 
     internal sealed record Request(

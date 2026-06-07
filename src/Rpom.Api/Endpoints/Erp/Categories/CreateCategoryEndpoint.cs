@@ -26,8 +26,11 @@ internal sealed class CreateCategoryEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create a category.")
-            .WithDescription(
-                "Request: JSON body { code:string, name:string, description?:string, parentId?:int, displayOrder:short, isActive:bool }. Response: 201 Created — Location header; JSON body with new category id.");
+            .WithDescription("""
+    Request: JSON body { code:string, name:string, description?:string, parentId?:int,
+    displayOrder:short, isActive:bool }. Response: 201 Created — Location header; JSON body with new
+    category id.
+""");
     }
 
     internal sealed record Request(

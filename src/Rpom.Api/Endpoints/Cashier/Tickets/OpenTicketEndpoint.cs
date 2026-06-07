@@ -26,8 +26,11 @@ internal sealed class OpenTicketEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Open a new ticket on a table.")
-            .WithDescription(
-                "Request: JSON body { tableId:int, guestCount:short, shiftId:int, notes?:string }. Requires the table lock; counter/area derived from the table. Response: 201 Created — Location header; JSON body { ticketId, code }. 409 if no open cash drawer / lock not held.");
+            .WithDescription("""
+    Request: JSON body { tableId:int, guestCount:short, shiftId:int, notes?:string }. Requires the table
+    lock; counter/area derived from the table. Response: 201 Created — Location header; JSON body {
+    ticketId, code }. 409 if no open cash drawer / lock not held.
+""");
     }
 
     internal sealed record Request(int TableId, short GuestCount, int ShiftId, string? Notes);

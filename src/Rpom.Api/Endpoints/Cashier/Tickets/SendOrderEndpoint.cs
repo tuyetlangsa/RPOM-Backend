@@ -25,8 +25,12 @@ internal sealed class SendOrderEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Send the ticket's cart (or a subset) to the kitchen.")
-            .WithDescription(
-                "Request: route ticketId (long); optional JSON body { cartItemIds?:long[] } — omit/empty = send the whole cart, a strict subset = partial send (kept lines move to a new draft batch). Copies cart→order items, snapshots kitchen station, recomputes ticket. Response: 200 OK — JSON body { orderId, orderNumber, itemCount, totalAmount }. 409 if cart empty.");
+            .WithDescription("""
+    Request: route ticketId (long); optional JSON body { cartItemIds?:long[] } — omit/empty = send the
+    whole cart, a strict subset = partial send (kept lines move to a new draft batch). Copies cart→order
+    items, snapshots kitchen station, recomputes ticket. Response: 200 OK — JSON body { orderId,
+    orderNumber, itemCount, totalAmount }. 409 if cart empty.
+""");
     }
 
     internal sealed record Request(IReadOnlyList<long>? CartItemIds);

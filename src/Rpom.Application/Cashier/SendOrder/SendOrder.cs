@@ -223,7 +223,9 @@ public static class SendOrder
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Order.Send(ticketId={ticket.Id})", ct);
             await versionService.BumpAsync(VersionScopes.Kitchen, $"Order.Send(ticketId={ticket.Id})", ct);
             if (discountApplied)
+            {
                 await versionService.BumpAsync(VersionScopes.Pricing, $"Discount.AutoApply(ticketId={ticket.Id})", ct);
+            }
 
             decimal totalAmount = await db.Tickets.Where(t => t.Id == ticket.Id)
                 .Select(t => t.TotalAmount).FirstAsync(ct);
@@ -242,7 +244,10 @@ public static class SendOrder
                 .Include(p => p.Conditions)
                 .ToListAsync(ct);
 
-            if (policies.Count == 0) return false;
+            if (policies.Count == 0)
+            {
+                return false;
+            }
 
             var ticket = await db.Tickets
                 .Where(t => t.Id == ticketId)
@@ -281,7 +286,10 @@ public static class SendOrder
                 }
             }
 
-            if (bestEval is null || bestPolicy is null) return false;
+            if (bestEval is null || bestPolicy is null)
+            {
+                return false;
+            }
 
             var ticketEntity = await db.Tickets.FirstAsync(t => t.Id == ticketId, ct);
             ticketEntity.DiscountPolicyId = bestPolicy.Id;
@@ -320,9 +328,13 @@ public static class SendOrder
                             if (i == ordered.Count - 1)
                             {
                                 if (bestPolicy.DiscountType == DiscountType.TicketThreshold)
+                                {
                                     o.TicketDiscountAmount = remaining;
+                                }
                                 else
+                                {
                                     o.LineDiscountAmount = remaining;
+                                }
                             }
                             else
                             {
@@ -330,9 +342,14 @@ public static class SendOrder
                                     bestEval.DiscountValue * o.LineSubtotal / totalSubtotal,
                                     rc, RoundingKeys.LineDiscount);
                                 if (bestPolicy.DiscountType == DiscountType.TicketThreshold)
+                                {
                                     o.TicketDiscountAmount = share;
+                                }
                                 else
+                                {
                                     o.LineDiscountAmount = share;
+                                }
+
                                 remaining -= share;
                             }
 

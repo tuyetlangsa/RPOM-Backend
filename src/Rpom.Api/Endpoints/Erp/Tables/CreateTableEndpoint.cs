@@ -27,8 +27,10 @@ internal sealed class CreateTableEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create a table.")
-            .WithDescription(
-                "Request: JSON body { areaId:int, code:string, seatCount:int, description?:string, isActive:bool }. Response: 201 Created — Location header; JSON body with new table id.");
+            .WithDescription("""
+    Request: JSON body { areaId:int, code:string, seatCount:int, description?:string, isActive:bool }.
+    Response: 201 Created — Location header; JSON body with new table id.
+""");
     }
 
     internal sealed record Request(int AreaId, string Code, int SeatCount, string? Description, bool IsActive);

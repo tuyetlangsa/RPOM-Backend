@@ -43,8 +43,16 @@ public static class GetDiscountPolicy
                 .Where(p => p.Id == request.Id)
                 .Select(p => new
                 {
-                    p.Id, p.Code, p.Name, p.Description, p.DiscountType, p.IsAutoApply,
-                    p.DaysOfWeek, p.IsActive, p.CreatedAt, p.UpdatedAt
+                    p.Id,
+                    p.Code,
+                    p.Name,
+                    p.Description,
+                    p.DiscountType,
+                    p.IsAutoApply,
+                    p.DaysOfWeek,
+                    p.IsActive,
+                    p.CreatedAt,
+                    p.UpdatedAt
                 })
                 .FirstOrDefaultAsync(ct);
             if (policy is null)

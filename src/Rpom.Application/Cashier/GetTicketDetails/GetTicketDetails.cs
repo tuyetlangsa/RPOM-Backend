@@ -186,23 +186,40 @@ public static class GetTicketDetails
                             && (x.Status == TicketStatus.Open || x.Status == TicketStatus.Closed))
                 .Select(x => new
                 {
-                    x.Id, x.Code,
-                    x.TableId, TableCode = x.Table.Code, x.AreaId, AreaName = x.Area.Name,
-                    x.CounterId, CounterName = x.Counter.Name,
+                    x.Id,
+                    x.Code,
+                    x.TableId,
+                    TableCode = x.Table.Code,
+                    x.AreaId,
+                    AreaName = x.Area.Name,
+                    x.CounterId,
+                    CounterName = x.Counter.Name,
                     x.GuestCount,
-                    x.WaiterStaffId, WaiterName = x.WaiterStaff != null ? x.WaiterStaff.FullName : null,
-                    x.ManagerStaffId, ManagerName = x.ManagerStaff != null ? x.ManagerStaff.FullName : null,
-                    x.Status, x.OpenedAt,
-                    x.ServiceChargePercent, x.ServiceChargeVatPercent,
-                    x.DiscountPolicyId, DiscountPolicyName = x.DiscountPolicy != null ? x.DiscountPolicy.Name : null,
+                    x.WaiterStaffId,
+                    WaiterName = x.WaiterStaff != null ? x.WaiterStaff.FullName : null,
+                    x.ManagerStaffId,
+                    ManagerName = x.ManagerStaff != null ? x.ManagerStaff.FullName : null,
+                    x.Status,
+                    x.OpenedAt,
+                    x.ServiceChargePercent,
+                    x.ServiceChargeVatPercent,
+                    x.DiscountPolicyId,
+                    DiscountPolicyName = x.DiscountPolicy != null ? x.DiscountPolicy.Name : null,
                     x.DiscountPercent,
-                    x.Subtotal, x.LineDiscountTotal, x.TicketDiscountTotal,
-                    x.DiscountAmount, x.ServiceChargeAmount, x.VatAmount,
-                    x.TotalAmount, x.RoundingAdjustment,
-                    x.PaidAmount, x.RefundAmount,
+                    x.Subtotal,
+                    x.LineDiscountTotal,
+                    x.TicketDiscountTotal,
+                    x.DiscountAmount,
+                    x.ServiceChargeAmount,
+                    x.VatAmount,
+                    x.TotalAmount,
+                    x.RoundingAdjustment,
+                    x.PaidAmount,
+                    x.RefundAmount,
                     HasEInvoiceRequest = db.EInvoices.Any(e => e.TicketId == x.Id),
                     HasGuestQrToken = x.GuestQrToken != null,
-                    x.Version, x.UpdatedAt
+                    x.Version,
+                    x.UpdatedAt
                 })
                 .FirstOrDefaultAsync(ct);
             if (t is null)
@@ -253,7 +270,11 @@ public static class GetTicketDetails
                 .OrderBy(o => o.OrderNumber)
                 .Select(o => new
                 {
-                    o.Id, o.OrderNumber, o.Status, o.SentAt, o.CreatedByStaffId,
+                    o.Id,
+                    o.OrderNumber,
+                    o.Status,
+                    o.SentAt,
+                    o.CreatedByStaffId,
                     CreatedByStaffName = o.CreatedByStaff != null ? o.CreatedByStaff.FullName : null,
                     o.Notes
                 })
@@ -265,14 +286,29 @@ public static class GetTicketDetails
                 .OrderBy(oi => oi.SentAt)
                 .Select(oi => new
                 {
-                    oi.Id, oi.OrderId, oi.ItemId, oi.ItemCode, oi.ItemName,
-                    oi.UomCode, oi.UomName, oi.Quantity, oi.UnitPrice, oi.ChoicePricePerUnit,
-                    oi.LineSubtotal, oi.LineTotal, oi.Status, oi.KitchenStationId,
+                    oi.Id,
+                    oi.OrderId,
+                    oi.ItemId,
+                    oi.ItemCode,
+                    oi.ItemName,
+                    oi.UomCode,
+                    oi.UomName,
+                    oi.Quantity,
+                    oi.UnitPrice,
+                    oi.ChoicePricePerUnit,
+                    oi.LineSubtotal,
+                    oi.LineTotal,
+                    oi.Status,
+                    oi.KitchenStationId,
                     KitchenStationName = oi.KitchenStation != null ? oi.KitchenStation.Name : null,
-                    oi.SentAt, oi.StartCookAt, oi.ReadyAt, oi.DoneAt,
+                    oi.SentAt,
+                    oi.StartCookAt,
+                    oi.ReadyAt,
+                    oi.DoneAt,
                     oi.CancellationReasonId,
                     CancellationReasonName = oi.CancellationReason != null ? oi.CancellationReason.Name : null,
-                    oi.CancellationNote, oi.Notes
+                    oi.CancellationNote,
+                    oi.Notes
                 })
                 .ToListAsync(ct);
             var orderItemIds = orderItems.Select(x => x.Id).ToList();
@@ -280,7 +316,7 @@ public static class GetTicketDetails
             var orderItemDetails = await db.OrderItemDetails
                 .Where(d => orderItemIds.Contains(d.OrderItemId))
                 .Select(d => new
-                    { d.OrderItemId, d.ItemId, d.ItemName, d.ComponentType, d.Quantity, d.ExtraPrice, d.Notes })
+                { d.OrderItemId, d.ItemId, d.ItemName, d.ComponentType, d.Quantity, d.ExtraPrice, d.Notes })
                 .ToListAsync(ct);
             var oiDetailsByItem = orderItemDetails.GroupBy(d => d.OrderItemId)
                 .ToDictionary(g => g.Key, g => g.ToList());
@@ -310,10 +346,25 @@ public static class GetTicketDetails
                 .OrderBy(c => c.CreatedAt)
                 .Select(c => new
                 {
-                    c.Id, c.OrderId, c.ItemId, c.ItemCode, c.ItemName, c.UomCode, c.UomName,
-                    c.Quantity, c.UnitPrice, c.ChoicePricePerUnit, c.LineSubtotal,
-                    c.ServiceChargeAmount, c.VatItemAmount, c.VatScAmount, c.VatAmount, c.LineTotal,
-                    c.Notes, c.CreatedAt, c.UpdatedAt
+                    c.Id,
+                    c.OrderId,
+                    c.ItemId,
+                    c.ItemCode,
+                    c.ItemName,
+                    c.UomCode,
+                    c.UomName,
+                    c.Quantity,
+                    c.UnitPrice,
+                    c.ChoicePricePerUnit,
+                    c.LineSubtotal,
+                    c.ServiceChargeAmount,
+                    c.VatItemAmount,
+                    c.VatScAmount,
+                    c.VatAmount,
+                    c.LineTotal,
+                    c.Notes,
+                    c.CreatedAt,
+                    c.UpdatedAt
                 })
                 .ToListAsync(ct);
             var cartItemIds = cartItems.Select(c => c.Id).ToList();
@@ -321,7 +372,7 @@ public static class GetTicketDetails
             var cartItemDetails = await db.CartItemDetails
                 .Where(d => cartItemIds.Contains(d.CartItemId))
                 .Select(d => new
-                    { d.CartItemId, d.ItemId, d.ItemName, d.ComponentType, d.Quantity, d.ExtraPrice, d.Notes })
+                { d.CartItemId, d.ItemId, d.ItemName, d.ComponentType, d.Quantity, d.ExtraPrice, d.Notes })
                 .ToListAsync(ct);
             var ciDetailsByItem = cartItemDetails.GroupBy(d => d.CartItemId)
                 .ToDictionary(g => g.Key, g => g.ToList());

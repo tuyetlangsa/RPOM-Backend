@@ -27,8 +27,10 @@ internal sealed class UpdateChoiceCategoryEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Update a choice category.")
-            .WithDescription(
-                "Request: route id (int); JSON body { name:string, note?:string, minChoice:short, maxChoice?:short, displayOrder:short, isActive:bool }. Response: 200 OK — JSON UpdateChoiceCategory.Response.");
+            .WithDescription("""
+    Request: route id (int); JSON body { name:string, note?:string, minChoice:short, maxChoice?:short,
+    displayOrder:short, isActive:bool }. Response: 200 OK — JSON UpdateChoiceCategory.Response.
+""");
     }
 
     internal sealed record Request(

@@ -22,6 +22,9 @@ internal sealed class RemoveDiscountEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Remove the current discount from the ticket.")
-            .WithDescription("Request: route ticketId (long). Clears all discount percentages and amounts, then recomputes. Idempotent — OK if no discount applied. Response: 200 OK — JSON body { ticketId, totalAmount }.");
+            .WithDescription("""
+    Request: route ticketId (long). Clears all discount percentages and amounts, then recomputes.
+    Idempotent — OK if no discount applied. Response: 200 OK — JSON body { ticketId, totalAmount }.
+""");
     }
 }

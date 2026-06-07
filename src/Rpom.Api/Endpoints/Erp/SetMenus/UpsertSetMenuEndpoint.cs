@@ -30,8 +30,12 @@ internal sealed class UpsertSetMenuEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithSummary("Create or update an item's set-menu spec.")
-            .WithDescription(
-                "Request: route itemId (int); JSON body { description?:string, details:[{ detailType:'COMPONENT'|'CHOICE_CATEGORY', componentItemId?:int, quantity?:decimal, isFixed?:bool, choiceCategoryId?:int, displayOrder:short }] }. Response: 200 OK — JSON UpsertSetMenu.Response { itemId, detailCount }.");
+            .WithDescription("""
+    Request: route itemId (int); JSON body { description?:string, details:[{
+    detailType:'COMPONENT'|'CHOICE_CATEGORY', componentItemId?:int, quantity?:decimal, isFixed?:bool,
+    choiceCategoryId?:int, displayOrder:short }] }. Response: 200 OK — JSON UpsertSetMenu.Response {
+    itemId, detailCount }.
+""");
     }
 
     internal sealed record Request(string? Description, IReadOnlyList<DetailRequest>? Details);

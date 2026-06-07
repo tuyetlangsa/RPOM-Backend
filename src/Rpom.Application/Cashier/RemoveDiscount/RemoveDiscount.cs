@@ -37,11 +37,21 @@ public static class RemoveDiscount
                 .Where(t => t.Id == request.TicketId)
                 .Select(t => new { t.Id, t.TableId, t.Status })
                 .FirstOrDefaultAsync(ct);
-            if (ticket is null) return Result.Failure<Response>(TicketErrors.NotFound);
-            if (ticket.Status != TicketStatus.Open) return Result.Failure<Response>(TicketErrors.NotOpen);
+            if (ticket is null)
+            {
+                return Result.Failure<Response>(TicketErrors.NotFound);
+            }
+
+            if (ticket.Status != TicketStatus.Open)
+            {
+                return Result.Failure<Response>(TicketErrors.NotOpen);
+            }
 
             var held = await guard.EnsureHeldAsync(ticket.TableId, currentStaff.StaffAccountId, ct);
-            if (held.IsFailure) return Result.Failure<Response>(held.Error);
+            if (held.IsFailure)
+            {
+                return Result.Failure<Response>(held.Error);
+            }
 
             var now = clock.UtcNow;
             var ticketEntity = await db.Tickets.FirstAsync(t => t.Id == ticket.Id, ct);

@@ -56,7 +56,11 @@ public sealed class AreaMenuCategoryTests : IAsyncLifetime
         var seed = await SeedTreeWithItemInChildAsync(assignToArea: AssignTarget.Parent);
 
         var rc = Substitute.For<IRoundingConfig>();
-        foreach (var kv in RoundingKeys.Defaults) rc.GetDigits(kv.Key).Returns(kv.Value);
+        foreach (var kv in RoundingKeys.Defaults)
+        {
+            rc.GetDigits(kv.Key).Returns(kv.Value);
+        }
+
         var clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(DateTime.UtcNow);
 
@@ -81,7 +85,11 @@ public sealed class AreaMenuCategoryTests : IAsyncLifetime
         var seed = await SeedTreeWithItemInChildAsync(assignToArea: AssignTarget.Child);
 
         var rc = Substitute.For<IRoundingConfig>();
-        foreach (var kv in RoundingKeys.Defaults) rc.GetDigits(kv.Key).Returns(kv.Value);
+        foreach (var kv in RoundingKeys.Defaults)
+        {
+            rc.GetDigits(kv.Key).Returns(kv.Value);
+        }
+
         var clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(DateTime.UtcNow);
 
@@ -201,19 +209,37 @@ public sealed class AreaMenuCategoryTests : IAsyncLifetime
         var counter = new Counter { Name = "C", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var area = new Area
         {
-            Counter = counter, Name = "A", DisplayOrder = 1, IsActive = true,
-            ServiceChargePercent = 5m, ServiceChargeVatPercent = 8m, CreatedAt = now, UpdatedAt = now,
+            Counter = counter,
+            Name = "A",
+            DisplayOrder = 1,
+            IsActive = true,
+            ServiceChargePercent = 5m,
+            ServiceChargeVatPercent = 8m,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var table = new Table
         {
-            Area = area, Code = "T01", SeatCount = 4, Status = TableStatus.Available,
-            IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Area = area,
+            Code = "T01",
+            SeatCount = 4,
+            Status = TableStatus.Available,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         var parent = new Category
         {
-            Code = "DRINK", Name = "Đồ uống", ParentId = null, Path = "PLACEHOLDER",
-            Level = 0, DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "DRINK",
+            Name = "Đồ uống",
+            ParentId = null,
+            Path = "PLACEHOLDER",
+            Level = 0,
+            DisplayOrder = 1,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.Add(parent);
         await _ctx.SaveChangesAsync();
@@ -221,8 +247,15 @@ public sealed class AreaMenuCategoryTests : IAsyncLifetime
 
         var child = new Category
         {
-            Code = "BEER", Name = "Bia", ParentId = parent.Id, Path = "PLACEHOLDER",
-            Level = 1, DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "BEER",
+            Name = "Bia",
+            ParentId = parent.Id,
+            Path = "PLACEHOLDER",
+            Level = 1,
+            DisplayOrder = 1,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.Add(child);
         await _ctx.SaveChangesAsync();
@@ -232,37 +265,64 @@ public sealed class AreaMenuCategoryTests : IAsyncLifetime
         var uom = new Uom { Code = "lon", Name = "Lon", IsActive = true, CreatedAt = now, UpdatedAt = now };
         var item = new Item
         {
-            Code = "BIA01", Name = "Bia Tiger", BaseUom = uom, VatPercent = 10m,
-            IsStockable = false, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = "BIA01",
+            Name = "Bia Tiger",
+            BaseUom = uom,
+            VatPercent = 10m,
+            IsStockable = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var itemCategory = new ItemCategory { Item = item, Category = child, IsMain = true, CreatedAt = now };
 
         var priceTable = new PriceTable { Code = "PT", Name = "Default", IsActive = true, CreatedAt = now, UpdatedAt = now };
         var variant = new PriceVariant
         {
-            PriceTable = priceTable, Code = "PV", Name = "Base",
-            BeginTime = null, EndTime = null, DayMask = null, AppliesToAllAreas = true,
-            IsActive = true, CreatedAt = now, UpdatedAt = now,
+            PriceTable = priceTable,
+            Code = "PV",
+            Name = "Base",
+            BeginTime = null,
+            EndTime = null,
+            DayMask = null,
+            AppliesToAllAreas = true,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         var entry = new PriceEntry
         {
-            PriceVariant = variant, Item = item, Price = 50000m, IsVatIncluded = false,
-            CreatedAt = now, UpdatedAt = now,
+            PriceVariant = variant,
+            Item = item,
+            Price = 50000m,
+            IsVatIncluded = false,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         var role = new Role { Code = "OWNER", Name = "Owner", IsSystemRole = true, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var staff = new StaffAccount
         {
-            Username = "owner", PasswordHash = "x", FullName = "Owner", Role = role,
-            IsActive = true, IsLocked = false, CreatedAt = now, UpdatedAt = now,
+            Username = "owner",
+            PasswordHash = "x",
+            FullName = "Owner",
+            Role = role,
+            IsActive = true,
+            IsLocked = false,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
 
         _ctx.AddRange(counter, area, table, uom, item, itemCategory, priceTable, variant, entry, role, staff);
 
         if (assignToArea == AssignTarget.Parent)
+        {
             _ctx.Add(new AreaMenuCategory { Area = area, Category = parent, CreatedAt = now });
+        }
         else if (assignToArea == AssignTarget.Child)
+        {
             _ctx.Add(new AreaMenuCategory { Area = area, Category = child, CreatedAt = now });
+        }
 
         await _ctx.SaveChangesAsync();
 

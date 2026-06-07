@@ -59,8 +59,11 @@ public static class OpenTicket
                 .Where(t => t.Id == request.TableId && t.IsActive)
                 .Select(t => new
                 {
-                    t.Id, t.AreaId, t.Area.CounterId,
-                    t.Area.ServiceChargePercent, t.Area.ServiceChargeVatPercent
+                    t.Id,
+                    t.AreaId,
+                    t.Area.CounterId,
+                    t.Area.ServiceChargePercent,
+                    t.Area.ServiceChargeVatPercent
                 })
                 .FirstOrDefaultAsync(ct);
             if (table is null)

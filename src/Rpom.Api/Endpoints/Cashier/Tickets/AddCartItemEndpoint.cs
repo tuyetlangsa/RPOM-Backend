@@ -30,8 +30,12 @@ internal sealed class AddCartItemEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Add an item (single or set menu) to the ticket cart.")
-            .WithDescription(
-                "Request: route ticketId (long); JSON body { itemId:int, quantity:decimal, notes?:string, details?:[{ choiceCategoryId?:int, itemId:int, componentType:'MAIN_COMPONENT'|'MODIFIER', quantity:decimal, notes?:string }] }. Set-menu selections validated server-side; price computed server-side. Response: 201 Created — JSON body { cartItemId, orderId, lineTotal }.");
+            .WithDescription("""
+    Request: route ticketId (long); JSON body { itemId:int, quantity:decimal, notes?:string, details?:[{
+    choiceCategoryId?:int, itemId:int, componentType:'MAIN_COMPONENT'|'MODIFIER', quantity:decimal,
+    notes?:string }] }. Set-menu selections validated server-side; price computed server-side. Response:
+    201 Created — JSON body { cartItemId, orderId, lineTotal }.
+""");
     }
 
     internal sealed record Request(

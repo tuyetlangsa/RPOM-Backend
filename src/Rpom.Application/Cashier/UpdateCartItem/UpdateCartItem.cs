@@ -282,7 +282,11 @@ public static class UpdateCartItem
                 .Where(m => ccIds.Contains(m.ChoiceCategoryId) && m.IsActive)
                 .Select(m => new
                 {
-                    m.ChoiceCategoryId, m.ItemId, m.MinPerModifier, m.MaxPerModifier, m.ExtraPrice,
+                    m.ChoiceCategoryId,
+                    m.ItemId,
+                    m.MinPerModifier,
+                    m.MaxPerModifier,
+                    m.ExtraPrice,
                     ItemName = m.Item.Name
                 })
                 .ToListAsync(ct);
