@@ -49,7 +49,8 @@ public static class GetMenu
         int ModifierId, int ItemId, string Name, decimal ExtraPrice,
         int MinPerModifier, int MaxPerModifier, short DisplayOrder);
 
-    internal sealed class Handler(IDbContext db, IDateTimeProvider clock, IRoundingConfig rc)
+    internal sealed class Handler(
+        IDbContext db, IDateTimeProvider clock, IRoundingConfig rc, IMenuPriceResolver priceResolver)
         : IQueryHandler<Query, Response>
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
@@ -65,24 +66,6 @@ public static class GetMenu
             if (table is null) return Result.Failure<Response>(TableErrors.NotFound);
 
             var now = clock.UtcNow;
-            var time = TimeOnly.FromDateTime(now);
-            var today = DateOnly.FromDateTime(now);
-            var dayBit = 1 << (((int)now.DayOfWeek + 6) % 7); // Mon=bit0 … Sun=bit6
-
-            // Active price table currently IN EFFECT (date window), not merely IsActive.
-            // Tie-break when several qualify: a dated table beats an open-ended one, newest
-            // BeginDate, then newest row.
-            var activePriceTable = await db.PriceTables
-                .Where(p => p.IsActive
-                    && (p.BeginDate == null || p.BeginDate <= today)
-                    && (p.EndDate == null || today <= p.EndDate))
-                .OrderByDescending(p => p.BeginDate.HasValue)
-                .ThenByDescending(p => p.BeginDate)
-                .ThenByDescending(p => p.CreatedAt)
-                .Select(p => new { p.Id, p.Name })
-                .FirstOrDefaultAsync(ct);
-            if (activePriceTable is null)
-                return Result.Failure<Response>(PriceTableErrors.NoActivePriceTable);
 
             // 1. Visible categories for this area (junction + subtree via Path prefix).
             var areaCategoryPaths = await db.AreaMenuCategories
@@ -120,49 +103,12 @@ public static class GetMenu
                 .ToListAsync(ct);
             var realItemIds = items.Select(i => i.Id).ToList();
 
-            // 3. Matching variants in the active price table, with their entries.
-            var candidateVariants = await db.PriceVariants
-                .Where(v => v.IsActive && v.PriceTable.IsActive
-                    && v.PriceTableId == activePriceTable.Id
-                    // Time window is half-open [Begin, End); write-time validator enforces
-                    // both-or-neither, but filter symmetrically for defense-in-depth.
-                    && (v.BeginTime == null || v.BeginTime <= time)
-                    && (v.EndTime == null || time < v.EndTime)
-                    && (v.AppliesToAllAreas
-                        || db.PriceVariantAreas.Any(pva => pva.PriceVariantId == v.Id && pva.AreaId == table.AreaId)))
-                .Select(v => new
-                {
-                    v.Id, v.BeginTime, v.EndTime, v.DayMask, v.AppliesToAllAreas, v.CreatedAt,
-                })
-                .ToListAsync(ct);
-
-            // Day-mask filter + specificity in memory (bitmask ops don't translate cleanly).
-            var matching = candidateVariants
-                .Where(v => v.DayMask == null || (v.DayMask.Value & dayBit) != 0)
-                .Select(v => new
-                {
-                    v.Id,
-                    Spec = (v.BeginTime != null || v.EndTime != null ? 1 : 0)
-                         + (v.DayMask != null ? 1 : 0)
-                         + (v.AppliesToAllAreas ? 0 : 1),
-                    v.CreatedAt,
-                })
-                .ToList();
-            var matchingIds = matching.Select(m => m.Id).ToList();
-
-            var entries = await db.PriceEntries
-                .Where(pe => matchingIds.Contains(pe.PriceVariantId) && realItemIds.Contains(pe.ItemId))
-                .Select(pe => new { pe.PriceVariantId, pe.ItemId, pe.Price, pe.IsVatIncluded })
-                .ToListAsync(ct);
-
-            // Most-specific-wins per item.
-            var specById = matching.ToDictionary(m => m.Id, m => (m.Spec, m.CreatedAt));
-            var winnerByItem = entries
-                .GroupBy(e => e.ItemId)
-                .ToDictionary(g => g.Key, g => g
-                    .OrderByDescending(e => specById[e.PriceVariantId].Spec)
-                    .ThenByDescending(e => specById[e.PriceVariantId].CreatedAt)
-                    .First());
+            // 3. Resolve prices via the shared resolver (active price table by date +
+            // most-specific variant wins). Same logic the cashier write flow uses.
+            var resolution = await priceResolver.ResolveAsync(table.AreaId, now, realItemIds, ct);
+            if (resolution.PriceTableId is null)
+                return Result.Failure<Response>(PriceTableErrors.NoActivePriceTable);
+            var winnerByItem = resolution.Prices;
 
             // Pricing spec / F2 Phase 2: an item with no price in the active table is
             // silently hidden. Keep only priced items from here on.
@@ -236,7 +182,7 @@ public static class GetMenu
             return Result.Success(new Response(
                 table.Id, table.AreaId, table.AreaName,
                 table.ServiceChargePercent, table.ServiceChargeVatPercent,
-                activePriceTable.Id, activePriceTable.Name, now,
+                resolution.PriceTableId, resolution.PriceTableName, now,
                 categoryDtos, itemDtos));
         }
 

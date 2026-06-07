@@ -60,7 +60,7 @@ public sealed class AreaMenuCategoryTests : IAsyncLifetime
         var clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(DateTime.UtcNow);
 
-        var handler = new GetMenu.Handler(_ctx, clock, rc);
+        var handler = new GetMenu.Handler(_ctx, clock, rc, new Rpom.Infrastructure.Pricing.MenuPriceResolver(_ctx));
         var result = await handler.Handle(new GetMenu.Query(seed.TableId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -85,7 +85,7 @@ public sealed class AreaMenuCategoryTests : IAsyncLifetime
         var clock = Substitute.For<IDateTimeProvider>();
         clock.UtcNow.Returns(DateTime.UtcNow);
 
-        var handler = new GetMenu.Handler(_ctx, clock, rc);
+        var handler = new GetMenu.Handler(_ctx, clock, rc, new Rpom.Infrastructure.Pricing.MenuPriceResolver(_ctx));
         var result = await handler.Handle(new GetMenu.Query(seed.TableId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();

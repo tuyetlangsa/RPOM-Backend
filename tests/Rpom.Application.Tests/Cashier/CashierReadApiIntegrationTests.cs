@@ -81,7 +81,7 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
         foreach (var kv in RoundingKeys.Defaults)
             rc.GetDigits(kv.Key).Returns(kv.Value);
 
-        var handler = new GetMenu.Handler(_ctx, clock, rc);
+        var handler = new GetMenu.Handler(_ctx, clock, rc, new Rpom.Infrastructure.Pricing.MenuPriceResolver(_ctx));
         var result = await handler.Handle(new GetMenu.Query(tableId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
@@ -98,7 +98,7 @@ public sealed class CashierReadApiIntegrationTests : IAsyncLifetime
         var rc = Substitute.For<IRoundingConfig>();
         foreach (var kv in RoundingKeys.Defaults) rc.GetDigits(kv.Key).Returns(kv.Value);
 
-        var result = await new GetMenu.Handler(_ctx, clock, rc)
+        var result = await new GetMenu.Handler(_ctx, clock, rc, new Rpom.Infrastructure.Pricing.MenuPriceResolver(_ctx))
             .Handle(new GetMenu.Query(tableId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
