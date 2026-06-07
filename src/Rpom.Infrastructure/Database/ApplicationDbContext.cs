@@ -36,6 +36,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Counter> Counters => Set<Counter>();
     public DbSet<Area> Areas => Set<Area>();
     public DbSet<Table> Tables => Set<Table>();
+    public DbSet<TableLock> TableLocks => Set<TableLock>();
 
     // --- Area C: Menu & Catalog ---
     public DbSet<Uom> Uoms => Set<Uom>();

@@ -14,6 +14,7 @@ using Rpom.Application;
 using Rpom.Application.Abstraction.Authentication;
 using Rpom.Application.Abstraction.Authorization;
 using Rpom.Application.Abstraction.Clock;
+using Rpom.Application.Abstraction.Tables;
 using Rpom.Application.Abstraction.Configuration;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Pricing;
@@ -84,6 +85,7 @@ public static class DependencyInjection
         services.AddScoped<ICartRecomputeService, Pricing.CartRecomputeService>();
         services.AddScoped<ITicketRecomputeService, Pricing.TicketRecomputeService>();
         services.AddScoped<IRefreshPaymentTotalsService, Pricing.RefreshPaymentTotalsService>();
+        services.AddScoped<ITableOperationGuard, Tables.TableOperationGuard>();
 
         services.AddQuartz(configurator =>
         {

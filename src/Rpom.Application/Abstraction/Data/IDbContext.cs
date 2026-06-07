@@ -31,6 +31,7 @@ public interface IDbContext
     DbSet<Counter> Counters { get; }
     DbSet<Area> Areas { get; }
     DbSet<Table> Tables { get; }
+    DbSet<TableLock> TableLocks { get; }
 
     // --- Area C: Menu & Catalog ---
     DbSet<Uom> Uoms { get; }

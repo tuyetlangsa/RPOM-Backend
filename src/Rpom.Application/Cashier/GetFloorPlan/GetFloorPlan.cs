@@ -34,7 +34,10 @@ public static class GetFloorPlan
         string Status,                 // AVAILABLE | OCCUPIED
         int OpenTicketCount,
         TicketBrief? LatestTicket,
-        ReservationBrief? UpcomingReservation);
+        ReservationBrief? UpcomingReservation,
+        int? LockedByStaffId,          // null when free or stale
+        string? LockedByName,
+        DateTime? LockedSince);
 
     public sealed record TicketBrief(
         long TicketId,
@@ -133,6 +136,14 @@ public static class GetFloorPlan
                 })
                 .ToListAsync(ct);
 
+            // Live operation locks on these tables (stale ones filtered in memory).
+            var lockCutoff = now.AddSeconds(-Abstraction.Tables.ITableOperationGuard.TtlSeconds);
+            var liveLocks = await db.TableLocks
+                .Where(l => tableIds.Contains(l.TableId) && l.LastHeartbeatAt >= lockCutoff)
+                .Select(l => new { l.TableId, l.StaffAccountId, l.StaffName, l.AcquiredAt })
+                .ToListAsync(ct);
+            var lockByTable = liveLocks.ToDictionary(l => l.TableId);
+
             var ticketsByTable = openTickets.GroupBy(t => t.TableId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
@@ -149,6 +160,8 @@ public static class GetFloorPlan
                         .OrderBy(r => r.TargetTime)
                         .FirstOrDefault();
 
+                    var lk = lockByTable.GetValueOrDefault(t.Id);
+
                     return new TableDto(
                         t.Id, t.Code, t.SeatCount,
                         ts.Count > 0 ? "OCCUPIED" : "AVAILABLE",
@@ -160,7 +173,8 @@ public static class GetFloorPlan
                             unsentTicketIds.Contains(latest.Id)),
                         upcoming is null ? null : new ReservationBrief(
                             upcoming.Id, upcoming.CustomerName, upcoming.CustomerPhone,
-                            upcoming.GuestCount, upcoming.TargetTime, upcoming.Status));
+                            upcoming.GuestCount, upcoming.TargetTime, upcoming.Status),
+                        lk?.StaffAccountId, lk?.StaffName, lk?.AcquiredAt);
                 }).ToList()))
                 .ToList();
 
