@@ -31,7 +31,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
     private readonly PostgreSqlContainer _db =
         new PostgreSqlBuilder().WithImage("pgvector/pgvector:pg17").Build();
     private ApplicationDbContext _ctx = null!;
-    private int _staffId, _tableId, _shiftId, _singleItemId;
+    private int _staffId, _tableId, _shiftId, _singleItemId, _item2Id;
 
     public async Task InitializeAsync()
     {
@@ -82,7 +82,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
 
         // Send order
         var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
-            .Handle(new SendOrder.Command(ticketId), CancellationToken.None);
+            .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
         send.IsSuccess.Should().BeTrue();
         send.Value.ItemCount.Should().Be(1);
         send.Value.TotalAmount.Should().BeGreaterThan(0);
@@ -128,9 +128,59 @@ public sealed class OrderingLoopTests : IAsyncLifetime
             .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
 
         var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
-            .Handle(new SendOrder.Command(ticketId), CancellationToken.None);
+            .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
         send.IsFailure.Should().BeTrue();
         send.Error.Code.Should().Be("Order.EmptyCart");
+    }
+
+    [Fact]
+    public async Task PartialSend_KeepsRemainingInNewDraftBatch()
+    {
+        await AcquireLock();
+        var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
+
+        // Two lines in one draft order.
+        var a = await Add().Handle(new AddCartItem.Command(ticketId, _singleItemId, 1m, null, []), CancellationToken.None);
+        var b = await Add().Handle(new AddCartItem.Command(ticketId, _item2Id, 2m, null, []), CancellationToken.None);
+
+        // Send only line A.
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+            .Handle(new SendOrder.Command(ticketId, new[] { a.Value.CartItemId }), CancellationToken.None);
+        send.IsSuccess.Should().BeTrue();
+        send.Value.ItemCount.Should().Be(1);
+
+        // Exactly the kept line B remains in the cart, now under a NEW draft order.
+        var carts = await _ctx.CartItems
+            .Where(c => _ctx.Orders.Any(o => o.Id == c.OrderId && o.TicketId == ticketId))
+            .ToListAsync();
+        carts.Should().ContainSingle(c => c.Id == b.Value.CartItemId);
+        carts.Should().OnlyContain(c => c.OrderId != send.Value.OrderId); // moved off the sent order
+
+        // One SENT order (batch sent) + one DRAFT order (kept), correct batch numbering.
+        var orders = await _ctx.Orders.Where(o => o.TicketId == ticketId)
+            .OrderBy(o => o.OrderNumber).ToListAsync();
+        orders.Should().HaveCount(2);
+        orders[0].Status.Should().Be(OrderStatus.Sent);
+        orders[1].Status.Should().Be(OrderStatus.Draft);
+        orders[1].OrderNumber.Should().BeGreaterThan(orders[0].OrderNumber);
+
+        // Only line A became an OrderItem.
+        (await _ctx.OrderItems.CountAsync(oi => oi.TicketId == ticketId)).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task PartialSend_UnknownCartItem_Fails()
+    {
+        await AcquireLock();
+        var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
+        await Add().Handle(new AddCartItem.Command(ticketId, _singleItemId, 1m, null, []), CancellationToken.None);
+
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+            .Handle(new SendOrder.Command(ticketId, new long[] { 999999 }), CancellationToken.None);
+        send.IsFailure.Should().BeTrue();
+        send.Error.Code.Should().Be("Order.CartItemNotFound");
     }
 
     [Fact]
@@ -199,12 +249,14 @@ public sealed class OrderingLoopTests : IAsyncLifetime
 
         var uom = new Uom { Code = "phan", Name = "Phần", IsActive = true, CreatedAt = now, UpdatedAt = now };
         var item = new Item { Code = "PHO", Name = "Phở", BaseUom = uom, VatPercent = 8m, IsStockable = false, IsActive = true, CreatedAt = now, UpdatedAt = now };
+        var item2 = new Item { Code = "BUN", Name = "Bún", BaseUom = uom, VatPercent = 8m, IsStockable = false, IsActive = true, CreatedAt = now, UpdatedAt = now };
 
         var priceTable = new PriceTable { Code = "PT", Name = "Default", IsActive = true, CreatedAt = now, UpdatedAt = now };
         var variant = new PriceVariant { PriceTable = priceTable, Code = "PV", Name = "Base", AppliesToAllAreas = true, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var entry = new PriceEntry { PriceVariant = variant, Item = item, Price = 50000m, IsVatIncluded = false, CreatedAt = now, UpdatedAt = now };
+        var entry2 = new PriceEntry { PriceVariant = variant, Item = item2, Price = 40000m, IsVatIncluded = false, CreatedAt = now, UpdatedAt = now };
 
-        _ctx.AddRange(role, staff, counter, area, table, shift, uom, item, priceTable, variant, entry);
+        _ctx.AddRange(role, staff, counter, area, table, shift, uom, item, item2, priceTable, variant, entry, entry2);
         await _ctx.SaveChangesAsync();
 
         // drawer.OpenedByStaffAccountId references staff after it has an id
@@ -212,6 +264,6 @@ public sealed class OrderingLoopTests : IAsyncLifetime
         _ctx.Add(drawer);
         await _ctx.SaveChangesAsync();
 
-        _staffId = staff.Id; _tableId = table.Id; _shiftId = shift.Id; _singleItemId = item.Id;
+        _staffId = staff.Id; _tableId = table.Id; _shiftId = shift.Id; _singleItemId = item.Id; _item2Id = item2.Id;
     }
 }

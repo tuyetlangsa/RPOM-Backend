@@ -1,4 +1,5 @@
 using MediatR;
+using Microsoft.AspNetCore.Mvc;
 using Rpom.Api.Results;
 using Rpom.Application.Access;
 using Rpom.Application.Cashier.SendOrder;
@@ -10,9 +11,9 @@ internal sealed class SendOrderEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapPost("api/cashier/tickets/{ticketId:long}/send-order",
-            async (long ticketId, ISender sender, CancellationToken ct) =>
+            async (long ticketId, [FromBody] Request? request, ISender sender, CancellationToken ct) =>
             {
-                var result = await sender.Send(new SendOrder.Command(ticketId), ct);
+                var result = await sender.Send(new SendOrder.Command(ticketId, request?.CartItemIds), ct);
                 return result.MatchOk();
             })
             .RequireAuthorization(Permissions.OrderSendKitchen)
@@ -21,7 +22,9 @@ internal sealed class SendOrderEndpoint : IEndpoint
             .Produces<ApiResult<SendOrder.Response>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
-            .WithSummary("Send the ticket's cart to the kitchen.")
-            .WithDescription("Request: route ticketId (long). Copies cart→order items, snapshots kitchen station, clears cart, recomputes ticket. Response: 200 OK — JSON body { orderId, orderNumber, itemCount, totalAmount }. 409 if cart empty.");
+            .WithSummary("Send the ticket's cart (or a subset) to the kitchen.")
+            .WithDescription("Request: route ticketId (long); optional JSON body { cartItemIds?:long[] } — omit/empty = send the whole cart, a strict subset = partial send (kept lines move to a new draft batch). Copies cart→order items, snapshots kitchen station, recomputes ticket. Response: 200 OK — JSON body { orderId, orderNumber, itemCount, totalAmount }. 409 if cart empty.");
     }
+
+    internal sealed record Request(IReadOnlyList<long>? CartItemIds);
 }

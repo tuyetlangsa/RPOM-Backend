@@ -19,7 +19,12 @@ namespace Rpom.Application.Cashier.SendOrder;
 /// </summary>
 public static class SendOrder
 {
-    public sealed record Command(long TicketId) : ICommand<Response>;
+    /// <param name="CartItemIds">
+    /// Cart lines to send. Null/empty = send the whole cart. When a strict subset is given,
+    /// the kept lines are moved to a new DRAFT order (next batch) and only the selected lines
+    /// are sent in the current order.
+    /// </param>
+    public sealed record Command(long TicketId, IReadOnlyList<long>? CartItemIds) : ICommand<Response>;
 
     public sealed record Response(long OrderId, short OrderNumber, int ItemCount, decimal TotalAmount);
 
@@ -50,24 +55,68 @@ public static class SendOrder
             var cartItems = await db.CartItems.Where(c => c.OrderId == order.Id).ToListAsync(ct);
             if (cartItems.Count == 0) return Result.Failure<Response>(OrderErrors.EmptyCart);
 
-            var cartIds = cartItems.Select(c => c.Id).ToList();
+            // Partition the cart into lines sent now vs kept for a later batch.
+            List<CartItem> selected, kept;
+            if (request.CartItemIds is { Count: > 0 } ids)
+            {
+                var idSet = ids.ToHashSet();
+                var known = cartItems.Select(c => c.Id).ToHashSet();
+                if (!idSet.All(known.Contains))
+                    return Result.Failure<Response>(OrderErrors.CartItemNotFound);
+                selected = cartItems.Where(c => idSet.Contains(c.Id)).ToList();
+                kept = cartItems.Where(c => !idSet.Contains(c.Id)).ToList();
+            }
+            else
+            {
+                selected = cartItems;
+                kept = [];
+            }
+            if (selected.Count == 0) return Result.Failure<Response>(OrderErrors.EmptyCart);
+
+            var now = clock.UtcNow;
+
+            // Partial send: move the KEPT lines to a NEW draft order (next batch number), so the
+            // current order — now holding only the sent lines — keeps its batch number on SENT.
+            // This preserves the "Đợt 1, Đợt 2" ordering (sent-now batch is the earlier number).
+            if (kept.Count > 0)
+            {
+                var maxNo = await db.Orders.Where(o => o.TicketId == ticket.Id)
+                    .Select(o => (short?)o.OrderNumber).MaxAsync(ct) ?? 0;
+                var nextDraft = new Order
+                {
+                    TicketId = ticket.Id,
+                    OrderNumber = (short)(maxNo + 1),
+                    Status = OrderStatus.Draft,
+                    CreatedByStaffId = currentStaff.StaffAccountId,
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                };
+                db.Orders.Add(nextDraft);
+                await db.SaveChangesAsync(ct); // need nextDraft.Id to reassign kept lines
+
+                foreach (var k in kept)
+                {
+                    k.OrderId = nextDraft.Id;
+                    k.UpdatedAt = now;
+                }
+            }
+
+            var selectedIds = selected.Select(c => c.Id).ToList();
             var cartDetails = await db.CartItemDetails
-                .Where(d => cartIds.Contains(d.CartItemId))
+                .Where(d => selectedIds.Contains(d.CartItemId))
                 .ToListAsync(ct);
             var detailsByCart = cartDetails.GroupBy(d => d.CartItemId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            // Snapshot each item's kitchen station at send time.
-            var itemIds = cartItems.Select(c => c.ItemId).Distinct().ToList();
+            // Snapshot each sent item's kitchen station at send time.
+            var itemIds = selected.Select(c => c.ItemId).Distinct().ToList();
             var kitchenByItem = await db.Items
                 .Where(i => itemIds.Contains(i.Id))
                 .Select(i => new { i.Id, i.KitchenStationId })
                 .ToListAsync(ct);
             var stationByItem = kitchenByItem.ToDictionary(x => x.Id, x => x.KitchenStationId);
 
-            var now = clock.UtcNow;
-
-            foreach (var c in cartItems)
+            foreach (var c in selected)
             {
                 var orderItem = new OrderItem
                 {
@@ -112,8 +161,8 @@ public static class SendOrder
                 }
             }
 
-            // Clear the cart and flip the order to SENT.
-            db.CartItems.RemoveRange(cartItems);
+            // Clear the sent lines from the cart and flip the order to SENT.
+            db.CartItems.RemoveRange(selected);
             order.Status = OrderStatus.Sent;
             order.SentAt = now;
             order.UpdatedAt = now;
@@ -127,7 +176,7 @@ public static class SendOrder
                 ActorStaffAccountId = currentStaff.StaffAccountId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Order #{order.OrderNumber} sent: {cartItems.Count} items (ticket {ticket.Id})",
+                Summary = $"Order #{order.OrderNumber} sent: {selected.Count} items (ticket {ticket.Id})",
             });
             await db.SaveChangesAsync(ct);
 
@@ -140,7 +189,7 @@ public static class SendOrder
             var totalAmount = await db.Tickets.Where(t => t.Id == ticket.Id)
                 .Select(t => t.TotalAmount).FirstAsync(ct);
 
-            return Result.Success(new Response(order.Id, order.OrderNumber, cartItems.Count, totalAmount));
+            return Result.Success(new Response(order.Id, order.OrderNumber, selected.Count, totalAmount));
         }
     }
 }
