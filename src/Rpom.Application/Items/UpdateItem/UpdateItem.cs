@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -12,8 +13,8 @@ using Rpom.Domain.Menu;
 namespace Rpom.Application.Items.UpdateItem;
 
 /// <summary>
-/// Update item master fields + replace its ItemCategory assignments.
-/// Code is editable (snapshots in CartItem/OrderItem preserve history).
+///     Update item master fields + replace its ItemCategory assignments.
+///     Code is editable (snapshots in CartItem/OrderItem preserve history).
 /// </summary>
 public static class UpdateItem
 {
@@ -82,31 +83,44 @@ public static class UpdateItem
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var entity = await dbContext.Items
+            Item? entity = await dbContext.Items
                 .Include(x => x.ItemCategories)
                 .FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<Response>(ItemErrors.NotFound);
+            if (entity is null)
+            {
+                return Result.Failure<Response>(ItemErrors.NotFound);
+            }
 
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
-            var duplicate = await dbContext.Items
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
+            bool duplicate = await dbContext.Items
                 .AnyAsync(x => x.Id != request.Id && x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(ItemErrors.CodeDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(ItemErrors.CodeDuplicate);
+            }
 
             var uom = await dbContext.Uoms
                 .Where(u => u.Id == request.BaseUomId && u.IsActive)
                 .Select(u => new { u.Id, u.Code, u.Name })
                 .FirstOrDefaultAsync(ct);
-            if (uom is null) return Result.Failure<Response>(ItemErrors.UomNotFound);
+            if (uom is null)
+            {
+                return Result.Failure<Response>(ItemErrors.UomNotFound);
+            }
 
             string? stationName = null;
             if (request.KitchenStationId.HasValue)
             {
-                var st = await dbContext.KitchenStations
+                string? st = await dbContext.KitchenStations
                     .Where(s => s.Id == request.KitchenStationId.Value && s.IsActive)
                     .Select(s => s.Name)
                     .FirstOrDefaultAsync(ct);
-                if (st is null) return Result.Failure<Response>(ItemErrors.KitchenStationNotFound);
+                if (st is null)
+                {
+                    return Result.Failure<Response>(ItemErrors.KitchenStationNotFound);
+                }
+
                 stationName = st;
             }
 
@@ -116,11 +130,13 @@ public static class UpdateItem
                 .Select(c => new { c.Id, c.Name })
                 .ToListAsync(ct);
             if (cats.Count != categoryIds.Count)
+            {
                 return Result.Failure<Response>(ItemErrors.CategoryNotFound);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
-            var summary = BuildSummary(entity, request, code);
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            string summary = BuildSummary(entity, request, code);
 
             entity.Code = code;
             entity.Name = request.Name.Trim();
@@ -138,18 +154,18 @@ public static class UpdateItem
             // Replace junction — simplest: remove all + add desired set.
             dbContext.ItemCategories.RemoveRange(entity.ItemCategories);
             entity.ItemCategories.Clear();
-            foreach (var c in request.Categories)
+            foreach (CategoryInput c in request.Categories)
             {
                 entity.ItemCategories.Add(new ItemCategory
                 {
                     ItemId = entity.Id,
                     CategoryId = c.CategoryId,
                     IsMain = c.IsMain,
-                    CreatedAt = now,
+                    CreatedAt = now
                 });
             }
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(Item),
@@ -158,7 +174,7 @@ public static class UpdateItem
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = summary,
+                Summary = summary
             });
 
             try
@@ -169,6 +185,7 @@ public static class UpdateItem
             {
                 return Result.Failure<Response>(ItemErrors.CodeDuplicate);
             }
+
             await versionService.BumpAsync(VersionScopes.Menu, $"Item.Update(id={entity.Id})", ct);
 
             var byId = cats.ToDictionary(c => c.Id, c => c.Name);
@@ -187,17 +204,57 @@ public static class UpdateItem
         private static string BuildSummary(Item before, Command after, string normalizedCode)
         {
             var diffs = new List<string>();
-            if (before.Code != normalizedCode) diffs.Add($"code: '{before.Code}' → '{normalizedCode}'");
-            if (before.Name != after.Name.Trim()) diffs.Add($"name: '{before.Name}' → '{after.Name.Trim()}'");
-            if ((before.Description ?? "") != (after.Description?.Trim() ?? "")) diffs.Add("description changed");
-            if ((before.ImageUrl ?? "") != (after.ImageUrl?.Trim() ?? "")) diffs.Add("image changed");
-            if (before.BaseUomId != after.BaseUomId) diffs.Add($"baseUom: {before.BaseUomId} → {after.BaseUomId}");
-            if (before.VatPercent != after.VatPercent) diffs.Add($"vat: {before.VatPercent} → {after.VatPercent}");
-            if (before.IsStockable != after.IsStockable) diffs.Add($"isStockable: {before.IsStockable} → {after.IsStockable}");
-            if (before.HasRecipe != after.HasRecipe) diffs.Add($"hasRecipe: {before.HasRecipe} → {after.HasRecipe}");
+            if (before.Code != normalizedCode)
+            {
+                diffs.Add($"code: '{before.Code}' → '{normalizedCode}'");
+            }
+
+            if (before.Name != after.Name.Trim())
+            {
+                diffs.Add($"name: '{before.Name}' → '{after.Name.Trim()}'");
+            }
+
+            if ((before.Description ?? "") != (after.Description?.Trim() ?? ""))
+            {
+                diffs.Add("description changed");
+            }
+
+            if ((before.ImageUrl ?? "") != (after.ImageUrl?.Trim() ?? ""))
+            {
+                diffs.Add("image changed");
+            }
+
+            if (before.BaseUomId != after.BaseUomId)
+            {
+                diffs.Add($"baseUom: {before.BaseUomId} → {after.BaseUomId}");
+            }
+
+            if (before.VatPercent != after.VatPercent)
+            {
+                diffs.Add($"vat: {before.VatPercent} → {after.VatPercent}");
+            }
+
+            if (before.IsStockable != after.IsStockable)
+            {
+                diffs.Add($"isStockable: {before.IsStockable} → {after.IsStockable}");
+            }
+
+            if (before.HasRecipe != after.HasRecipe)
+            {
+                diffs.Add($"hasRecipe: {before.HasRecipe} → {after.HasRecipe}");
+            }
+
             if (before.KitchenStationId != after.KitchenStationId)
-                diffs.Add($"kitchenStation: {before.KitchenStationId?.ToString() ?? "null"} → {after.KitchenStationId?.ToString() ?? "null"}");
-            if (before.IsActive != after.IsActive) diffs.Add($"isActive: {before.IsActive} → {after.IsActive}");
+            {
+                diffs.Add(
+                    $"kitchenStation: {before.KitchenStationId?.ToString() ?? "null"} → {after.KitchenStationId?.ToString() ?? "null"}");
+            }
+
+            if (before.IsActive != after.IsActive)
+            {
+                diffs.Add($"isActive: {before.IsActive} → {after.IsActive}");
+            }
+
             diffs.Add($"categories replaced (n={after.Categories.Count})");
             return string.Join("; ", diffs);
         }

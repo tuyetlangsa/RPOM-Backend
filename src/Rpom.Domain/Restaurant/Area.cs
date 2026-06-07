@@ -3,9 +3,9 @@ using Rpom.Domain.Common;
 namespace Rpom.Domain.Restaurant;
 
 /// <summary>
-/// Khu vực within a Counter — groups Tables that share a service area.
-/// FLAT list inside Counter — no nested Areas, no parent_id self-ref.
-/// Cross-area "Area menu-shows Categories" resolved via AreaMenuCategory (Area C).
+///     Khu vực within a Counter — groups Tables that share a service area.
+///     FLAT list inside Counter — no nested Areas, no parent_id self-ref.
+///     Cross-area "Area menu-shows Categories" resolved via AreaMenuCategory (Area C).
 /// </summary>
 public class Area : Entity
 {
@@ -13,6 +13,7 @@ public class Area : Entity
 
     /// <summary>Parent counter — Area belongs to exactly 1 Counter.</summary>
     public int CounterId { get; set; }
+
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
     public short DisplayOrder { get; set; }
@@ -23,6 +24,7 @@ public class Area : Entity
 
     /// <summary>VAT% applied to the service-charge amount.</summary>
     public decimal ServiceChargeVatPercent { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

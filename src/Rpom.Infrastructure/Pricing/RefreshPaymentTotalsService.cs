@@ -11,9 +11,9 @@ internal sealed class RefreshPaymentTotalsService(IDbContext dbContext, IDateTim
 {
     public async Task RefreshAsync(long ticketId, CancellationToken ct)
     {
-        var ticket = await dbContext.Tickets.FirstAsync(t => t.Id == ticketId, ct);
+        Ticket ticket = await dbContext.Tickets.FirstAsync(t => t.Id == ticketId, ct);
 
-        var paid = await dbContext.TicketPaymentDetails
+        decimal paid = await dbContext.TicketPaymentDetails
             .Where(p => p.TicketId == ticketId && p.Status == TicketPaymentStatus.Success)
             .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
 

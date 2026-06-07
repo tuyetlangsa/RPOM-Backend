@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Domain.Common;
+using Rpom.Domain.Menu;
 
 namespace Rpom.Application.Uoms.ListUoms;
 
@@ -22,20 +23,22 @@ public static class ListUoms
     {
         public async Task<Result<IReadOnlyList<Response>>> Handle(Query request, CancellationToken ct)
         {
-            var q = dbContext.Uoms.AsQueryable();
+            IQueryable<Uom> q = dbContext.Uoms.AsQueryable();
 
             if (request.IsActive.HasValue)
+            {
                 q = q.Where(x => x.IsActive == request.IsActive.Value);
+            }
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var s = request.Search.Trim().ToLower();
+                string s = request.Search.Trim().ToLower();
                 q = q.Where(x => x.Code.ToLower().Contains(s)
-                              || x.Name.ToLower().Contains(s)
-                              || (x.Description != null && x.Description.ToLower().Contains(s)));
+                                 || x.Name.ToLower().Contains(s)
+                                 || (x.Description != null && x.Description.ToLower().Contains(s)));
             }
 
-            var rows = await q
+            List<Response> rows = await q
                 .OrderBy(x => x.Code)
                 .Select(x => new Response(
                     x.Id, x.Code, x.Name, x.Description, x.IsActive, x.CreatedAt, x.UpdatedAt))

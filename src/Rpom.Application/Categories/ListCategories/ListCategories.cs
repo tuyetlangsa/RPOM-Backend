@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Domain.Common;
+using Rpom.Domain.Menu;
 
 namespace Rpom.Application.Categories.ListCategories;
 
@@ -28,29 +29,37 @@ public static class ListCategories
     {
         public async Task<Result<IReadOnlyList<Response>>> Handle(Query request, CancellationToken ct)
         {
-            var q = dbContext.Categories.AsQueryable();
-            if (request.IsActive.HasValue) q = q.Where(x => x.IsActive == request.IsActive.Value);
+            IQueryable<Category> q = dbContext.Categories.AsQueryable();
+            if (request.IsActive.HasValue)
+            {
+                q = q.Where(x => x.IsActive == request.IsActive.Value);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var s = request.Search.Trim().ToLower();
+                string s = request.Search.Trim().ToLower();
                 q = q.Where(x => x.Code.ToLower().Contains(s) || x.Name.ToLower().Contains(s));
             }
+
             if (!string.IsNullOrWhiteSpace(request.RootCode))
             {
                 // Trả về subtree (self + descendants) của Category root có Code khớp.
                 // Path semicolon-terminated → StartsWith(root.Path) phủ cả self và mọi descendant.
-                var rootCodeLower = request.RootCode.Trim().ToLower();
+                string rootCodeLower = request.RootCode.Trim().ToLower();
                 var root = await dbContext.Categories
                     .Where(c => c.Code.ToLower() == rootCodeLower)
                     .Select(c => new { c.Path })
                     .FirstOrDefaultAsync(ct);
                 if (root is null)
+                {
                     return Result.Success<IReadOnlyList<Response>>(Array.Empty<Response>());
+                }
+
                 q = q.Where(c => c.Path.StartsWith(root.Path));
             }
 
             // Pre-compute child + item counts in one round-trip to avoid N+1.
-            var rows = await q
+            List<Response> rows = await q
                 .OrderBy(x => x.Level).ThenBy(x => x.DisplayOrder).ThenBy(x => x.Name)
                 .Select(x => new Response(
                     x.Id, x.Code, x.Name, x.Description, x.ParentId, x.Path, x.Level,

@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Operations;
@@ -70,7 +71,8 @@ public static class UpdateDiscountPolicy
                 .Must((cmd, conds) => !DiscountConditionRules.HasDuplicateTriggers(
                     cmd.DiscountType,
                     conds.Select(c => (c.ThresholdAmount, c.ItemId, c.QuantityThreshold, c.AreaId))))
-                .WithMessage("Conditions must not duplicate the same trigger (same threshold/area or item/quantity/area).");
+                .WithMessage(
+                    "Conditions must not duplicate the same trigger (same threshold/area or item/quantity/area).");
         }
     }
 
@@ -82,21 +84,30 @@ public static class UpdateDiscountPolicy
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var policy = await db.DiscountPolicies.FirstOrDefaultAsync(p => p.Id == request.Id, ct);
-            if (policy is null) return Result.Failure<Response>(DiscountPolicyErrors.NotFound);
+            DiscountPolicy? policy = await db.DiscountPolicies.FirstOrDefaultAsync(p => p.Id == request.Id, ct);
+            if (policy is null)
+            {
+                return Result.Failure<Response>(DiscountPolicyErrors.NotFound);
+            }
 
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
-            var duplicate = await db.DiscountPolicies
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
+            bool duplicate = await db.DiscountPolicies
                 .AnyAsync(p => p.Id != request.Id && p.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(DiscountPolicyErrors.CodeDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(DiscountPolicyErrors.CodeDuplicate);
+            }
 
-            var validation = await DiscountConditionRules.ValidateReferencesAsync(db, request.Conditions
+            Error? validation = await DiscountConditionRules.ValidateReferencesAsync(db, request.Conditions
                 .Select(c => (c.ItemId, c.AreaId)), ct);
-            if (validation is not null) return Result.Failure<Response>(validation);
+            if (validation is not null)
+            {
+                return Result.Failure<Response>(validation);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             policy.Code = code;
             policy.Name = request.Name.Trim();
@@ -108,12 +119,12 @@ public static class UpdateDiscountPolicy
             policy.UpdatedAt = now;
 
             // Replace-all conditions.
-            var existing = await db.DiscountPolicyConditions
+            List<DiscountPolicyCondition> existing = await db.DiscountPolicyConditions
                 .Where(c => c.DiscountPolicyId == request.Id)
                 .ToListAsync(ct);
             db.DiscountPolicyConditions.RemoveRange(existing);
 
-            foreach (var c in request.Conditions)
+            foreach (ConditionInput c in request.Conditions)
             {
                 db.DiscountPolicyConditions.Add(new DiscountPolicyCondition
                 {
@@ -126,11 +137,11 @@ public static class UpdateDiscountPolicy
                     DiscountValue = c.DiscountValue,
                     DisplayOrder = c.DisplayOrder,
                     CreatedAt = now,
-                    UpdatedAt = now,
+                    UpdatedAt = now
                 });
             }
 
-            var staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             db.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(DiscountPolicy),
@@ -139,7 +150,7 @@ public static class UpdateDiscountPolicy
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"DiscountPolicy updated: {policy.Code} ({request.Conditions.Count} conditions)",
+                Summary = $"DiscountPolicy updated: {policy.Code} ({request.Conditions.Count} conditions)"
             });
 
             try
@@ -150,6 +161,7 @@ public static class UpdateDiscountPolicy
             {
                 return Result.Failure<Response>(DiscountPolicyErrors.CodeDuplicate);
             }
+
             await versionService.BumpAsync(VersionScopes.Pricing, $"DiscountPolicy.Update(id={policy.Id})", ct);
 
             return Result.Success(new Response(policy.Id, policy.Code, policy.Name, request.Conditions.Count));

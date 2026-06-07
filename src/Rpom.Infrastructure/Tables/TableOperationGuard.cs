@@ -12,10 +12,10 @@ internal sealed class TableOperationGuard(IDbContext db, IDateTimeProvider clock
 {
     public async Task<Result> EnsureHeldAsync(int tableId, int staffId, CancellationToken ct)
     {
-        var now = clock.UtcNow;
-        var cutoff = now.AddSeconds(-ITableOperationGuard.TtlSeconds);
+        DateTime now = clock.UtcNow;
+        DateTime cutoff = now.AddSeconds(-ITableOperationGuard.TtlSeconds);
 
-        var lockRow = await db.TableLocks.FirstOrDefaultAsync(l => l.TableId == tableId, ct);
+        TableLock? lockRow = await db.TableLocks.FirstOrDefaultAsync(l => l.TableId == tableId, ct);
         if (lockRow is null
             || lockRow.StaffAccountId != staffId
             || lockRow.LastHeartbeatAt < cutoff)

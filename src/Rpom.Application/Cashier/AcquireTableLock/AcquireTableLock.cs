@@ -11,18 +11,21 @@ using Rpom.Domain.Restaurant;
 namespace Rpom.Application.Cashier.AcquireTableLock;
 
 /// <summary>
-/// Acquire-or-heartbeat the operation lock on a table. Idempotent for the holder:
-/// a free / mine / stale lock is (re)claimed and its heartbeat refreshed; a live lock
-/// held by another staff is rejected. A genuine (re)acquisition bumps FLOOR_PLAN so other
-/// terminals disable the table; a pure heartbeat does not.
+///     Acquire-or-heartbeat the operation lock on a table. Idempotent for the holder:
+///     a free / mine / stale lock is (re)claimed and its heartbeat refreshed; a live lock
+///     held by another staff is rejected. A genuine (re)acquisition bumps FLOOR_PLAN so other
+///     terminals disable the table; a pure heartbeat does not.
 /// </summary>
 public static class AcquireTableLock
 {
     public sealed record Command(int TableId) : ICommand<Response>;
 
     public sealed record Response(
-        int TableId, int StaffAccountId, string StaffName,
-        DateTime AcquiredAt, DateTime ExpiresAt);
+        int TableId,
+        int StaffAccountId,
+        string StaffName,
+        DateTime AcquiredAt,
+        DateTime ExpiresAt);
 
     internal sealed class Handler(
         IDbContext db,
@@ -36,18 +39,21 @@ public static class AcquireTableLock
                 .Where(t => t.Id == request.TableId && t.IsActive)
                 .Select(t => new { t.Id })
                 .FirstOrDefaultAsync(ct);
-            if (table is null) return Result.Failure<Response>(TableErrors.NotFound);
+            if (table is null)
+            {
+                return Result.Failure<Response>(TableErrors.NotFound);
+            }
 
-            var now = clock.UtcNow;
-            var cutoff = now.AddSeconds(-ITableOperationGuard.TtlSeconds);
-            var staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            DateTime cutoff = now.AddSeconds(-ITableOperationGuard.TtlSeconds);
+            int staffId = currentStaff.StaffAccountId;
 
             var staff = await db.StaffAccounts
                 .Where(s => s.Id == staffId)
                 .Select(s => new { s.FullName })
                 .FirstAsync(ct);
 
-            var lockRow = await db.TableLocks.FirstOrDefaultAsync(l => l.TableId == request.TableId, ct);
+            TableLock? lockRow = await db.TableLocks.FirstOrDefaultAsync(l => l.TableId == request.TableId, ct);
 
             bool newAcquisition;
             if (lockRow is null)
@@ -58,7 +64,7 @@ public static class AcquireTableLock
                     StaffAccountId = staffId,
                     StaffName = staff.FullName,
                     AcquiredAt = now,
-                    LastHeartbeatAt = now,
+                    LastHeartbeatAt = now
                 };
                 db.TableLocks.Add(lockRow);
                 newAcquisition = true;
@@ -86,8 +92,10 @@ public static class AcquireTableLock
 
             await db.SaveChangesAsync(ct);
             if (newAcquisition)
+            {
                 await versionService.BumpAsync(VersionScopes.FloorPlan,
                     $"TableLock.Acquire(tableId={request.TableId})", ct);
+            }
 
             return Result.Success(new Response(
                 lockRow.TableId, lockRow.StaffAccountId, lockRow.StaffName,

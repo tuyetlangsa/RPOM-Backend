@@ -11,7 +11,7 @@ using Rpom.Domain.Sales;
 namespace Rpom.Application.Cashier.RemoveCartItem;
 
 /// <summary>
-/// Remove a cart line (its detail rows cascade) and recompute the cart. Requires the table lock.
+///     Remove a cart line (its detail rows cascade) and recompute the cart. Requires the table lock.
 /// </summary>
 public static class RemoveCartItem
 {
@@ -30,20 +30,33 @@ public static class RemoveCartItem
                 .Where(t => t.Id == request.TicketId)
                 .Select(t => new { t.Id, t.TableId, t.Status })
                 .FirstOrDefaultAsync(ct);
-            if (ticket is null) return Result.Failure(TicketErrors.NotFound);
-            if (ticket.Status != TicketStatus.Open) return Result.Failure(TicketErrors.NotOpen);
+            if (ticket is null)
+            {
+                return Result.Failure(TicketErrors.NotFound);
+            }
 
-            var held = await guard.EnsureHeldAsync(ticket.TableId, currentStaff.StaffAccountId, ct);
-            if (held.IsFailure) return Result.Failure(held.Error);
+            if (ticket.Status != TicketStatus.Open)
+            {
+                return Result.Failure(TicketErrors.NotOpen);
+            }
 
-            var cartItem = await db.CartItems
+            Result held = await guard.EnsureHeldAsync(ticket.TableId, currentStaff.StaffAccountId, ct);
+            if (held.IsFailure)
+            {
+                return Result.Failure(held.Error);
+            }
+
+            CartItem? cartItem = await db.CartItems
                 .Where(c => c.Id == request.CartItemId
-                    && db.Orders.Any(o => o.Id == c.OrderId
-                        && o.TicketId == ticket.Id && o.Status == OrderStatus.Draft))
+                            && db.Orders.Any(o => o.Id == c.OrderId
+                                                  && o.TicketId == ticket.Id && o.Status == OrderStatus.Draft))
                 .FirstOrDefaultAsync(ct);
-            if (cartItem is null) return Result.Failure(OrderErrors.CartItemNotFound);
+            if (cartItem is null)
+            {
+                return Result.Failure(OrderErrors.CartItemNotFound);
+            }
 
-            var orderId = cartItem.OrderId;
+            long orderId = cartItem.OrderId;
             db.CartItems.Remove(cartItem);
             await db.SaveChangesAsync(ct);
 

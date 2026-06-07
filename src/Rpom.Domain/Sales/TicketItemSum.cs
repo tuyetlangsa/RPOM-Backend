@@ -4,12 +4,12 @@ using Rpom.Domain.Menu;
 namespace Rpom.Domain.Sales;
 
 /// <summary>
-/// Pre-aggregated summary of OrderItem per Ticket — F2 RESTICKETITEM_SUM pattern.
-/// Source of truth for bill display, print, and VAT invoice line aggregation.
-/// Each row = unique bucket (Ticket × Item × Uom × UnitPrice × ChoicePricePerUnit
-/// × LineDiscountPercent × TicketDiscountPercent × VatPercent × ServiceChargePercent
-/// × ServiceChargeVatPercent).
-/// Maintained by app-layer TicketSumRecomputer (DELETE + INSERT per ticket).
+///     Pre-aggregated summary of OrderItem per Ticket — F2 RESTICKETITEM_SUM pattern.
+///     Source of truth for bill display, print, and VAT invoice line aggregation.
+///     Each row = unique bucket (Ticket × Item × Uom × UnitPrice × ChoicePricePerUnit
+///     × LineDiscountPercent × TicketDiscountPercent × VatPercent × ServiceChargePercent
+///     × ServiceChargeVatPercent).
+///     Maintained by app-layer TicketSumRecomputer (DELETE + INSERT per ticket).
 /// </summary>
 public class TicketItemSum : Entity
 {
@@ -37,6 +37,7 @@ public class TicketItemSum : Entity
 
     /// <summary>Sum of modifier ExtraPrices per unit — signature for modifier bucket.</summary>
     public decimal ChoicePricePerUnit { get; set; }
+
     public decimal VatPercent { get; set; }
     public decimal ServiceChargePercent { get; set; }
     public decimal ServiceChargeVatPercent { get; set; }
@@ -51,6 +52,7 @@ public class TicketItemSum : Entity
 
     /// <summary>Σ OrderItem.ServiceChargeAmount for this bucket.</summary>
     public decimal TotalServiceCharge { get; set; }
+
     public decimal TotalVat { get; set; }
 
     /// <summary>Final amount for this aggregated bucket.</summary>
@@ -61,6 +63,7 @@ public class TicketItemSum : Entity
 
     /// <summary>Render order on bill — populated from MIN(OrderItem.SentAt) rank at recompute time.</summary>
     public int DisplayOrder { get; set; }
+
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
 

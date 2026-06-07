@@ -18,13 +18,6 @@ namespace Rpom.Infrastructure.Database;
 public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
     : DbContext(options), IDbContext
 {
-    protected override void OnModelCreating(ModelBuilder modelBuilder)
-    {
-        modelBuilder.HasPostgresExtension("vector");
-        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
-        modelBuilder.HasDefaultSchema(Schemas.Default);
-    }
-
     // --- Area A: Access (RBAC) ---
     public DbSet<PermissionGroup> PermissionGroups => Set<PermissionGroup>();
     public DbSet<Permission> Permissions => Set<Permission>();
@@ -105,4 +98,11 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     // --- Outbox infrastructure ---
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<OutboxMessageConsumer> OutboxMessageConsumers => Set<OutboxMessageConsumer>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.HasPostgresExtension("vector");
+        modelBuilder.ApplyConfigurationsFromAssembly(typeof(ApplicationDbContext).Assembly);
+        modelBuilder.HasDefaultSchema(Schemas.Default);
+    }
 }

@@ -14,11 +14,11 @@ public static class DomainEventHandlersFactory
         IServiceProvider serviceProvider,
         Assembly assembly)
     {
-        var domainEventHandlerTypes = HandlersDictionary.GetOrAdd(
+        Type[] domainEventHandlerTypes = HandlersDictionary.GetOrAdd(
             $"{assembly.GetName().Name}{type.Name}",
             _ =>
             {
-                var domainEventHandlerTypes = assembly.GetTypes()
+                Type[] domainEventHandlerTypes = assembly.GetTypes()
                     .Where(t => t.IsAssignableTo(typeof(IDomainEventHandler<>).MakeGenericType(type)))
                     .ToArray();
 
@@ -26,9 +26,9 @@ public static class DomainEventHandlersFactory
             });
 
         List<IDomainEventHandler> handlers = [];
-        foreach (var domainEventHandlerType in domainEventHandlerTypes)
+        foreach (Type domainEventHandlerType in domainEventHandlerTypes)
         {
-            var domainEventHandler = serviceProvider.GetRequiredService(domainEventHandlerType);
+            object domainEventHandler = serviceProvider.GetRequiredService(domainEventHandlerType);
             handlers.Add((domainEventHandler as IDomainEventHandler)!);
         }
 

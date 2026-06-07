@@ -4,17 +4,19 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
+using Rpom.Domain.Sales;
 using Rpom.Domain.Sales.CashDrawer;
 
 namespace Rpom.Application.CashDrawers.CloseCashDrawer;
 
 /// <summary>
-/// Close a cash drawer. Permission <c>cash_drawer:close</c> required — any
-/// holder of that permission can close, including a different staff than
-/// the one who opened (e.g. Manager force-close, or shift hand-over).
-/// Variance is logged but never blocks closure.
+///     Close a cash drawer. Permission <c>cash_drawer:close</c> required — any
+///     holder of that permission can close, including a different staff than
+///     the one who opened (e.g. Manager force-close, or shift hand-over).
+///     Variance is logged but never blocks closure.
 /// </summary>
 public static class CloseCashDrawer
 {
@@ -63,30 +65,41 @@ public static class CloseCashDrawer
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var entity = await dbContext.CashDrawerSessions
+            CashDrawerSession? entity = await dbContext.CashDrawerSessions
                 .Include(x => x.CashCounts)
                 .FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<Response>(CashDrawerErrors.NotFound);
-            if (entity.Status != CashDrawerStatus.Open) return Result.Failure<Response>(CashDrawerErrors.NotOpen);
+            if (entity is null)
+            {
+                return Result.Failure<Response>(CashDrawerErrors.NotFound);
+            }
+
+            if (entity.Status != CashDrawerStatus.Open)
+            {
+                return Result.Failure<Response>(CashDrawerErrors.NotOpen);
+            }
 
             if (request.ClosingCashCounts.Count == 0)
+            {
                 return Result.Failure<Response>(CashDrawerErrors.CashCountsRequired);
+            }
 
             var requestedIds = request.ClosingCashCounts.Select(x => x.DenominationId).Distinct().ToList();
-            var denoms = await dbContext.Denominations
+            List<Denomination> denoms = await dbContext.Denominations
                 .Where(d => requestedIds.Contains(d.Id) && d.IsActive)
                 .ToListAsync(ct);
             if (denoms.Count != requestedIds.Count)
+            {
                 return Result.Failure<Response>(CashDrawerErrors.DenominationInvalid);
+            }
 
             var faceById = denoms.ToDictionary(d => d.Id, d => d.FaceValue);
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             decimal actual = 0m;
-            foreach (var input in request.ClosingCashCounts)
+            foreach (CashCountInput input in request.ClosingCashCounts)
             {
-                var subtotal = faceById[input.DenominationId] * input.Quantity;
+                decimal subtotal = faceById[input.DenominationId] * input.Quantity;
                 actual += subtotal;
                 entity.CashCounts.Add(new CashDrawerCashCount
                 {
@@ -95,13 +108,13 @@ public static class CloseCashDrawer
                     Phase = CashDrawerCashPhase.Closing,
                     Quantity = input.Quantity,
                     Subtotal = subtotal,
-                    CreatedAt = now,
+                    CreatedAt = now
                 });
             }
 
             // v1: expected = opening (no payment integration yet). Will become
             // opening + Σ cash payments - Σ change once payment feature lands.
-            var expected = entity.OpeningCash;
+            decimal expected = entity.OpeningCash;
 
             entity.ClosedByStaffAccountId = staffId;
             entity.ClosedAt = now;
@@ -111,11 +124,13 @@ public static class CloseCashDrawer
             entity.Status = CashDrawerStatus.Closed;
             entity.UpdatedAt = now;
             if (!string.IsNullOrWhiteSpace(request.Notes))
+            {
                 entity.Notes = string.IsNullOrWhiteSpace(entity.Notes)
                     ? request.Notes.Trim()
                     : entity.Notes + "\n---\n" + request.Notes.Trim();
+            }
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(CashDrawerSession),
@@ -124,7 +139,8 @@ public static class CloseCashDrawer
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Cash drawer closed | expected={expected:N0}đ | actual={actual:N0}đ | variance={entity.Variance:N0}đ",
+                Summary =
+                    $"Cash drawer closed | expected={expected:N0}đ | actual={actual:N0}đ | variance={entity.Variance:N0}đ"
             });
 
             await dbContext.SaveChangesAsync(ct);

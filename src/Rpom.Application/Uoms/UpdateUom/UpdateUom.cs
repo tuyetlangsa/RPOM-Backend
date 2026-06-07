@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -12,10 +13,10 @@ using Rpom.Domain.Menu;
 namespace Rpom.Application.Uoms.UpdateUom;
 
 /// <summary>
-/// BR-2: Code is editable even when in use — transactional snapshot tables
-/// (CartItem/OrderItem/TicketItemSum) already captured UomCode at write time,
-/// so renaming the master record never breaks historical accuracy.
-/// BR-3: IsActive=false is allowed regardless of FK references (soft retire).
+///     BR-2: Code is editable even when in use — transactional snapshot tables
+///     (CartItem/OrderItem/TicketItemSum) already captured UomCode at write time,
+///     so renaming the master record never breaks historical accuracy.
+///     BR-3: IsActive=false is allowed regardless of FK references (soft retire).
 /// </summary>
 public static class UpdateUom
 {
@@ -57,20 +58,26 @@ public static class UpdateUom
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var entity = await dbContext.Uoms.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<Response>(UomErrors.NotFound);
+            Uom? entity = await dbContext.Uoms.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+            if (entity is null)
+            {
+                return Result.Failure<Response>(UomErrors.NotFound);
+            }
 
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
 
             // Allow same code as current; reject if any OTHER Uom uses it (case-insensitive).
-            var duplicate = await dbContext.Uoms
+            bool duplicate = await dbContext.Uoms
                 .AnyAsync(x => x.Id != request.Id && x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(UomErrors.CodeDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(UomErrors.CodeDuplicate);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
-            var summary = BuildSummary(entity, request, code);
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            string summary = BuildSummary(entity, request, code);
 
             entity.Code = code;
             entity.Name = request.Name.Trim();
@@ -78,7 +85,7 @@ public static class UpdateUom
             entity.IsActive = request.IsActive;
             entity.UpdatedAt = now;
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(Uom),
@@ -87,7 +94,7 @@ public static class UpdateUom
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = summary,
+                Summary = summary
             });
 
             try
@@ -98,6 +105,7 @@ public static class UpdateUom
             {
                 return Result.Failure<Response>(UomErrors.CodeDuplicate);
             }
+
             await versionService.BumpAsync(VersionScopes.Menu, $"Uom.Update(id={entity.Id})", ct);
 
             return Result.Success(new Response(
@@ -109,13 +117,25 @@ public static class UpdateUom
         {
             var diffs = new List<string>();
             if (before.Code != normalizedCode)
+            {
                 diffs.Add($"code: '{before.Code}' → '{normalizedCode}'");
+            }
+
             if (before.Name != after.Name.Trim())
+            {
                 diffs.Add($"name: '{before.Name}' → '{after.Name.Trim()}'");
+            }
+
             if ((before.Description ?? "") != (after.Description?.Trim() ?? ""))
+            {
                 diffs.Add("description changed");
+            }
+
             if (before.IsActive != after.IsActive)
+            {
                 diffs.Add($"isActive: {before.IsActive} → {after.IsActive}");
+            }
+
             return diffs.Count == 0 ? "Uom updated (no changes)" : string.Join("; ", diffs);
         }
     }

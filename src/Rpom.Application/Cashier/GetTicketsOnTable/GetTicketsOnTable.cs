@@ -51,9 +51,12 @@ public static class GetTicketsOnTable
                 .Where(t => t.Id == request.TableId)
                 .Select(t => new { t.Id, t.Code, t.AreaId, AreaName = t.Area.Name })
                 .FirstOrDefaultAsync(ct);
-            if (table is null) return Result.Failure<Response>(TableErrors.NotFound);
+            if (table is null)
+            {
+                return Result.Failure<Response>(TableErrors.NotFound);
+            }
 
-            var now = clock.UtcNow;
+            DateTime now = clock.UtcNow;
 
             // 1. Load open tickets on this table as a lightweight intermediate list (scalar
             //    columns + waiter name). Deeply-nested correlated subqueries are avoided here;
@@ -76,7 +79,7 @@ public static class GetTicketsOnTable
                     tk.TotalAmount,
                     tk.PaidAmount,
                     HasGuestQrToken = tk.GuestQrToken != null,
-                    tk.Status,
+                    tk.Status
                 })
                 .ToListAsync(ct);
             var ticketIds = tickets.Select(t => t.Id).ToList();
@@ -88,22 +91,22 @@ public static class GetTicketsOnTable
             }
 
             // 2. Order-item counts keyed by ticket id (OrderItem.TicketId is denormalized).
-            var orderItemCounts = await db.OrderItems
+            Dictionary<long, int> orderItemCounts = await db.OrderItems
                 .Where(oi => ticketIds.Contains(oi.TicketId)
-                    && oi.Status != OrderItemStatus.Cancelled)
+                             && oi.Status != OrderItemStatus.Cancelled)
                 .GroupBy(oi => oi.TicketId)
                 .Select(g => new { TicketId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.TicketId, x => x.Count, ct);
 
-            var pendingOrderItemCounts = await db.OrderItems
+            Dictionary<long, int> pendingOrderItemCounts = await db.OrderItems
                 .Where(oi => ticketIds.Contains(oi.TicketId)
-                    && oi.Status == OrderItemStatus.Pending)
+                             && oi.Status == OrderItemStatus.Pending)
                 .GroupBy(oi => oi.TicketId)
                 .Select(g => new { TicketId = g.Key, Count = g.Count() })
                 .ToDictionaryAsync(x => x.TicketId, x => x.Count, ct);
 
             // 3. Cart-item counts keyed by ticket id (CartItem → Order(DRAFT) → Ticket).
-            var cartItemCounts = await db.CartItems
+            Dictionary<long, int> cartItemCounts = await db.CartItems
                 .Join(db.Orders, ci => ci.OrderId, o => o.Id, (ci, o) => new { ci, o })
                 .Where(x => ticketIds.Contains(x.o.TicketId) && x.o.Status == OrderStatus.Draft)
                 .GroupBy(x => x.o.TicketId)
@@ -111,9 +114,9 @@ public static class GetTicketsOnTable
                 .ToDictionaryAsync(x => x.TicketId, x => x.Count, ct);
 
             // 4. Pending-payment flags keyed by ticket id.
-            var pendingPaymentTicketIds = await db.TicketPaymentDetails
+            List<long> pendingPaymentTicketIds = await db.TicketPaymentDetails
                 .Where(p => ticketIds.Contains(p.TicketId)
-                    && p.Status == TicketPaymentStatus.Pending)
+                            && p.Status == TicketPaymentStatus.Pending)
                 .Select(p => p.TicketId)
                 .Distinct()
                 .ToListAsync(ct);
@@ -122,7 +125,7 @@ public static class GetTicketsOnTable
             // 5. Assemble the TicketDto list in memory.
             var ticketDtos = tickets.Select(t =>
             {
-                var cartCount = cartItemCounts.GetValueOrDefault(t.Id);
+                int cartCount = cartItemCounts.GetValueOrDefault(t.Id);
                 return new TicketDto(
                     t.Id,
                     t.Code,

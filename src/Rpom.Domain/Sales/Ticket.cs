@@ -2,14 +2,15 @@ using Rpom.Domain.Access;
 using Rpom.Domain.Common;
 using Rpom.Domain.Operations;
 using Rpom.Domain.Restaurant;
+using Rpom.Domain.Sales.CashDrawer;
 
 namespace Rpom.Domain.Sales;
 
 /// <summary>
-/// Hoá đơn — central transaction entity. Hub: referenced by Order,
-/// TicketPaymentDetail, EInvoice (1:1), Reservation (Area F when SEATED).
-/// Money fields are computed snapshots; while OPEN app recomputes on each
-/// change but only persists final values at payment.
+///     Hoá đơn — central transaction entity. Hub: referenced by Order,
+///     TicketPaymentDetail, EInvoice (1:1), Reservation (Area F when SEATED).
+///     Money fields are computed snapshots; while OPEN app recomputes on each
+///     change but only persists final values at payment.
 /// </summary>
 public class Ticket : Entity
 {
@@ -30,8 +31,8 @@ public class Ticket : Entity
     public long CashDrawerSessionId { get; set; }
 
     /// <summary>
-    /// DENORM from Shift definition resolved by ticket open time-of-day —
-    /// for reporting "doanh thu ca sáng". Independent from cash drawer.
+    ///     DENORM from Shift definition resolved by ticket open time-of-day —
+    ///     for reporting "doanh thu ca sáng". Independent from cash drawer.
     /// </summary>
     public int ShiftId { get; set; }
 
@@ -43,18 +44,21 @@ public class Ticket : Entity
     /// <summary>Manager who approved exceptions (reopen, discount over threshold). NULL when not needed.</summary>
     public int? ManagerStaffId { get; set; }
 
-    /// <summary>OPEN | CLOSED | CANCELLED (see <see cref="TicketStatus"/>).</summary>
+    /// <summary>OPEN | CLOSED | CANCELLED (see <see cref="TicketStatus" />).</summary>
     public string Status { get; set; } = TicketStatus.Open;
+
     public DateTime OpenedAt { get; set; }
     public DateTime? ClosedAt { get; set; }
     public DateTime? CancelledAt { get; set; }
 
     /// <summary>Required when CancelledAt is set.</summary>
     public int? CancellationReasonId { get; set; }
+
     public string? CancellationNote { get; set; }
 
     /// <summary>Σ OrderItem.LineSubtotal — gross, before Discount/SC/VAT (pricing spec §3.7).</summary>
     public decimal Subtotal { get; set; }
+
     public int? DiscountPolicyId { get; set; }
 
     /// <summary>Ticket-level discount % the cashier set / a policy resolved.</summary>
@@ -63,8 +67,12 @@ public class Ticket : Entity
     /// <summary>Total discount applied (distributed across line items).</summary>
     public decimal DiscountAmount { get; set; }
 
-    /// <summary>Snapshot from Area.ServiceChargePercent at open; re-snapshot on table transfer (pricing spec §3.7, CLAUDE.md §14).</summary>
+    /// <summary>
+    ///     Snapshot from Area.ServiceChargePercent at open; re-snapshot on table transfer (pricing spec §3.7, CLAUDE.md
+    ///     §14).
+    /// </summary>
     public decimal ServiceChargePercent { get; set; }
+
     public decimal ServiceChargeAmount { get; set; }
 
     /// <summary>Snapshot from Area.ServiceChargeVatPercent at open (pricing spec §3.7).</summary>
@@ -78,6 +86,7 @@ public class Ticket : Entity
 
     /// <summary>Legacy header VAT% — kept for back-compat; NOT used by recompute (VAT is per-line via OrderItem.VatPercent).</summary>
     public decimal VatPercent { get; set; }
+
     public decimal VatAmount { get; set; }
 
     /// <summary>Subtotal - DiscountAmount + ServiceChargeAmount + VatAmount.</summary>
@@ -97,6 +106,7 @@ public class Ticket : Entity
 
     /// <summary>Opaque 20-char token for QR self-order. NULL when not enabled. Unique when set.</summary>
     public string? GuestQrToken { get; set; }
+
     public DateTime? GuestQrGeneratedAt { get; set; }
 
     public string? Notes { get; set; }
@@ -111,7 +121,7 @@ public class Ticket : Entity
     public virtual Table Table { get; set; } = null!;
     public virtual Area Area { get; set; } = null!;
     public virtual Counter Counter { get; set; } = null!;
-    public virtual CashDrawer.CashDrawerSession CashDrawerSession { get; set; } = null!;
+    public virtual CashDrawerSession CashDrawerSession { get; set; } = null!;
     public virtual Shift Shift { get; set; } = null!;
     public virtual StaffAccount? WaiterStaff { get; set; }
     public virtual StaffAccount? ManagerStaff { get; set; }

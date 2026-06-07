@@ -4,10 +4,10 @@ using Rpom.Domain.Menu;
 namespace Rpom.Domain.Sales;
 
 /// <summary>
-/// Mutable cart line in a DRAFT order. Snapshots (ItemCode/ItemName/UnitPrice/
-/// UomCode/UomName) preserve historical accuracy. On Order DRAFT → SENT, copied
-/// to OrderItem then deleted. Concurrency for QR shared cart: last-write-wins
-/// (no Version).
+///     Mutable cart line in a DRAFT order. Snapshots (ItemCode/ItemName/UnitPrice/
+///     UomCode/UomName) preserve historical accuracy. On Order DRAFT → SENT, copied
+///     to OrderItem then deleted. Concurrency for QR shared cart: last-write-wins
+///     (no Version).
 /// </summary>
 public class CartItem : Entity
 {
@@ -23,6 +23,7 @@ public class CartItem : Entity
 
     /// <summary>Snapshot of Item.Name at order time.</summary>
     public string ItemName { get; set; } = null!;
+
     public int UomId { get; set; }
 
     /// <summary>Snapshot of Uom.Code at order time.</summary>
@@ -65,6 +66,7 @@ public class CartItem : Entity
 
     /// <summary>LineSubtotal + ServiceChargeAmount + VatAmount (all-in tạm tính).</summary>
     public decimal LineTotal { get; set; }
+
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
 

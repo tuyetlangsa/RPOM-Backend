@@ -23,7 +23,7 @@ public static class GetCounter
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
         {
-            var row = await dbContext.Counters
+            Response? row = await dbContext.Counters
                 .Where(x => x.Id == request.Id)
                 .Select(x => new Response(
                     x.Id, x.Name, x.Note, x.DisplayOrder, x.IsActive, x.CreatedAt, x.UpdatedAt))

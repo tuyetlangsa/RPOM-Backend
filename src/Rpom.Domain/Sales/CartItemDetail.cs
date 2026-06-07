@@ -4,8 +4,8 @@ using Rpom.Domain.Menu;
 namespace Rpom.Domain.Sales;
 
 /// <summary>
-/// Sub-detail capturing customer picks within a SET_MENU CartItem
-/// (main components kept + modifier selections).
+///     Sub-detail capturing customer picks within a SET_MENU CartItem
+///     (main components kept + modifier selections).
 /// </summary>
 public class CartItemDetail : Entity
 {
@@ -21,12 +21,14 @@ public class CartItemDetail : Entity
     /// <summary>Snapshot.</summary>
     public string ItemName { get; set; } = null!;
 
-    /// <summary>MAIN_COMPONENT | MODIFIER (see <see cref="ComponentType"/>).</summary>
+    /// <summary>MAIN_COMPONENT | MODIFIER (see <see cref="ComponentType" />).</summary>
     public string ComponentType { get; set; } = null!;
+
     public decimal Quantity { get; set; } = 1;
 
     /// <summary>Snapshot from Modifier.ExtraPrice at order time. 0 for MAIN_COMPONENT (per BR-35).</summary>
     public decimal ExtraPrice { get; set; }
+
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

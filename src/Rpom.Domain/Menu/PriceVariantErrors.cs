@@ -40,11 +40,11 @@ public static class PriceVariantErrors
         "PriceVariant.DefaultVariantExists",
         "Bảng giá đã có 1 variant catch-all (specificity=0). Không thể tạo variant catch-all thứ 2.");
 
-    public static Error OverlapConflict(string conflictingCode) => Error.Conflict(
-        "PriceVariant.OverlapConflict",
-        $"Variant này xung đột với variant '{conflictingCode}' (cùng specificity và overlap cả 3 chiều Time/Day/Area). Hãy thay đổi điều kiện hoặc tăng specificity.");
-
     public static readonly Error HasEntries = Error.Conflict(
         "PriceVariant.HasEntries",
         "Không xoá được — variant còn entry giá. Hãy xoá các entry trước.");
+
+    public static Error OverlapConflict(string conflictingCode) => Error.Conflict(
+        "PriceVariant.OverlapConflict",
+        $"Variant này xung đột với variant '{conflictingCode}' (cùng specificity và overlap cả 3 chiều Time/Day/Area). Hãy thay đổi điều kiện hoặc tăng specificity.");
 }

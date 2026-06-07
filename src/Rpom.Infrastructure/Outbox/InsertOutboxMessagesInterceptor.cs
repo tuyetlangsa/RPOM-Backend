@@ -13,7 +13,10 @@ public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
         InterceptionResult<int> result,
         CancellationToken cancellationToken = default)
     {
-        if (eventData.Context is not null) InsertOutboxMessages(eventData.Context);
+        if (eventData.Context is not null)
+        {
+            InsertOutboxMessages(eventData.Context);
+        }
 
         return base.SavingChangesAsync(eventData, result, cancellationToken);
     }
@@ -26,7 +29,7 @@ public sealed class InsertOutboxMessagesInterceptor : SaveChangesInterceptor
             .Select(entry => entry.Entity)
             .SelectMany(entity =>
             {
-                var domainEvents = entity.DomainEvents;
+                IReadOnlyCollection<IDomainEvent> domainEvents = entity.DomainEvents;
                 entity.ClearDomainEvents();
                 return domainEvents;
             })

@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Rpom.Api.Results;
 using Rpom.Application.Access;
 using Rpom.Application.PriceVariants.CreatePriceVariant;
+using Rpom.Domain.Common;
 
 namespace Rpom.Api.Endpoints.Erp.PriceVariants;
 
@@ -11,15 +12,15 @@ internal sealed class CreatePriceVariantEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapPost("api/price-tables/{priceTableId:int}/variants",
-            async (int priceTableId, [FromBody] Request request, ISender sender, CancellationToken ct) =>
-            {
-                var result = await sender.Send(new CreatePriceVariant.Command(
-                    priceTableId, request.Code, request.Name, request.Description,
-                    request.BeginTime, request.EndTime, request.DayMask,
-                    request.AppliesToAllAreas, request.AreaIds ?? Array.Empty<int>(),
-                    request.IsActive), ct);
-                return result.MatchCreated(r => $"/api/price-variants/{r.Id}");
-            })
+                async (int priceTableId, [FromBody] Request request, ISender sender, CancellationToken ct) =>
+                {
+                    Result<CreatePriceVariant.Response> result = await sender.Send(new CreatePriceVariant.Command(
+                        priceTableId, request.Code, request.Name, request.Description,
+                        request.BeginTime, request.EndTime, request.DayMask,
+                        request.AppliesToAllAreas, request.AreaIds ?? Array.Empty<int>(),
+                        request.IsActive), ct);
+                    return result.MatchCreated(r => $"/api/price-variants/{r.Id}");
+                })
             .RequireAuthorization(Permissions.MasterDataManage)
             .WithTags("PriceVariants")
             .WithName("CreatePriceVariant")
@@ -28,7 +29,8 @@ internal sealed class CreatePriceVariantEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create a price variant under a price table.")
-            .WithDescription("Request: route priceTableId (int); JSON body { code:string, name:string, description?:string, beginTime?:time, endTime?:time, dayMask?:int, appliesToAllAreas:bool, areaIds?:int[], isActive:bool }. Response: 201 Created — Location header; JSON body with new price-variant id.");
+            .WithDescription(
+                "Request: route priceTableId (int); JSON body { code:string, name:string, description?:string, beginTime?:time, endTime?:time, dayMask?:int, appliesToAllAreas:bool, areaIds?:int[], isActive:bool }. Response: 201 Created — Location header; JSON body with new price-variant id.");
     }
 
     internal sealed record Request(

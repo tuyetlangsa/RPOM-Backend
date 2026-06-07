@@ -4,16 +4,19 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
+using Rpom.Domain.Restaurant;
+using Rpom.Domain.Sales;
 using Rpom.Domain.Sales.CashDrawer;
 
 namespace Rpom.Application.CashDrawers.OpenCashDrawer;
 
 /// <summary>
-/// Open a cash drawer at a counter. Permission <c>cash_drawer:open</c> required.
-/// Refuses if any cash drawer at this counter is already OPEN.
-/// Computes OpeningCash from the provided denomination counts.
+///     Open a cash drawer at a counter. Permission <c>cash_drawer:open</c> required.
+///     Refuses if any cash drawer at this counter is already OPEN.
+///     Computes OpeningCash from the provided denomination counts.
 /// </summary>
 public static class OpenCashDrawer
 {
@@ -58,26 +61,33 @@ public static class OpenCashDrawer
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
             // Counter must exist + active
-            var counter = await dbContext.Counters.FirstOrDefaultAsync(x => x.Id == request.CounterId, ct);
+            Counter? counter = await dbContext.Counters.FirstOrDefaultAsync(x => x.Id == request.CounterId, ct);
             if (counter is null || !counter.IsActive)
+            {
                 return Result.Failure<Response>(CashDrawerErrors.CounterInvalid);
+            }
 
             // 1 OPEN drawer per counter — pre-check (filtered unique index is the safety net)
-            var alreadyOpen = await dbContext.CashDrawerSessions
+            bool alreadyOpen = await dbContext.CashDrawerSessions
                 .AnyAsync(x => x.CounterId == request.CounterId && x.Status == CashDrawerStatus.Open, ct);
-            if (alreadyOpen) return Result.Failure<Response>(CashDrawerErrors.CounterAlreadyOpen);
+            if (alreadyOpen)
+            {
+                return Result.Failure<Response>(CashDrawerErrors.CounterAlreadyOpen);
+            }
 
             // Validate denominations + compute opening cash
             var requestedIds = request.OpeningCashCounts.Select(x => x.DenominationId).Distinct().ToList();
-            var denoms = await dbContext.Denominations
+            List<Denomination> denoms = await dbContext.Denominations
                 .Where(d => requestedIds.Contains(d.Id) && d.IsActive)
                 .ToListAsync(ct);
             if (denoms.Count != requestedIds.Count)
+            {
                 return Result.Failure<Response>(CashDrawerErrors.DenominationInvalid);
+            }
 
             var faceById = denoms.ToDictionary(d => d.Id, d => d.FaceValue);
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             var entity = new CashDrawerSession
             {
@@ -87,13 +97,13 @@ public static class OpenCashDrawer
                 Status = CashDrawerStatus.Open,
                 Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             };
 
             decimal opening = 0m;
-            foreach (var input in request.OpeningCashCounts)
+            foreach (CashCountInput input in request.OpeningCashCounts)
             {
-                var subtotal = faceById[input.DenominationId] * input.Quantity;
+                decimal subtotal = faceById[input.DenominationId] * input.Quantity;
                 opening += subtotal;
                 entity.CashCounts.Add(new CashDrawerCashCount
                 {
@@ -101,14 +111,15 @@ public static class OpenCashDrawer
                     Phase = CashDrawerCashPhase.Opening,
                     Quantity = input.Quantity,
                     Subtotal = subtotal,
-                    CreatedAt = now,
+                    CreatedAt = now
                 });
             }
+
             entity.OpeningCash = opening;
 
             dbContext.CashDrawerSessions.Add(entity);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             await dbContext.SaveChangesAsync(ct);
 
             dbContext.AuditLogs.Add(new AuditLog
@@ -119,7 +130,7 @@ public static class OpenCashDrawer
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Cash drawer opened at counter={counter.Name} | opening={opening:N0}đ",
+                Summary = $"Cash drawer opened at counter={counter.Name} | opening={opening:N0}đ"
             });
             await dbContext.SaveChangesAsync(ct);
 

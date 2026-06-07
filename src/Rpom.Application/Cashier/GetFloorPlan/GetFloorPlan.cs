@@ -3,6 +3,8 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Configuration;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
+using Rpom.Application.Abstraction.Tables;
+using Rpom.Application.Configuration;
 using Rpom.Domain.Common;
 using Rpom.Domain.Reservation;
 using Rpom.Domain.Restaurant;
@@ -31,11 +33,11 @@ public static class GetFloorPlan
         int TableId,
         string TableCode,
         int SeatCount,
-        string Status,                 // AVAILABLE | OCCUPIED
+        string Status, // AVAILABLE | OCCUPIED
         int OpenTicketCount,
         TicketBrief? LatestTicket,
         ReservationBrief? UpcomingReservation,
-        int? LockedByStaffId,          // null when free or stale
+        int? LockedByStaffId, // null when free or stale
         string? LockedByName,
         DateTime? LockedSince);
 
@@ -69,13 +71,16 @@ public static class GetFloorPlan
                 .Where(c => c.Id == request.CounterId && c.IsActive)
                 .Select(c => new { c.Id, c.Name })
                 .FirstOrDefaultAsync(ct);
-            if (counter is null) return Result.Failure<Response>(CounterErrors.NotFound);
+            if (counter is null)
+            {
+                return Result.Failure<Response>(CounterErrors.NotFound);
+            }
 
-            var now = clock.UtcNow;
-            var preBuffer = await config.GetIntAsync(
-                Configuration.ConfigCodes.ReservationPreBufferMinutes, 30, ct);
-            var grace = await config.GetIntAsync(
-                Configuration.ConfigCodes.ReservationGracePeriodMinutes, 30, ct);
+            DateTime now = clock.UtcNow;
+            int preBuffer = await config.GetIntAsync(
+                ConfigCodes.ReservationPreBufferMinutes, 30, ct);
+            int grace = await config.GetIntAsync(
+                ConfigCodes.ReservationGracePeriodMinutes, 30, ct);
 
             var areas = await db.Areas
                 .Where(a => a.CounterId == counter.Id && a.IsActive)
@@ -104,7 +109,7 @@ public static class GetFloorPlan
                     tk.OpenedAt,
                     tk.Subtotal,
                     tk.TotalAmount,
-                    WaiterName = tk.WaiterStaff != null ? tk.WaiterStaff.FullName : null,
+                    WaiterName = tk.WaiterStaff != null ? tk.WaiterStaff.FullName : null
                 })
                 .ToListAsync(ct);
             var openTicketIds = openTickets.Select(t => t.Id).ToList();
@@ -112,10 +117,10 @@ public static class GetFloorPlan
             // HasUnsentItems flag computed in-memory: set of ticket-ids that have a DRAFT
             // order containing >= 1 CartItem. Avoids a nested .Any() inside the projection
             // which is risky for EF translation.
-            var ticketsWithUnsentItems = await db.Orders
+            List<long> ticketsWithUnsentItems = await db.Orders
                 .Where(o => openTicketIds.Contains(o.TicketId)
-                    && o.Status == OrderStatus.Draft
-                    && db.CartItems.Any(ci => ci.OrderId == o.Id))
+                            && o.Status == OrderStatus.Draft
+                            && db.CartItems.Any(ci => ci.OrderId == o.Id))
                 .Select(o => o.TicketId)
                 .Distinct()
                 .ToListAsync(ct);
@@ -132,12 +137,12 @@ public static class GetFloorPlan
                     r.CustomerPhone,
                     r.GuestCount,
                     r.TargetTime,
-                    r.Status,
+                    r.Status
                 })
                 .ToListAsync(ct);
 
             // Live operation locks on these tables (stale ones filtered in memory).
-            var lockCutoff = now.AddSeconds(-Abstraction.Tables.ITableOperationGuard.TtlSeconds);
+            DateTime lockCutoff = now.AddSeconds(-ITableOperationGuard.TtlSeconds);
             var liveLocks = await db.TableLocks
                 .Where(l => tableIds.Contains(l.TableId) && l.LastHeartbeatAt >= lockCutoff)
                 .Select(l => new { l.TableId, l.StaffAccountId, l.StaffName, l.AcquiredAt })
@@ -148,34 +153,38 @@ public static class GetFloorPlan
                 .ToDictionary(g => g.Key, g => g.ToList());
 
             var areaDtos = areas.Select(a => new AreaDto(
-                a.Id, a.Name, a.DisplayOrder, a.ServiceChargePercent,
-                tables.Where(t => t.AreaId == a.Id).Select(t =>
-                {
-                    var ts = ticketsByTable.GetValueOrDefault(t.Id) ?? new();
-                    var latest = ts.FirstOrDefault();
-                    var upcoming = reservations
-                        .Where(r => r.TableId == t.Id
-                            && r.TargetTime.AddMinutes(-preBuffer) <= now
-                            && now <= r.TargetTime.AddMinutes(grace))
-                        .OrderBy(r => r.TargetTime)
-                        .FirstOrDefault();
+                    a.Id, a.Name, a.DisplayOrder, a.ServiceChargePercent,
+                    tables.Where(t => t.AreaId == a.Id).Select(t =>
+                    {
+                        var ts = ticketsByTable.GetValueOrDefault(t.Id) ?? new();
+                        var latest = ts.FirstOrDefault();
+                        var upcoming = reservations
+                            .Where(r => r.TableId == t.Id
+                                        && r.TargetTime.AddMinutes(-preBuffer) <= now
+                                        && now <= r.TargetTime.AddMinutes(grace))
+                            .OrderBy(r => r.TargetTime)
+                            .FirstOrDefault();
 
-                    var lk = lockByTable.GetValueOrDefault(t.Id);
+                        var lk = lockByTable.GetValueOrDefault(t.Id);
 
-                    return new TableDto(
-                        t.Id, t.Code, t.SeatCount,
-                        ts.Count > 0 ? "OCCUPIED" : "AVAILABLE",
-                        ts.Count,
-                        latest is null ? null : new TicketBrief(
-                            latest.Id, latest.Code, latest.GuestCount, latest.WaiterName,
-                            latest.OpenedAt, (int)(now - latest.OpenedAt).TotalMinutes,
-                            latest.Subtotal, latest.TotalAmount,
-                            unsentTicketIds.Contains(latest.Id)),
-                        upcoming is null ? null : new ReservationBrief(
-                            upcoming.Id, upcoming.CustomerName, upcoming.CustomerPhone,
-                            upcoming.GuestCount, upcoming.TargetTime, upcoming.Status),
-                        lk?.StaffAccountId, lk?.StaffName, lk?.AcquiredAt);
-                }).ToList()))
+                        return new TableDto(
+                            t.Id, t.Code, t.SeatCount,
+                            ts.Count > 0 ? "OCCUPIED" : "AVAILABLE",
+                            ts.Count,
+                            latest is null
+                                ? null
+                                : new TicketBrief(
+                                    latest.Id, latest.Code, latest.GuestCount, latest.WaiterName,
+                                    latest.OpenedAt, (int)(now - latest.OpenedAt).TotalMinutes,
+                                    latest.Subtotal, latest.TotalAmount,
+                                    unsentTicketIds.Contains(latest.Id)),
+                            upcoming is null
+                                ? null
+                                : new ReservationBrief(
+                                    upcoming.Id, upcoming.CustomerName, upcoming.CustomerPhone,
+                                    upcoming.GuestCount, upcoming.TargetTime, upcoming.Status),
+                            lk?.StaffAccountId, lk?.StaffName, lk?.AcquiredAt);
+                    }).ToList()))
                 .ToList();
 
             return Result.Success(new Response(counter.Id, counter.Name, now, areaDtos));

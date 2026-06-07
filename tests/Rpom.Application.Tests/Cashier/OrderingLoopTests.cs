@@ -77,11 +77,11 @@ public sealed class OrderingLoopTests : IAsyncLifetime
 
         // Update qty → 3
         var upd = await new UpdateCartItem.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
-            .Handle(new UpdateCartItem.Command(ticketId, cartItemId, 3m, null), CancellationToken.None);
+            .Handle(new UpdateCartItem.Command(ticketId, cartItemId, 3m, null, null), CancellationToken.None);
         upd.IsSuccess.Should().BeTrue();
 
         // Send order
-        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
             .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
         send.IsSuccess.Should().BeTrue();
         send.Value.ItemCount.Should().Be(1);
@@ -127,7 +127,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
         var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
             .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
 
-        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
             .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
         send.IsFailure.Should().BeTrue();
         send.Error.Code.Should().Be("Order.EmptyCart");
@@ -145,7 +145,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
         var b = await Add().Handle(new AddCartItem.Command(ticketId, _item2Id, 2m, null, []), CancellationToken.None);
 
         // Send only line A.
-        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
             .Handle(new SendOrder.Command(ticketId, new[] { a.Value.CartItemId }), CancellationToken.None);
         send.IsSuccess.Should().BeTrue();
         send.Value.ItemCount.Should().Be(1);
@@ -177,7 +177,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
             .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
         await Add().Handle(new AddCartItem.Command(ticketId, _singleItemId, 1m, null, []), CancellationToken.None);
 
-        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
             .Handle(new SendOrder.Command(ticketId, new long[] { 999999 }), CancellationToken.None);
         send.IsFailure.Should().BeTrue();
         send.Error.Code.Should().Be("Order.CartItemNotFound");
@@ -196,6 +196,25 @@ public sealed class OrderingLoopTests : IAsyncLifetime
         var rem = await new RemoveCartItem.Handler(_ctx, Staff(), Guard(), Cart(), Version())
             .Handle(new RemoveCartItem.Command(ticketId, add.Value.CartItemId), CancellationToken.None);
         rem.IsSuccess.Should().BeTrue();
+        (await _ctx.CartItems.AnyAsync()).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Update_QtyZero_RemovesCartItem()
+    {
+        await AcquireLock();
+        var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
+
+        var add = await Add().Handle(
+            new AddCartItem.Command(ticketId, _singleItemId, 1m, null, []), CancellationToken.None);
+
+        // Update qty → 0 should remove the cart item.
+        var upd = await new UpdateCartItem.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
+            .Handle(new UpdateCartItem.Command(ticketId, add.Value.CartItemId, 0m, null, null), CancellationToken.None);
+        upd.IsSuccess.Should().BeTrue();
+        upd.Value.CartItemId.Should().Be(0);
+        upd.Value.LineTotal.Should().Be(0);
         (await _ctx.CartItems.AnyAsync()).Should().BeFalse();
     }
 

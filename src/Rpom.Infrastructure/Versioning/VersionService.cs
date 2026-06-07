@@ -6,8 +6,8 @@ using Rpom.Infrastructure.Database;
 namespace Rpom.Infrastructure.Versioning;
 
 /// <summary>
-/// Postgres-backed implementation using <c>INSERT … ON CONFLICT DO UPDATE</c>
-/// for race-free atomic increment.
+///     Postgres-backed implementation using <c>INSERT … ON CONFLICT DO UPDATE</c>
+///     for race-free atomic increment.
 /// </summary>
 internal sealed class VersionService(
     ApplicationDbContext dbContext,
@@ -15,7 +15,7 @@ internal sealed class VersionService(
 {
     public Task BumpAsync(string scope, string source, CancellationToken ct)
     {
-        var now = clock.UtcNow;
+        DateTime now = clock.UtcNow;
         // Postgres UPSERT — atomic per-row; concurrent bumps both succeed.
         return dbContext.Database.ExecuteSqlInterpolatedAsync($@"
             INSERT INTO domain_versions (scope, version, updated_at, updated_by_source)
@@ -31,13 +31,21 @@ internal sealed class VersionService(
         IReadOnlyList<string> scopes,
         CancellationToken ct)
     {
-        if (scopes.Count == 0) return new Dictionary<string, long>();
+        if (scopes.Count == 0)
+        {
+            return new Dictionary<string, long>();
+        }
+
         var rows = await dbContext.DomainVersions
             .Where(x => scopes.Contains(x.Scope))
             .Select(x => new { x.Scope, x.Version })
             .ToListAsync(ct);
         var map = scopes.Distinct().ToDictionary(s => s, _ => 0L);
-        foreach (var row in rows) map[row.Scope] = row.Version;
+        foreach (var row in rows)
+        {
+            map[row.Scope] = row.Version;
+        }
+
         return map;
     }
 }

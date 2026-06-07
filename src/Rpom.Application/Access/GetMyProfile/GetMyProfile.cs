@@ -26,9 +26,9 @@ public static class GetMyProfile
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken cancellationToken)
         {
-            var staffId = currentStaff.StaffAccountId;
+            int staffId = currentStaff.StaffAccountId;
 
-            var staff = await dbContext.StaffAccounts
+            StaffAccount? staff = await dbContext.StaffAccounts
                 .Include(x => x.Role)
                 .Include(x => x.StaffAccountPermissions).ThenInclude(x => x.Permission)
                 .FirstOrDefaultAsync(x => x.Id == staffId, cancellationToken);
@@ -44,14 +44,14 @@ public static class GetMyProfile
                 .ToList();
 
             return Result.Success(new Response(
-                StaffAccountId: staff.Id,
-                Username: staff.Username,
-                FullName: staff.FullName,
-                Phone: staff.Phone,
-                Email: staff.Email,
-                RoleCode: staff.Role.Code,
-                RoleName: staff.Role.Name,
-                Permissions: permissions));
+                staff.Id,
+                staff.Username,
+                staff.FullName,
+                staff.Phone,
+                staff.Email,
+                staff.Role.Code,
+                staff.Role.Name,
+                permissions));
         }
     }
 }

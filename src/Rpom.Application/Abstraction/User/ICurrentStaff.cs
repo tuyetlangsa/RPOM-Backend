@@ -1,8 +1,8 @@
 namespace Rpom.Application.Abstraction.User;
 
 /// <summary>
-/// Per-request accessor for the currently authenticated staff account.
-/// Resolves from HttpContext.User claims (set by JWT auth + CustomClaimsTransformation).
+///     Per-request accessor for the currently authenticated staff account.
+///     Resolves from HttpContext.User claims (set by JWT auth + CustomClaimsTransformation).
 /// </summary>
 public interface ICurrentStaff
 {

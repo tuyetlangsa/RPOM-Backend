@@ -41,16 +41,19 @@ public static class GetPriceVariant
                     AreaIds = dbContext.PriceVariantAreas
                         .Where(a => a.PriceVariantId == x.Id)
                         .Select(a => a.AreaId).ToList(),
-                    EntryCount = dbContext.PriceEntries.Count(e => e.PriceVariantId == x.Id),
+                    EntryCount = dbContext.PriceEntries.Count(e => e.PriceVariantId == x.Id)
                 })
                 .FirstOrDefaultAsync(ct);
 
-            if (v is null) return Result.Failure<Response>(PriceVariantErrors.NotFound);
+            if (v is null)
+            {
+                return Result.Failure<Response>(PriceVariantErrors.NotFound);
+            }
 
-            var spec =
+            int spec =
                 (v.BeginTime is not null || v.EndTime is not null ? 1 : 0)
-              + (v.DayMask is not null ? 1 : 0)
-              + (v.AppliesToAllAreas ? 0 : 1);
+                + (v.DayMask is not null ? 1 : 0)
+                + (v.AppliesToAllAreas ? 0 : 1);
 
             return Result.Success(new Response(
                 v.Id, v.PriceTableId, v.Code, v.Name, v.Description,

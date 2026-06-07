@@ -9,11 +9,11 @@ using Rpom.Infrastructure.Authentication;
 namespace Rpom.Infrastructure.Authorization;
 
 /// <summary>
-/// Runs after JWT validation per request. Pulls the StaffAccountId from
-/// the <c>sub</c> claim, fetches the user's permissions from DB via
-/// <see cref="IPermissionService"/>, and augments the ClaimsPrincipal
-/// with one <c>permission</c> claim per code. Endpoints then check via
-/// <c>.RequireAuthorization("&lt;permission_code&gt;")</c>.
+///     Runs after JWT validation per request. Pulls the StaffAccountId from
+///     the <c>sub</c> claim, fetches the user's permissions from DB via
+///     <see cref="IPermissionService" />, and augments the ClaimsPrincipal
+///     with one <c>permission</c> claim per code. Endpoints then check via
+///     <c>.RequireAuthorization("&lt;permission_code&gt;")</c>.
 /// </summary>
 internal sealed class CustomClaimsTransformation(IServiceScopeFactory serviceScopeFactory)
     : IClaimsTransformation
@@ -31,10 +31,10 @@ internal sealed class CustomClaimsTransformation(IServiceScopeFactory serviceSco
             return principal;
         }
 
-        using var scope = serviceScopeFactory.CreateScope();
-        var permissionService = scope.ServiceProvider.GetRequiredService<IPermissionService>();
+        using IServiceScope scope = serviceScopeFactory.CreateScope();
+        IPermissionService permissionService = scope.ServiceProvider.GetRequiredService<IPermissionService>();
 
-        var staffAccountId = principal.GetStaffAccountId();
+        int staffAccountId = principal.GetStaffAccountId();
 
         Result<PermissionsResponse> result = await permissionService.GetUserPermissionsAsync(staffAccountId);
 
@@ -45,7 +45,7 @@ internal sealed class CustomClaimsTransformation(IServiceScopeFactory serviceSco
 
         var claimsIdentity = new ClaimsIdentity();
 
-        foreach (var permission in result.Value.Permissions)
+        foreach (string permission in result.Value.Permissions)
         {
             claimsIdentity.AddClaim(new Claim(CustomClaims.Permission, permission));
         }

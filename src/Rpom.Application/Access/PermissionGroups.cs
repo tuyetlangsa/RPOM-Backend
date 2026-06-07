@@ -1,9 +1,9 @@
 namespace Rpom.Application.Access;
 
 /// <summary>
-/// UI grouping of permissions (used purely for the permission-picker UI).
-/// Does NOT participate in runtime auth — see <see cref="Permissions"/>.
-/// Codes used as <c>PermissionGroup.Code</c> column values in seed data.
+///     UI grouping of permissions (used purely for the permission-picker UI).
+///     Does NOT participate in runtime auth — see <see cref="Permissions" />.
+///     Codes used as <c>PermissionGroup.Code</c> column values in seed data.
 /// </summary>
 public static class PermissionGroups
 {

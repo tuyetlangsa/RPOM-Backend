@@ -26,7 +26,7 @@ public static class GetPriceTable
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
         {
-            var row = await dbContext.PriceTables
+            Response? row = await dbContext.PriceTables
                 .Where(x => x.Id == request.Id)
                 .Select(x => new Response(
                     x.Id, x.Code, x.Name, x.Description, x.BeginDate, x.EndDate, x.IsActive,

@@ -20,7 +20,7 @@ public static class GetConfigValues
     {
         public async Task<Result<IReadOnlyList<ConfigValueItem>>> Handle(Query request, CancellationToken ct)
         {
-            var rows = await dbContext.ConfigValues
+            List<ConfigValueItem> rows = await dbContext.ConfigValues
                 .OrderBy(x => x.Code)
                 .Select(x => new ConfigValueItem(
                     x.Code, x.Value, x.Description, x.UpdatedAt, x.UpdatedByStaffAccountId))

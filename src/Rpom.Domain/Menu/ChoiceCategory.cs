@@ -3,9 +3,9 @@ using Rpom.Domain.Common;
 namespace Rpom.Domain.Menu;
 
 /// <summary>
-/// Reusable group of modifier options (e.g. "Loại nước", "Mức độ cay", "Topping").
-/// Attached to SET_MENU items via SetMenuDetail (DetailType = CHOICE_CATEGORY).
-/// Modifier options are Items themselves, linked via the Modifier junction.
+///     Reusable group of modifier options (e.g. "Loại nước", "Mức độ cay", "Topping").
+///     Attached to SET_MENU items via SetMenuDetail (DetailType = CHOICE_CATEGORY).
+///     Modifier options are Items themselves, linked via the Modifier junction.
 /// </summary>
 public class ChoiceCategory : Entity
 {
@@ -18,6 +18,7 @@ public class ChoiceCategory : Entity
 
     /// <summary>Maximum; NULL = unlimited.</summary>
     public short? MaxChoice { get; set; }
+
     public short DisplayOrder { get; set; }
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }

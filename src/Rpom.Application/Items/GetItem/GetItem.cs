@@ -51,11 +51,14 @@ public static class GetItem
                     Categories = x.ItemCategories
                         .Select(ic => new CategoryAssignment(ic.CategoryId, ic.Category.Name, ic.IsMain))
                         .ToList(),
-                    x.CreatedAt, x.UpdatedAt,
+                    x.CreatedAt, x.UpdatedAt
                 })
                 .FirstOrDefaultAsync(ct);
 
-            if (row is null) return Result.Failure<Response>(ItemErrors.NotFound);
+            if (row is null)
+            {
+                return Result.Failure<Response>(ItemErrors.NotFound);
+            }
 
             return Result.Success(new Response(
                 row.Id, row.Code, row.Name, row.Description, row.ImageUrl,

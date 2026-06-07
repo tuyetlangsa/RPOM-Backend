@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -49,16 +50,19 @@ public static class CreateUom
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
 
             // Case-insensitive duplicate check (BR-1, BR-6).
-            var duplicate = await dbContext.Uoms
+            bool duplicate = await dbContext.Uoms
                 .AnyAsync(x => x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(UomErrors.CodeDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(UomErrors.CodeDuplicate);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             var entity = new Uom
             {
@@ -67,11 +71,11 @@ public static class CreateUom
                 Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim(),
                 IsActive = request.IsActive,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             };
             dbContext.Uoms.Add(entity);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
 
             try
             {
@@ -91,7 +95,7 @@ public static class CreateUom
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Uom created: {entity.Code} — {entity.Name}",
+                Summary = $"Uom created: {entity.Code} — {entity.Name}"
             });
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.Menu, $"Uom.Create(id={entity.Id})", ct);

@@ -14,7 +14,10 @@ internal sealed class IdempotentDomainEventHandler<TDomainEvent>(
     {
         var outboxMessageConsumer = new OutboxMessageConsumer(domainEvent.Id, decorated.GetType().Name);
 
-        if (await OutboxConsumerExistsAsync(outboxMessageConsumer)) return;
+        if (await OutboxConsumerExistsAsync(outboxMessageConsumer))
+        {
+            return;
+        }
 
         await decorated.Handle(domainEvent, cancellationToken);
 

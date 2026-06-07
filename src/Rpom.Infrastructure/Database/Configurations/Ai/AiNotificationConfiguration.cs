@@ -25,7 +25,8 @@ internal sealed class AiNotificationConfiguration : IEntityTypeConfiguration<AiN
             "ck_ai_notification_status",
             "status IN ('UNREAD', 'READ', 'DISMISSED', 'ARCHIVED')"));
 
-        builder.HasIndex(x => new { x.RecipientStaffId, x.Status, x.UpdatedAt }).HasDatabaseName("ix_ai_notification_recipient_status");
+        builder.HasIndex(x => new { x.RecipientStaffId, x.Status, x.UpdatedAt })
+            .HasDatabaseName("ix_ai_notification_recipient_status");
         builder.HasIndex(x => new { x.Type, x.CreatedAt }).HasDatabaseName("ix_ai_notification_type_time");
         builder.HasIndex(x => x.RefItemId).HasDatabaseName("ix_ai_notification_ref_item");
 

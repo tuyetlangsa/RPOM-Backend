@@ -7,9 +7,9 @@ using Rpom.Domain.Common;
 namespace Rpom.Application.Items.ListItems;
 
 /// <summary>
-/// List items (paginated) with optional Category descendant filter — items
-/// whose ItemCategory.CategoryId matches the category or any descendant
-/// (resolved via Category.Path LIKE).
+///     List items (paginated) with optional Category descendant filter — items
+///     whose ItemCategory.CategoryId matches the category or any descendant
+///     (resolved via Category.Path LIKE).
 /// </summary>
 public static class ListItems
 {
@@ -47,13 +47,16 @@ public static class ListItems
     {
         public async Task<Result<Page<Item>>> Handle(Query request, CancellationToken ct)
         {
-            var q = dbContext.Items.AsQueryable();
+            IQueryable<Domain.Menu.Item> q = dbContext.Items.AsQueryable();
 
-            if (request.IsActive.HasValue) q = q.Where(x => x.IsActive == request.IsActive.Value);
+            if (request.IsActive.HasValue)
+            {
+                q = q.Where(x => x.IsActive == request.IsActive.Value);
+            }
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                var s = request.Search.Trim().ToLower();
+                string s = request.Search.Trim().ToLower();
                 q = q.Where(x => x.Code.ToLower().Contains(s) || x.Name.ToLower().Contains(s));
             }
 
@@ -69,7 +72,7 @@ public static class ListItems
                     return Result.Success(new Page<Item>(Array.Empty<Item>(), 0, request.PageNumber, request.PageSize));
                 }
 
-                var idsInSubtree = await dbContext.Categories
+                List<int> idsInSubtree = await dbContext.Categories
                     .Where(c => c.Id == root.Id || EF.Functions.Like(c.Path, root.Path + "%"))
                     .Select(c => c.Id)
                     .ToListAsync(ct);
@@ -77,7 +80,7 @@ public static class ListItems
                 q = q.Where(x => x.ItemCategories.Any(ic => idsInSubtree.Contains(ic.CategoryId)));
             }
 
-            var totalCount = await q.CountAsync(ct);
+            int totalCount = await q.CountAsync(ct);
 
             var rows = await q
                 .OrderBy(x => x.Name)
@@ -100,7 +103,7 @@ public static class ListItems
                         .Select(ic => (int?)ic.CategoryId).FirstOrDefault(),
                     PrimaryCategoryName = x.ItemCategories
                         .Where(ic => ic.IsMain)
-                        .Select(ic => ic.Category.Name).FirstOrDefault(),
+                        .Select(ic => ic.Category.Name).FirstOrDefault()
                 })
                 .ToListAsync(ct);
 

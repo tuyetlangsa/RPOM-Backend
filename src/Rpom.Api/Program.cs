@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Rpom.Api;
 using Rpom.Api.Endpoints;
 using Rpom.Api.Extensions;
@@ -8,7 +7,7 @@ using Rpom.Infrastructure;
 using Rpom.Infrastructure.Database.Seeding;
 using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+WebApplicationBuilder builder = WebApplication.CreateBuilder(args);
 
 builder.Host.UseSerilog((context, loggerConfig) =>
     loggerConfig.ReadFrom.Configuration(context.Configuration));
@@ -22,7 +21,7 @@ builder.Services
 
 builder.Services.AddAuthorization();
 
-var app = builder.Build();
+WebApplication app = builder.Build();
 
 if (app.Environment.IsDevelopment())
 {
@@ -33,18 +32,18 @@ app.ApplyMigrations();
 
 // Seed Access aggregate (PermissionGroups, Permissions, Roles, bootstrap Owner).
 // Idempotent — safe to run on every startup.
-await using (var scope = app.Services.CreateAsyncScope())
+await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
 {
-    var accessSeeder = scope.ServiceProvider.GetRequiredService<AccessSeeder>();
+    AccessSeeder accessSeeder = scope.ServiceProvider.GetRequiredService<AccessSeeder>();
     await accessSeeder.SeedAsync();
 
-    var lookupSeeder = scope.ServiceProvider.GetRequiredService<LookupSeeder>();
+    LookupSeeder lookupSeeder = scope.ServiceProvider.GetRequiredService<LookupSeeder>();
     await lookupSeeder.SeedAsync();
 
-    var configSeeder = scope.ServiceProvider.GetRequiredService<ConfigValueSeeder>();
+    ConfigValueSeeder configSeeder = scope.ServiceProvider.GetRequiredService<ConfigValueSeeder>();
     await configSeeder.SeedAsync();
 
-    var roundingConfigSeeder = scope.ServiceProvider.GetRequiredService<RoundingConfigSeeder>();
+    RoundingConfigSeeder roundingConfigSeeder = scope.ServiceProvider.GetRequiredService<RoundingConfigSeeder>();
     await roundingConfigSeeder.SeedAsync();
 }
 

@@ -15,7 +15,7 @@ public static class GetCounters
     {
         public async Task<Result<IReadOnlyList<CounterItem>>> Handle(Query request, CancellationToken ct)
         {
-            var rows = await dbContext.Counters
+            List<CounterItem> rows = await dbContext.Counters
                 .Where(x => x.IsActive)
                 .OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name)
                 .Select(x => new CounterItem(x.Id, x.Name, x.DisplayOrder))

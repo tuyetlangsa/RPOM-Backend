@@ -7,7 +7,7 @@ internal sealed class LogContextTraceLoggingMiddleware(RequestDelegate next)
 {
     public Task Invoke(HttpContext context)
     {
-        var traceId = Activity.Current?.TraceId.ToString();
+        string? traceId = Activity.Current?.TraceId.ToString();
 
         using (LogContext.PushProperty("TraceId", traceId))
         {
