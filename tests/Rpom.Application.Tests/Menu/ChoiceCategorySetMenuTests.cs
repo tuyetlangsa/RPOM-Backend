@@ -3,7 +3,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Migrations;
 using NSubstitute;
 using Rpom.Application.Abstraction.Clock;
-using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.ChoiceCategories.CreateChoiceCategory;
@@ -16,7 +15,6 @@ using Rpom.Application.SetMenus.UpsertSetMenu;
 using Rpom.Domain.Access;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
-using Rpom.Domain.Restaurant;
 using Rpom.Infrastructure.Database;
 using Testcontainers.PostgreSql;
 
@@ -241,8 +239,14 @@ public sealed class ChoiceCategorySetMenuTests : IAsyncLifetime
         var role = new Role { Code = "OWNER", Name = "Owner", IsSystemRole = true, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var staff = new StaffAccount
         {
-            Username = "owner", PasswordHash = "x", FullName = "Owner", Role = role,
-            IsActive = true, IsLocked = false, CreatedAt = now, UpdatedAt = now,
+            Username = "owner",
+            PasswordHash = "x",
+            FullName = "Owner",
+            Role = role,
+            IsActive = true,
+            IsLocked = false,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.AddRange(role, staff);
         await _ctx.SaveChangesAsync();
@@ -254,8 +258,13 @@ public sealed class ChoiceCategorySetMenuTests : IAsyncLifetime
         var now = DateTime.UtcNow;
         var cc = new ChoiceCategory
         {
-            Name = name, MinChoice = 1, MaxChoice = null, DisplayOrder = 1, IsActive = true,
-            CreatedAt = now, UpdatedAt = now,
+            Name = name,
+            MinChoice = 1,
+            MaxChoice = null,
+            DisplayOrder = 1,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.Add(cc);
         await _ctx.SaveChangesAsync();
@@ -268,8 +277,14 @@ public sealed class ChoiceCategorySetMenuTests : IAsyncLifetime
         var uom = new Uom { Code = $"u{code}", Name = "Cái", IsActive = true, CreatedAt = now, UpdatedAt = now };
         var item = new Item
         {
-            Code = code, Name = name, BaseUom = uom, VatPercent = 10m,
-            IsStockable = false, IsActive = true, CreatedAt = now, UpdatedAt = now,
+            Code = code,
+            Name = name,
+            BaseUom = uom,
+            VatPercent = 10m,
+            IsStockable = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
         };
         _ctx.AddRange(uom, item);
         await _ctx.SaveChangesAsync();

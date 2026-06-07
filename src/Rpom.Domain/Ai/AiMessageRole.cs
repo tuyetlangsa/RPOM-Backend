@@ -1,10 +1,10 @@
 namespace Rpom.Domain.Ai;
 
 /// <summary>
-/// AiMessage.Role values.
-/// USER: user typed message. ASSISTANT: AI response text.
-/// TOOL_CALL: record of a tool invocation (JSON in Content, hidden in UI).
-/// SYSTEM: system prompt / context injection (hidden in UI).
+///     AiMessage.Role values.
+///     USER: user typed message. ASSISTANT: AI response text.
+///     TOOL_CALL: record of a tool invocation (JSON in Content, hidden in UI).
+///     SYSTEM: system prompt / context injection (hidden in UI).
 /// </summary>
 public static class AiMessageRole
 {

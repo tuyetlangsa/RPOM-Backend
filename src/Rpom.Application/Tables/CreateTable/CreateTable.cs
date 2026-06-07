@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -50,16 +51,22 @@ public static class CreateTable
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var areaExists = await dbContext.Areas.AnyAsync(x => x.Id == request.AreaId, ct);
-            if (!areaExists) return Result.Failure<Response>(TableErrors.AreaNotFound);
+            bool areaExists = await dbContext.Areas.AnyAsync(x => x.Id == request.AreaId, ct);
+            if (!areaExists)
+            {
+                return Result.Failure<Response>(TableErrors.AreaNotFound);
+            }
 
-            var code = request.Code.Trim();
-            var dup = await dbContext.Tables.AnyAsync(
+            string code = request.Code.Trim();
+            bool dup = await dbContext.Tables.AnyAsync(
                 x => x.AreaId == request.AreaId && x.Code == code, ct);
-            if (dup) return Result.Failure<Response>(TableErrors.CodeDuplicateInArea);
+            if (dup)
+            {
+                return Result.Failure<Response>(TableErrors.CodeDuplicateInArea);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             var entity = new Table
             {
@@ -70,11 +77,11 @@ public static class CreateTable
                 Status = TableStatus.Available,
                 IsActive = request.IsActive,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             };
             dbContext.Tables.Add(entity);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             await dbContext.SaveChangesAsync(ct);
 
             dbContext.AuditLogs.Add(new AuditLog
@@ -85,7 +92,7 @@ public static class CreateTable
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Table created: {entity.Code} (area={entity.AreaId})",
+                Summary = $"Table created: {entity.Code} (area={entity.AreaId})"
             });
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Table.Create(id={entity.Id})", ct);

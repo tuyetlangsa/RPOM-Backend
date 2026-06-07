@@ -4,8 +4,8 @@ using Rpom.Domain.Menu;
 namespace Rpom.Domain.Operations;
 
 /// <summary>
-/// Sub-kitchen (Bếp con) where specific Items are prepared. 1 station can have
-/// 0..N Printers (RPOM separates printer + kitchen, unlike F2's conflation).
+///     Sub-kitchen (Bếp con) where specific Items are prepared. 1 station can have
+///     0..N Printers (RPOM separates printer + kitchen, unlike F2's conflation).
 /// </summary>
 public class KitchenStation : Entity
 {
@@ -13,6 +13,7 @@ public class KitchenStation : Entity
 
     /// <summary>Owner-defined: BN, BL, BAR.</summary>
     public string Code { get; set; } = null!;
+
     public string Name { get; set; } = null!;
     public string? Description { get; set; }
     public short DisplayOrder { get; set; }

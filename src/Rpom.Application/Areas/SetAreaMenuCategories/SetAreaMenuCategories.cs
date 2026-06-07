@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -13,10 +14,10 @@ using Rpom.Domain.Restaurant;
 namespace Rpom.Application.Areas.SetAreaMenuCategories;
 
 /// <summary>
-/// Full-snapshot replace: FE gửi nguyên tập CategoryId mong muốn cho 1 Area;
-/// BE diff với bảng nối AreaMenuCategory — thêm id mới, xoá id bị bỏ. Lưu đúng
-/// id admin chọn (cả cha lẫn con); bung subtree là việc của GetMenu. Empty hợp lệ
-/// (gỡ hết → menu area rỗng). Bump scope MENU để cashier GetMenu refetch.
+///     Full-snapshot replace: FE gửi nguyên tập CategoryId mong muốn cho 1 Area;
+///     BE diff với bảng nối AreaMenuCategory — thêm id mới, xoá id bị bỏ. Lưu đúng
+///     id admin chọn (cả cha lẫn con); bung subtree là việc của GetMenu. Empty hợp lệ
+///     (gỡ hết → menu area rỗng). Bump scope MENU để cashier GetMenu refetch.
 /// </summary>
 public static class SetAreaMenuCategories
 {
@@ -44,32 +45,37 @@ public static class SetAreaMenuCategories
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var areaExists = await db.Areas.AnyAsync(a => a.Id == request.AreaId, ct);
-            if (!areaExists) return Result.Failure<Response>(AreaErrors.NotFound);
+            bool areaExists = await db.Areas.AnyAsync(a => a.Id == request.AreaId, ct);
+            if (!areaExists)
+            {
+                return Result.Failure<Response>(AreaErrors.NotFound);
+            }
 
             var wantedIds = request.CategoryIds.Distinct().ToList();
 
             // Validate category tồn tại & active (chỉ cho gán category đang dùng được).
             if (wantedIds.Count > 0)
             {
-                var validCount = await db.Categories
+                int validCount = await db.Categories
                     .CountAsync(c => wantedIds.Contains(c.Id) && c.IsActive, ct);
                 if (validCount != wantedIds.Count)
+                {
                     return Result.Failure<Response>(CategoryErrors.NotFound);
+                }
             }
 
-            var existing = await db.AreaMenuCategories
+            List<AreaMenuCategory> existing = await db.AreaMenuCategories
                 .Where(amc => amc.AreaId == request.AreaId)
                 .ToListAsync(ct);
             var existingIds = existing.Select(e => e.CategoryId).ToHashSet();
             var wantedSet = wantedIds.ToHashSet();
 
-            var now = clock.UtcNow;
-            var inserted = 0;
-            var deleted = 0;
+            DateTime now = clock.UtcNow;
+            int inserted = 0;
+            int deleted = 0;
 
             // Insert id mới
-            foreach (var id in wantedIds)
+            foreach (int id in wantedIds)
             {
                 if (!existingIds.Contains(id))
                 {
@@ -77,14 +83,14 @@ public static class SetAreaMenuCategories
                     {
                         AreaId = request.AreaId,
                         CategoryId = id,
-                        CreatedAt = now,
+                        CreatedAt = now
                     });
                     inserted++;
                 }
             }
 
             // Delete id không còn trong payload
-            foreach (var row in existing)
+            foreach (AreaMenuCategory row in existing)
             {
                 if (!wantedSet.Contains(row.CategoryId))
                 {
@@ -95,8 +101,8 @@ public static class SetAreaMenuCategories
 
             if (inserted > 0 || deleted > 0)
             {
-                var staffId = currentStaff.StaffAccountId;
-                var staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+                int staffId = currentStaff.StaffAccountId;
+                StaffAccount staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
                 db.AuditLogs.Add(new AuditLog
                 {
                     EntityType = nameof(Area),
@@ -105,7 +111,7 @@ public static class SetAreaMenuCategories
                     ActorStaffAccountId = staffId,
                     ActorFullName = staff.FullName,
                     Timestamp = now,
-                    Summary = $"AreaMenuCategory set: +{inserted} -{deleted} on area {request.AreaId}",
+                    Summary = $"AreaMenuCategory set: +{inserted} -{deleted} on area {request.AreaId}"
                 });
                 await db.SaveChangesAsync(ct);
                 await versionService.BumpAsync(VersionScopes.Menu,

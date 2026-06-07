@@ -18,7 +18,8 @@ internal sealed class AiMessageConfiguration : IEntityTypeConfiguration<AiMessag
             "ck_ai_message_role",
             "role IN ('USER', 'ASSISTANT', 'TOOL_CALL', 'SYSTEM')"));
 
-        builder.HasIndex(x => new { x.ConversationId, x.SequenceNumber }).IsUnique().HasDatabaseName("ux_ai_message_conv_seq");
+        builder.HasIndex(x => new { x.ConversationId, x.SequenceNumber }).IsUnique()
+            .HasDatabaseName("ux_ai_message_conv_seq");
         builder.HasIndex(x => x.ConversationId);
 
         builder.HasOne(x => x.Conversation)

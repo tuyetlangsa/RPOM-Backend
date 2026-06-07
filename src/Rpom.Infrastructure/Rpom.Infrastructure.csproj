@@ -1,47 +1,47 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
-    <ProjectReference Include="..\Rpom.Application\Rpom.Application.csproj" />
-    <ProjectReference Include="..\Rpom.Domain\Rpom.Domain.csproj" />
+    <ProjectReference Include="..\Rpom.Application\Rpom.Application.csproj"/>
+    <ProjectReference Include="..\Rpom.Domain\Rpom.Domain.csproj"/>
   </ItemGroup>
 
   <ItemGroup>
     <!-- Integration tests instantiate internal pricing services directly. -->
-    <InternalsVisibleTo Include="Rpom.Application.Tests" />
+    <InternalsVisibleTo Include="Rpom.Application.Tests"/>
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Anthropic.SDK" />
-    <PackageReference Include="AspNetCore.HealthChecks.NpgSql" />
-    <PackageReference Include="BCrypt.Net-Next" />
-    <PackageReference Include="EFCore.NamingConventions" />
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" />
-    <PackageReference Include="Microsoft.AspNetCore.Authorization" />
-    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" />
+    <PackageReference Include="Anthropic.SDK"/>
+    <PackageReference Include="AspNetCore.HealthChecks.NpgSql"/>
+    <PackageReference Include="BCrypt.Net-Next"/>
+    <PackageReference Include="EFCore.NamingConventions"/>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer"/>
+    <PackageReference Include="Microsoft.AspNetCore.Authorization"/>
+    <PackageReference Include="Microsoft.AspNetCore.Http.Abstractions"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational"/>
     <PackageReference Include="Microsoft.EntityFrameworkCore.Tools">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" />
-    <PackageReference Include="Microsoft.Extensions.Http" />
-    <PackageReference Include="Microsoft.Extensions.Options" />
-    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" />
-    <PackageReference Include="Microsoft.IdentityModel.Tokens" />
-    <PackageReference Include="Newtonsoft.Json" />
-    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" />
-    <PackageReference Include="Pgvector.EntityFrameworkCore" />
-    <PackageReference Include="Quartz" />
-    <PackageReference Include="Quartz.Extensions.DependencyInjection" />
-    <PackageReference Include="Quartz.Extensions.Hosting" />
-    <PackageReference Include="Quartz.Serialization.SystemTextJson" />
-    <PackageReference Include="Scrutor" />
-    <PackageReference Include="System.IdentityModel.Tokens.Jwt" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory"/>
+    <PackageReference Include="Microsoft.Extensions.Http"/>
+    <PackageReference Include="Microsoft.Extensions.Options"/>
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions"/>
+    <PackageReference Include="Microsoft.IdentityModel.Tokens"/>
+    <PackageReference Include="Newtonsoft.Json"/>
+    <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL"/>
+    <PackageReference Include="Pgvector.EntityFrameworkCore"/>
+    <PackageReference Include="Quartz"/>
+    <PackageReference Include="Quartz.Extensions.DependencyInjection"/>
+    <PackageReference Include="Quartz.Extensions.Hosting"/>
+    <PackageReference Include="Quartz.Serialization.SystemTextJson"/>
+    <PackageReference Include="Scrutor"/>
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt"/>
   </ItemGroup>
 
 </Project>

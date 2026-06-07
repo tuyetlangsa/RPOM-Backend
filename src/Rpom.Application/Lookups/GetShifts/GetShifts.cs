@@ -21,7 +21,7 @@ public static class GetShifts
     {
         public async Task<Result<IReadOnlyList<ShiftItem>>> Handle(Query request, CancellationToken ct)
         {
-            var rows = await dbContext.Shifts
+            List<ShiftItem> rows = await dbContext.Shifts
                 .Where(x => x.IsActive)
                 .OrderBy(x => x.BeginTime)
                 .Select(x => new ShiftItem(x.Id, x.Code, x.Name, x.BeginTime, x.EndTime, x.IsNextDay))

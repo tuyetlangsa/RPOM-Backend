@@ -9,7 +9,15 @@ public readonly record struct LinePricingInput(
     decimal ServiceChargePercent,
     decimal ServiceChargeVatPercent,
     decimal LineDiscountPercent,
-    decimal TicketDiscountPercent);
+    decimal TicketDiscountPercent,
+    /// <summary>
+    /// Pre-computed line discount amount (FIXED-amount policy distribution).
+    /// When set the percent-based discount calculation is skipped for the line
+    /// slot — the caller has already distributed the fixed amount across lines.
+    /// </summary>
+    decimal? ForcedLineDiscountAmount = null,
+    /// <summary>Same for ticket-level fixed amount.</summary>
+    decimal? ForcedTicketDiscountAmount = null);
 
 /// <summary>All computed money fields for one line.</summary>
 public readonly record struct LinePricingResult(
@@ -35,51 +43,73 @@ public readonly record struct HeaderPricingResult(
     decimal RoundingAdjustment);
 
 /// <summary>
-/// Stateless pricing math — pricing spec §4. No DB, no clock. Both cart
-/// (discount percentages = 0) and order lines use ComputeLine.
+///     Stateless pricing math — pricing spec §4. No DB, no clock. Both cart
+///     (discount percentages = 0) and order lines use ComputeLine.
 /// </summary>
 public static class PricingCalculator
 {
     public static LinePricingResult ComputeLine(LinePricingInput i, IRoundingConfig rc)
     {
         // Step 1 — gross line
-        var lineSubtotal = Money.Round(
+        decimal lineSubtotal = Money.Round(
             i.Quantity * (i.UnitPrice + i.ChoicePricePerUnit), rc, RoundingKeys.LineSubtotal);
 
-        // Step 2/3 — 1-cấp discount: bigger magnitude wins, loser zero
-        var lineDiscRaw   = lineSubtotal * i.LineDiscountPercent / 100m;
-        var ticketDiscRaw = lineSubtotal * i.TicketDiscountPercent / 100m;
-
+        // Step 2/3 — 1-cấp discount: bigger magnitude wins, loser zero.
+        // FIXED-amount path: the caller has pre-distributed a concrete amount.
+        // PERCENT path: compute from the percentage.
+        bool hasForced = i.ForcedLineDiscountAmount.HasValue || i.ForcedTicketDiscountAmount.HasValue;
         decimal lineDiscount, ticketDiscount;
-        if (Math.Abs(lineDiscRaw) >= Math.Abs(ticketDiscRaw))
+        if (hasForced)
         {
-            lineDiscount = Money.Round(lineDiscRaw, rc, RoundingKeys.LineDiscount);
-            ticketDiscount = 0m;
+            var forcedLine = i.ForcedLineDiscountAmount ?? 0m;
+            var forcedTicket = i.ForcedTicketDiscountAmount ?? 0m;
+            if (Math.Abs(forcedLine) >= Math.Abs(forcedTicket))
+            {
+                lineDiscount = forcedLine;
+                ticketDiscount = 0m;
+            }
+            else
+            {
+                lineDiscount = 0m;
+                ticketDiscount = forcedTicket;
+            }
         }
         else
         {
-            lineDiscount = 0m;
-            ticketDiscount = Money.Round(ticketDiscRaw, rc, RoundingKeys.LineDiscount);
+            decimal lineDiscRaw = lineSubtotal * i.LineDiscountPercent / 100m;
+            decimal ticketDiscRaw = lineSubtotal * i.TicketDiscountPercent / 100m;
+
+            if (Math.Abs(lineDiscRaw) >= Math.Abs(ticketDiscRaw))
+            {
+                lineDiscount = Money.Round(lineDiscRaw, rc, RoundingKeys.LineDiscount);
+                ticketDiscount = 0m;
+            }
+            else
+            {
+                lineDiscount = 0m;
+                ticketDiscount = Money.Round(ticketDiscRaw, rc, RoundingKeys.LineDiscount);
+            }
         }
-        var totalDiscount = lineDiscount + ticketDiscount;
+
+        decimal totalDiscount = lineDiscount + ticketDiscount;
 
         // Step 4 — service charge on gross LineSubtotal
-        var serviceCharge = Money.Round(
+        decimal serviceCharge = Money.Round(
             lineSubtotal * i.ServiceChargePercent / 100m, rc, RoundingKeys.LineSc);
 
         // Step 5 — VAT of items, after discount
-        var vatItem = Money.Round(
+        decimal vatItem = Money.Round(
             (lineSubtotal - totalDiscount) * i.VatPercent / 100m, rc, RoundingKeys.LineVatItem);
 
         // Step 6 — VAT of service charge
-        var vatSc = Money.Round(
+        decimal vatSc = Money.Round(
             serviceCharge * i.ServiceChargeVatPercent / 100m, rc, RoundingKeys.LineVatSc);
 
         // Step 7 — total VAT
-        var vat = vatItem + vatSc;
+        decimal vat = vatItem + vatSc;
 
         // Step 8 — line total
-        var lineTotal = Money.Round(
+        decimal lineTotal = Money.Round(
             lineSubtotal - totalDiscount + serviceCharge + vat, rc, RoundingKeys.LineTotal);
 
         return new LinePricingResult(
@@ -90,15 +120,15 @@ public static class PricingCalculator
     public static HeaderPricingResult ComputeHeader(
         IReadOnlyCollection<LinePricingResult> lines, IRoundingConfig rc)
     {
-        var subtotal = Money.Round(lines.Sum(l => l.LineSubtotal), rc, RoundingKeys.TicketSubtotal);
-        var lineDiscTotal = Money.Round(lines.Sum(l => l.LineDiscountAmount), rc, RoundingKeys.TicketDiscount);
-        var ticketDiscTotal = Money.Round(lines.Sum(l => l.TicketDiscountAmount), rc, RoundingKeys.TicketDiscount);
-        var discountAmount = lineDiscTotal + ticketDiscTotal;
-        var serviceCharge = Money.Round(lines.Sum(l => l.ServiceChargeAmount), rc, RoundingKeys.TicketSc);
-        var vat = Money.Round(lines.Sum(l => l.VatAmount), rc, RoundingKeys.TicketVat);
-        var total = Money.Round(lines.Sum(l => l.LineTotal), rc, RoundingKeys.TicketTotal);
+        decimal subtotal = Money.Round(lines.Sum(l => l.LineSubtotal), rc, RoundingKeys.TicketSubtotal);
+        decimal lineDiscTotal = Money.Round(lines.Sum(l => l.LineDiscountAmount), rc, RoundingKeys.TicketDiscount);
+        decimal ticketDiscTotal = Money.Round(lines.Sum(l => l.TicketDiscountAmount), rc, RoundingKeys.TicketDiscount);
+        decimal discountAmount = lineDiscTotal + ticketDiscTotal;
+        decimal serviceCharge = Money.Round(lines.Sum(l => l.ServiceChargeAmount), rc, RoundingKeys.TicketSc);
+        decimal vat = Money.Round(lines.Sum(l => l.VatAmount), rc, RoundingKeys.TicketVat);
+        decimal total = Money.Round(lines.Sum(l => l.LineTotal), rc, RoundingKeys.TicketTotal);
 
-        var roundingAdjustment = Money.Round(
+        decimal roundingAdjustment = Money.Round(
             total - (subtotal - discountAmount + serviceCharge + vat),
             rc, RoundingKeys.TicketAdjust);
 

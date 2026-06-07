@@ -15,7 +15,7 @@ public static class GetKitchenStations
     {
         public async Task<Result<IReadOnlyList<KitchenStationItem>>> Handle(Query request, CancellationToken ct)
         {
-            var rows = await dbContext.KitchenStations
+            List<KitchenStationItem> rows = await dbContext.KitchenStations
                 .Where(x => x.IsActive)
                 .OrderBy(x => x.DisplayOrder).ThenBy(x => x.Name)
                 .Select(x => new KitchenStationItem(x.Id, x.Code, x.Name, x.DisplayOrder))

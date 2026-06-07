@@ -5,11 +5,11 @@ using Rpom.Domain.Menu;
 namespace Rpom.Application.Categories;
 
 /// <summary>
-/// Shared helpers for Category tree maintenance — Path/Level recomputation
-/// and cycle detection. Path format: semicolon-separated ancestor ids
-/// terminated with trailing ';', e.g. root "1;", child "1;5;", grandchild
-/// "1;5;12;". The trailing ';' lets `LIKE 'parentPath%'` query select all
-/// descendants (vs. having to OR the parent itself).
+///     Shared helpers for Category tree maintenance — Path/Level recomputation
+///     and cycle detection. Path format: semicolon-separated ancestor ids
+///     terminated with trailing ';', e.g. root "1;", child "1;5;", grandchild
+///     "1;5;12;". The trailing ';' lets `LIKE 'parentPath%'` query select all
+///     descendants (vs. having to OR the parent itself).
 /// </summary>
 internal static class CategoryTreeHelpers
 {
@@ -24,20 +24,24 @@ internal static class CategoryTreeHelpers
         parent is null ? (short)0 : (short)(parent.Level + 1);
 
     /// <summary>
-    /// True when promoting <paramref name="candidateId"/> into the subtree of
-    /// <paramref name="newParent"/> would create a cycle (newParent is the
-    /// candidate itself, or a descendant of it).
+    ///     True when promoting <paramref name="candidateId" /> into the subtree of
+    ///     <paramref name="newParent" /> would create a cycle (newParent is the
+    ///     candidate itself, or a descendant of it).
     /// </summary>
     public static bool WouldCreateCycle(Category newParent, int candidateId)
     {
-        if (newParent.Id == candidateId) return true;
+        if (newParent.Id == candidateId)
+        {
+            return true;
+        }
+
         return newParent.Path.Contains($"{candidateId}{Sep}");
     }
 
     /// <summary>
-    /// Cascade Path + Level for every row whose old Path begins with the
-    /// supplied old prefix. Called once when ParentId of a category changes.
-    /// Caller must SaveChanges afterwards.
+    ///     Cascade Path + Level for every row whose old Path begins with the
+    ///     supplied old prefix. Called once when ParentId of a category changes.
+    ///     Caller must SaveChanges afterwards.
     /// </summary>
     public static async Task RecomputeDescendantsAsync(
         IDbContext dbContext,
@@ -46,16 +50,19 @@ internal static class CategoryTreeHelpers
         short oldLevel,
         CancellationToken ct)
     {
-        var newPath = node.Path;
-        var newLevel = node.Level;
-        if (oldPath == newPath && oldLevel == newLevel) return;
+        string newPath = node.Path;
+        short newLevel = node.Level;
+        if (oldPath == newPath && oldLevel == newLevel)
+        {
+            return;
+        }
 
-        var descendants = await dbContext.Categories
+        List<Category> descendants = await dbContext.Categories
             .Where(c => c.Id != node.Id
-                     && EF.Functions.Like(c.Path, oldPath + "%"))
+                        && EF.Functions.Like(c.Path, oldPath + "%"))
             .ToListAsync(ct);
 
-        foreach (var d in descendants)
+        foreach (Category d in descendants)
         {
             d.Path = newPath + d.Path[oldPath.Length..];
             d.Level = (short)(newLevel + (d.Level - oldLevel));

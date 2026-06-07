@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -17,7 +18,10 @@ public static class DeleteCategory
 
     internal sealed class Validator : AbstractValidator<Command>
     {
-        public Validator() { RuleFor(x => x.Id).GreaterThan(0); }
+        public Validator()
+        {
+            RuleFor(x => x.Id).GreaterThan(0);
+        }
     }
 
     internal sealed class Handler(
@@ -28,23 +32,32 @@ public static class DeleteCategory
     {
         public async Task<Result> Handle(Command request, CancellationToken ct)
         {
-            var entity = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure(CategoryErrors.NotFound);
+            Category? entity = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+            if (entity is null)
+            {
+                return Result.Failure(CategoryErrors.NotFound);
+            }
 
-            var hasItems = await dbContext.ItemCategories.AnyAsync(ic => ic.CategoryId == request.Id, ct);
-            if (hasItems) return Result.Failure(CategoryErrors.InUseByItems);
+            bool hasItems = await dbContext.ItemCategories.AnyAsync(ic => ic.CategoryId == request.Id, ct);
+            if (hasItems)
+            {
+                return Result.Failure(CategoryErrors.InUseByItems);
+            }
 
-            var hasChildren = await dbContext.Categories.AnyAsync(c => c.ParentId == request.Id, ct);
-            if (hasChildren) return Result.Failure(CategoryErrors.InUseByChildren);
+            bool hasChildren = await dbContext.Categories.AnyAsync(c => c.ParentId == request.Id, ct);
+            if (hasChildren)
+            {
+                return Result.Failure(CategoryErrors.InUseByChildren);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
-            var snapshotName = entity.Name;
-            var snapshotCode = entity.Code;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            string snapshotName = entity.Name;
+            string snapshotCode = entity.Code;
 
             dbContext.Categories.Remove(entity);
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(Category),
@@ -53,7 +66,7 @@ public static class DeleteCategory
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"Category deleted: {snapshotCode} — {snapshotName}",
+                Summary = $"Category deleted: {snapshotCode} — {snapshotName}"
             });
 
             await dbContext.SaveChangesAsync(ct);

@@ -3,9 +3,9 @@ using Rpom.Domain.Common;
 namespace Rpom.Domain.Menu;
 
 /// <summary>
-/// Unified detail rows attached to a SET_MENU. Discriminated by DetailType:
-/// COMPONENT (fixed/optional dish) or CHOICE_CATEGORY (modifier group).
-/// DisplayOrder is unified — UI renders components + choice groups interleaved.
+///     Unified detail rows attached to a SET_MENU. Discriminated by DetailType:
+///     COMPONENT (fixed/optional dish) or CHOICE_CATEGORY (modifier group).
+///     DisplayOrder is unified — UI renders components + choice groups interleaved.
 /// </summary>
 public class SetMenuDetail : Entity
 {
@@ -14,7 +14,7 @@ public class SetMenuDetail : Entity
     /// <summary>FK to SetMenu.ItemId (NOT Item.Id) — DB enforces only SET_MENU items can have details.</summary>
     public int SetMenuItemId { get; set; }
 
-    /// <summary>COMPONENT | CHOICE_CATEGORY (see <see cref="SetMenuDetailType"/>).</summary>
+    /// <summary>COMPONENT | CHOICE_CATEGORY (see <see cref="SetMenuDetailType" />).</summary>
     public string DetailType { get; set; } = null!;
 
     /// <summary>Required when DetailType=COMPONENT; NULL when CHOICE_CATEGORY.</summary>
@@ -28,6 +28,7 @@ public class SetMenuDetail : Entity
 
     /// <summary>Component-only: if true, customer cannot skip/replace. NULL when CHOICE_CATEGORY.</summary>
     public bool? IsFixed { get; set; }
+
     public short DisplayOrder { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

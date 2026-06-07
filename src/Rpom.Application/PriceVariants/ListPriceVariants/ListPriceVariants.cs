@@ -34,27 +34,36 @@ public static class ListPriceVariants
                 .Where(v => v.PriceTableId == request.PriceTableId)
                 .OrderByDescending(v =>
                     (v.BeginTime != null || v.EndTime != null ? 1 : 0)
-                  + (v.DayMask != null ? 1 : 0)
-                  + (v.AppliesToAllAreas ? 0 : 1))
+                    + (v.DayMask != null ? 1 : 0)
+                    + (v.AppliesToAllAreas ? 0 : 1))
                 .ThenBy(v => v.Code)
                 .Select(v => new
                 {
-                    v.Id, v.PriceTableId, v.Code, v.Name, v.Description,
-                    v.BeginTime, v.EndTime, v.DayMask, v.AppliesToAllAreas,
-                    v.IsActive, v.CreatedAt, v.UpdatedAt,
+                    v.Id,
+                    v.PriceTableId,
+                    v.Code,
+                    v.Name,
+                    v.Description,
+                    v.BeginTime,
+                    v.EndTime,
+                    v.DayMask,
+                    v.AppliesToAllAreas,
+                    v.IsActive,
+                    v.CreatedAt,
+                    v.UpdatedAt,
                     AreaIds = dbContext.PriceVariantAreas
                         .Where(a => a.PriceVariantId == v.Id)
                         .Select(a => a.AreaId).ToList(),
-                    EntryCount = dbContext.PriceEntries.Count(e => e.PriceVariantId == v.Id),
+                    EntryCount = dbContext.PriceEntries.Count(e => e.PriceVariantId == v.Id)
                 })
                 .ToListAsync(ct);
 
             var rows = raw.Select(v =>
             {
-                var spec =
+                int spec =
                     (v.BeginTime is not null || v.EndTime is not null ? 1 : 0)
-                  + (v.DayMask is not null ? 1 : 0)
-                  + (v.AppliesToAllAreas ? 0 : 1);
+                    + (v.DayMask is not null ? 1 : 0)
+                    + (v.AppliesToAllAreas ? 0 : 1);
                 return new Response(
                     v.Id, v.PriceTableId, v.Code, v.Name, v.Description,
                     v.BeginTime, v.EndTime, v.DayMask, v.AppliesToAllAreas,

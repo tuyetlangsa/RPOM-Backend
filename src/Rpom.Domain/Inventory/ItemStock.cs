@@ -4,10 +4,10 @@ using Rpom.Domain.Menu;
 namespace Rpom.Domain.Inventory;
 
 /// <summary>
-/// Materialized "current stock" per stockable Item. PK = FK = ItemId.
-/// 1:0..1 with Item — only IsStockable=true items have a row.
-/// Source of truth is StockMovement ledger; ItemStock is fast-read cache.
-/// Both updated in the same transaction by StockMovementService.
+///     Materialized "current stock" per stockable Item. PK = FK = ItemId.
+///     1:0..1 with Item — only IsStockable=true items have a row.
+///     Source of truth is StockMovement ledger; ItemStock is fast-read cache.
+///     Both updated in the same transaction by StockMovementService.
 /// </summary>
 public class ItemStock : Entity
 {

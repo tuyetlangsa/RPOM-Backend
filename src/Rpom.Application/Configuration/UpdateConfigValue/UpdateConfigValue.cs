@@ -4,6 +4,7 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Configuration;
@@ -31,19 +32,22 @@ public static class UpdateConfigValue
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var row = await dbContext.ConfigValues
+            ConfigValue? row = await dbContext.ConfigValues
                 .FirstOrDefaultAsync(x => x.Code == request.Code, ct);
-            if (row is null) return Result.Failure<Response>(ConfigErrors.NotFound);
+            if (row is null)
+            {
+                return Result.Failure<Response>(ConfigErrors.NotFound);
+            }
 
-            var oldValue = row.Value;
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            string? oldValue = row.Value;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             row.Value = request.Value;
             row.UpdatedAt = now;
             row.UpdatedByStaffAccountId = staffId;
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(ConfigValue),

@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -12,8 +13,8 @@ using Rpom.Domain.Menu;
 namespace Rpom.Application.SetMenus.DeleteSetMenu;
 
 /// <summary>
-/// Remove the SET_MENU aspect of an Item — deletes the SetMenu row (details
-/// cascade), reverting the Item to SINGLE. The Item master row is untouched.
+///     Remove the SET_MENU aspect of an Item — deletes the SetMenu row (details
+///     cascade), reverting the Item to SINGLE. The Item master row is untouched.
 /// </summary>
 public static class DeleteSetMenu
 {
@@ -21,7 +22,10 @@ public static class DeleteSetMenu
 
     internal sealed class Validator : AbstractValidator<Command>
     {
-        public Validator() { RuleFor(x => x.ItemId).GreaterThan(0); }
+        public Validator()
+        {
+            RuleFor(x => x.ItemId).GreaterThan(0);
+        }
     }
 
     internal sealed class Handler(
@@ -32,15 +36,18 @@ public static class DeleteSetMenu
     {
         public async Task<Result> Handle(Command request, CancellationToken ct)
         {
-            var setMenu = await db.SetMenus.FirstOrDefaultAsync(s => s.ItemId == request.ItemId, ct);
-            if (setMenu is null) return Result.Failure(SetMenuErrors.NotASetMenu);
+            SetMenu? setMenu = await db.SetMenus.FirstOrDefaultAsync(s => s.ItemId == request.ItemId, ct);
+            if (setMenu is null)
+            {
+                return Result.Failure(SetMenuErrors.NotASetMenu);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             db.SetMenus.Remove(setMenu);
 
-            var staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             db.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(SetMenu),
@@ -49,7 +56,7 @@ public static class DeleteSetMenu
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"SetMenu removed from item {request.ItemId}",
+                Summary = $"SetMenu removed from item {request.ItemId}"
             });
 
             await db.SaveChangesAsync(ct);

@@ -29,7 +29,7 @@ public static class GetCategory
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
         {
-            var row = await dbContext.Categories
+            Response? row = await dbContext.Categories
                 .Where(x => x.Id == request.Id)
                 .Select(x => new Response(
                     x.Id, x.Code, x.Name, x.Description, x.ParentId, x.Path, x.Level,

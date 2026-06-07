@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -12,9 +13,9 @@ using Rpom.Domain.Menu;
 namespace Rpom.Application.SetMenus.UpsertSetMenu;
 
 /// <summary>
-/// Create-or-update the SET_MENU aspect of an existing Item: upsert the SetMenu
-/// row (its existence marks the Item as SET_MENU) and replace-all its detail rows
-/// (COMPONENT dishes + CHOICE_CATEGORY groups). Bump scope MENU.
+///     Create-or-update the SET_MENU aspect of an existing Item: upsert the SetMenu
+///     row (its existence marks the Item as SET_MENU) and replace-all its detail rows
+///     (COMPONENT dishes + CHOICE_CATEGORY groups). Bump scope MENU.
 /// </summary>
 public static class UpsertSetMenu
 {
@@ -72,20 +73,28 @@ public static class UpsertSetMenu
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var itemExists = await db.Items.AnyAsync(i => i.Id == request.ItemId, ct);
-            if (!itemExists) return Result.Failure<Response>(ItemErrors.NotFound);
+            bool itemExists = await db.Items.AnyAsync(i => i.Id == request.ItemId, ct);
+            if (!itemExists)
+            {
+                return Result.Failure<Response>(ItemErrors.NotFound);
+            }
 
             var componentIds = request.Details
                 .Where(d => d.DetailType == SetMenuDetailType.Component && d.ComponentItemId.HasValue)
                 .Select(d => d.ComponentItemId!.Value).Distinct().ToList();
 
             if (componentIds.Contains(request.ItemId))
+            {
                 return Result.Failure<Response>(SetMenuErrors.SelfComponent);
+            }
+
             if (componentIds.Count > 0)
             {
-                var found = await db.Items.CountAsync(i => componentIds.Contains(i.Id), ct);
+                int found = await db.Items.CountAsync(i => componentIds.Contains(i.Id), ct);
                 if (found != componentIds.Count)
+                {
                     return Result.Failure<Response>(SetMenuErrors.ComponentNotFound);
+                }
             }
 
             var choiceCategoryIds = request.Details
@@ -93,16 +102,18 @@ public static class UpsertSetMenu
                 .Select(d => d.ChoiceCategoryId!.Value).Distinct().ToList();
             if (choiceCategoryIds.Count > 0)
             {
-                var found = await db.ChoiceCategories
+                int found = await db.ChoiceCategories
                     .CountAsync(c => choiceCategoryIds.Contains(c.Id) && c.IsActive, ct);
                 if (found != choiceCategoryIds.Count)
+                {
                     return Result.Failure<Response>(SetMenuErrors.ChoiceCategoryNotFound);
+                }
             }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
-            var setMenu = await db.SetMenus
+            SetMenu? setMenu = await db.SetMenus
                 .FirstOrDefaultAsync(s => s.ItemId == request.ItemId, ct);
             if (setMenu is null)
             {
@@ -111,7 +122,7 @@ public static class UpsertSetMenu
                     ItemId = request.ItemId,
                     Description = request.Description,
                     CreatedAt = now,
-                    UpdatedAt = now,
+                    UpdatedAt = now
                 };
                 db.SetMenus.Add(setMenu);
             }
@@ -122,12 +133,12 @@ public static class UpsertSetMenu
             }
 
             // Replace-all details.
-            var existing = await db.SetMenuDetails
+            List<SetMenuDetail> existing = await db.SetMenuDetails
                 .Where(d => d.SetMenuItemId == request.ItemId)
                 .ToListAsync(ct);
             db.SetMenuDetails.RemoveRange(existing);
 
-            foreach (var d in request.Details)
+            foreach (DetailInput d in request.Details)
             {
                 db.SetMenuDetails.Add(new SetMenuDetail
                 {
@@ -139,11 +150,11 @@ public static class UpsertSetMenu
                     ChoiceCategoryId = d.DetailType == SetMenuDetailType.ChoiceCategory ? d.ChoiceCategoryId : null,
                     DisplayOrder = d.DisplayOrder,
                     CreatedAt = now,
-                    UpdatedAt = now,
+                    UpdatedAt = now
                 });
             }
 
-            var staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             db.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(SetMenu),
@@ -152,7 +163,7 @@ public static class UpsertSetMenu
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"SetMenu upsert: {request.Details.Count} details on item {request.ItemId}",
+                Summary = $"SetMenu upsert: {request.Details.Count} details on item {request.ItemId}"
             });
 
             await db.SaveChangesAsync(ct);

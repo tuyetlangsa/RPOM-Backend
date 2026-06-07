@@ -7,8 +7,8 @@ using Rpom.Domain.Sales.CashDrawer;
 namespace Rpom.Application.CashDrawers.GetCurrentCashDrawer;
 
 /// <summary>
-/// Returns the OPEN drawer at a counter (if any). Used by the cashier app
-/// on startup to decide whether to prompt the operator to open a drawer.
+///     Returns the OPEN drawer at a counter (if any). Used by the cashier app
+///     on startup to decide whether to prompt the operator to open a drawer.
 /// </summary>
 public static class GetCurrentCashDrawer
 {
@@ -28,7 +28,7 @@ public static class GetCurrentCashDrawer
     {
         public async Task<Result<Response?>> Handle(Query request, CancellationToken ct)
         {
-            var row = await dbContext.CashDrawerSessions
+            Response? row = await dbContext.CashDrawerSessions
                 .Where(x => x.CounterId == request.CounterId && x.Status == CashDrawerStatus.Open)
                 .Select(x => new Response(
                     x.Id, x.CounterId, x.OpenedByStaffAccountId,
@@ -36,7 +36,7 @@ public static class GetCurrentCashDrawer
                     x.OpenedAt, x.OpeningCash, x.Status, x.Notes))
                 .FirstOrDefaultAsync(ct);
 
-            return Result.Success<Response?>(row);
+            return Result.Success(row);
         }
     }
 }

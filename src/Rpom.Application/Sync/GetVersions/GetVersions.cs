@@ -18,9 +18,11 @@ public static class GetVersions
             // future scope keys leaking into shared FE clients.
             var requested = request.Scopes.Where(VersionScopes.IsKnown).ToList();
             if (requested.Count == 0)
+            {
                 return Result.Success(new Response(new Dictionary<string, long>()));
+            }
 
-            var versions = await versionService.GetAsync(requested, ct);
+            IReadOnlyDictionary<string, long> versions = await versionService.GetAsync(requested, ct);
             return Result.Success(new Response(versions));
         }
     }

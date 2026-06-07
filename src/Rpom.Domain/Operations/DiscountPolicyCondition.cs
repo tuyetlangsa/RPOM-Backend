@@ -5,11 +5,11 @@ using Rpom.Domain.Restaurant;
 namespace Rpom.Domain.Operations;
 
 /// <summary>
-/// Condition rows for a DiscountPolicy. Field usage depends on parent.DiscountType:
-/// TICKET_THRESHOLD → ThresholdAmount set, ItemId/QuantityThreshold NULL.
-/// QUANTITY_ITEM → ItemId + QuantityThreshold set, ThresholdAmount NULL.
-/// AreaId optional regardless of type (scopes condition to that Area).
-/// Multiple rows per policy support tiered discounts (highest matching threshold wins).
+///     Condition rows for a DiscountPolicy. Field usage depends on parent.DiscountType:
+///     TICKET_THRESHOLD → ThresholdAmount set, ItemId/QuantityThreshold NULL.
+///     QUANTITY_ITEM → ItemId + QuantityThreshold set, ThresholdAmount NULL.
+///     AreaId optional regardless of type (scopes condition to that Area).
+///     Multiple rows per policy support tiered discounts (highest matching threshold wins).
 /// </summary>
 public class DiscountPolicyCondition : Entity
 {
@@ -30,11 +30,12 @@ public class DiscountPolicyCondition : Entity
     /// <summary>Optional scope: condition only applies when ordering from this Area. NULL = all Areas.</summary>
     public int? AreaId { get; set; }
 
-    /// <summary>PERCENT | FIXED (see <see cref="DiscountApplyType"/>).</summary>
+    /// <summary>PERCENT | FIXED (see <see cref="DiscountApplyType" />).</summary>
     public string ApplyType { get; set; } = null!;
 
     /// <summary>PERCENT: 0-100 percentage. FIXED: VND amount.</summary>
     public decimal DiscountValue { get; set; }
+
     public short DisplayOrder { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }

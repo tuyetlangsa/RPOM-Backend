@@ -36,11 +36,18 @@ internal sealed class TicketItemSumConfiguration : IEntityTypeConfiguration<Tick
 
         builder.HasIndex(x => x.TicketId);
         builder.HasIndex(x => new
-            {
-                x.TicketId, x.ItemId, x.UomId, x.UnitPrice, x.ChoicePricePerUnit,
-                x.LineDiscountPercent, x.TicketDiscountPercent,
-                x.VatPercent, x.ServiceChargePercent, x.ServiceChargeVatPercent
-            })
+        {
+            x.TicketId,
+            x.ItemId,
+            x.UomId,
+            x.UnitPrice,
+            x.ChoicePricePerUnit,
+            x.LineDiscountPercent,
+            x.TicketDiscountPercent,
+            x.VatPercent,
+            x.ServiceChargePercent,
+            x.ServiceChargeVatPercent
+        })
             .IsUnique().HasDatabaseName("ux_ticket_item_sum_bucket");
         builder.HasIndex(x => new { x.TicketId, x.DisplayOrder }).HasDatabaseName("ix_ticket_item_sum_render");
 

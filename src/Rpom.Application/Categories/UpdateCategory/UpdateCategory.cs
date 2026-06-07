@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -12,8 +13,8 @@ using Rpom.Domain.Menu;
 namespace Rpom.Application.Categories.UpdateCategory;
 
 /// <summary>
-/// Rename / move Category. Moving cascades Path + Level recompute through every
-/// descendant in a single SaveChanges so the tree stays consistent.
+///     Rename / move Category. Moving cascades Path + Level recompute through every
+///     descendant in a single SaveChanges so the tree stays consistent.
 /// </summary>
 public static class UpdateCategory
 {
@@ -61,37 +62,50 @@ public static class UpdateCategory
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var entity = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<Response>(CategoryErrors.NotFound);
+            Category? entity = await dbContext.Categories.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+            if (entity is null)
+            {
+                return Result.Failure<Response>(CategoryErrors.NotFound);
+            }
 
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
-            var duplicate = await dbContext.Categories
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
+            bool duplicate = await dbContext.Categories
                 .AnyAsync(x => x.Id != request.Id && x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(CategoryErrors.CodeDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(CategoryErrors.CodeDuplicate);
+            }
 
             // Parent change — validate before we touch anything.
             Category? newParent = null;
-            var parentChanged = entity.ParentId != request.ParentId;
+            bool parentChanged = entity.ParentId != request.ParentId;
             if (request.ParentId.HasValue)
             {
                 if (request.ParentId.Value == entity.Id)
+                {
                     return Result.Failure<Response>(CategoryErrors.ParentSelf);
+                }
 
                 newParent = await dbContext.Categories
                     .FirstOrDefaultAsync(x => x.Id == request.ParentId.Value, ct);
-                if (newParent is null) return Result.Failure<Response>(CategoryErrors.ParentNotFound);
+                if (newParent is null)
+                {
+                    return Result.Failure<Response>(CategoryErrors.ParentNotFound);
+                }
 
                 if (CategoryTreeHelpers.WouldCreateCycle(newParent, entity.Id))
+                {
                     return Result.Failure<Response>(CategoryErrors.ParentCycle);
+                }
             }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
-            var summary = BuildSummary(entity, request, code);
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            string summary = BuildSummary(entity, request, code);
 
-            var oldPath = entity.Path;
-            var oldLevel = entity.Level;
+            string oldPath = entity.Path;
+            short oldLevel = entity.Level;
 
             entity.Code = code;
             entity.Name = request.Name.Trim();
@@ -108,7 +122,7 @@ public static class UpdateCategory
                 await CategoryTreeHelpers.RecomputeDescendantsAsync(dbContext, entity, oldPath, oldLevel, ct);
             }
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(Category),
@@ -117,14 +131,14 @@ public static class UpdateCategory
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = summary,
+                Summary = summary
             });
 
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.Menu, $"Category.Update(id={entity.Id})", ct);
 
-            var itemCount = await dbContext.ItemCategories.CountAsync(ic => ic.CategoryId == entity.Id, ct);
-            var childCount = await dbContext.Categories.CountAsync(c => c.ParentId == entity.Id, ct);
+            int itemCount = await dbContext.ItemCategories.CountAsync(ic => ic.CategoryId == entity.Id, ct);
+            int childCount = await dbContext.Categories.CountAsync(c => c.ParentId == entity.Id, ct);
 
             return Result.Success(new Response(
                 entity.Id, entity.Code, entity.Name, entity.Description, entity.ParentId,
@@ -136,17 +150,35 @@ public static class UpdateCategory
         {
             var diffs = new List<string>();
             if (before.Code != normalizedCode)
+            {
                 diffs.Add($"code: '{before.Code}' → '{normalizedCode}'");
+            }
+
             if (before.Name != after.Name.Trim())
+            {
                 diffs.Add($"name: '{before.Name}' → '{after.Name.Trim()}'");
+            }
+
             if ((before.Description ?? "") != (after.Description?.Trim() ?? ""))
+            {
                 diffs.Add("description changed");
+            }
+
             if (before.ParentId != after.ParentId)
+            {
                 diffs.Add($"parent: {before.ParentId?.ToString() ?? "root"} → {after.ParentId?.ToString() ?? "root"}");
+            }
+
             if (before.DisplayOrder != after.DisplayOrder)
+            {
                 diffs.Add($"displayOrder: {before.DisplayOrder} → {after.DisplayOrder}");
+            }
+
             if (before.IsActive != after.IsActive)
+            {
                 diffs.Add($"isActive: {before.IsActive} → {after.IsActive}");
+            }
+
             return diffs.Count == 0 ? "Category updated (no changes)" : string.Join("; ", diffs);
         }
     }

@@ -6,17 +6,17 @@ using Rpom.Domain.Operations;
 namespace Rpom.Domain.Sales;
 
 /// <summary>
-/// Sent line item with kitchen lifecycle. KitchenStationId is a SNAPSHOT at
-/// SEND time — if Item.KitchenStationId changes later, in-flight rows keep
-/// the original. v1: SET_MENU components share parent OrderItem status.
-/// <para>
-/// Damaged-dish refund pattern: when a DONE dish needs to be refunded
-/// (broken, quality issue), a NEW OrderItem row is created with NEGATIVE
-/// Quantity, OriginalOrderItemId pointing back to the original DONE row.
-/// The refund row runs through its own PENDING → ... → DONE lifecycle
-/// (re-cook a replacement, or just settle with negative-money line).
-/// CANCELLED status is reserved for out-of-stock (PENDING-only).
-/// </para>
+///     Sent line item with kitchen lifecycle. KitchenStationId is a SNAPSHOT at
+///     SEND time — if Item.KitchenStationId changes later, in-flight rows keep
+///     the original. v1: SET_MENU components share parent OrderItem status.
+///     <para>
+///         Damaged-dish refund pattern: when a DONE dish needs to be refunded
+///         (broken, quality issue), a NEW OrderItem row is created with NEGATIVE
+///         Quantity, OriginalOrderItemId pointing back to the original DONE row.
+///         The refund row runs through its own PENDING → ... → DONE lifecycle
+///         (re-cook a replacement, or just settle with negative-money line).
+///         CANCELLED status is reserved for out-of-stock (PENDING-only).
+///     </para>
 /// </summary>
 public class OrderItem : Entity
 {
@@ -40,10 +40,11 @@ public class OrderItem : Entity
     public string UomName { get; set; } = null!;
 
     /// <summary>
-    /// Quantity. May be NEGATIVE for refund-line rows (damaged-dish pattern) —
-    /// in that case OriginalOrderItemId points back to the original positive row.
+    ///     Quantity. May be NEGATIVE for refund-line rows (damaged-dish pattern) —
+    ///     in that case OriginalOrderItemId points back to the original positive row.
     /// </summary>
     public decimal Quantity { get; set; } = 1;
+
     public decimal UnitPrice { get; set; }
     public decimal ChoicePricePerUnit { get; set; }
     public decimal VatPercent { get; set; }
@@ -70,16 +71,17 @@ public class OrderItem : Entity
     public decimal LineTotal { get; set; }
 
     /// <summary>
-    /// Snapshot of Item.KitchenStationId at SEND time. NULL for SET_MENU containers
-    /// or non-kitchen items. Does NOT auto-update if Item.KitchenStationId changes.
+    ///     Snapshot of Item.KitchenStationId at SEND time. NULL for SET_MENU containers
+    ///     or non-kitchen items. Does NOT auto-update if Item.KitchenStationId changes.
     /// </summary>
     public int? KitchenStationId { get; set; }
 
-    /// <summary>PENDING | PROCESSING | READY | DONE | CANCELLED (see <see cref="OrderItemStatus"/>).</summary>
+    /// <summary>PENDING | PROCESSING | READY | DONE | CANCELLED (see <see cref="OrderItemStatus" />).</summary>
     public string Status { get; set; } = OrderItemStatus.Pending;
 
     /// <summary>When CartItem → OrderItem transition happened.</summary>
     public DateTime SentAt { get; set; }
+
     public DateTime? StartCookAt { get; set; }
     public DateTime? ReadyAt { get; set; }
     public DateTime? DoneAt { get; set; }
@@ -92,9 +94,9 @@ public class OrderItem : Entity
     public int? CancelledByStaffId { get; set; }
 
     /// <summary>
-    /// Self-ref to the original positive-Quantity OrderItem this row refunds/replaces.
-    /// NULL for normal (positive Quantity) rows. Required when Quantity &lt; 0.
-    /// App-enforced — DB cannot CHECK cross-row logic.
+    ///     Self-ref to the original positive-Quantity OrderItem this row refunds/replaces.
+    ///     NULL for normal (positive Quantity) rows. Required when Quantity &lt; 0.
+    ///     App-enforced — DB cannot CHECK cross-row logic.
     /// </summary>
     public long? OriginalOrderItemId { get; set; }
 

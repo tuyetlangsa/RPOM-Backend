@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Operations;
@@ -68,7 +69,8 @@ public static class CreateDiscountPolicy
                 .Must((cmd, conds) => !DiscountConditionRules.HasDuplicateTriggers(
                     cmd.DiscountType,
                     conds.Select(c => (c.ThresholdAmount, c.ItemId, c.QuantityThreshold, c.AreaId))))
-                .WithMessage("Conditions must not duplicate the same trigger (same threshold/area or item/quantity/area).");
+                .WithMessage(
+                    "Conditions must not duplicate the same trigger (same threshold/area or item/quantity/area).");
         }
     }
 
@@ -80,17 +82,23 @@ public static class CreateDiscountPolicy
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
-            var duplicate = await db.DiscountPolicies.AnyAsync(p => p.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(DiscountPolicyErrors.CodeDuplicate);
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
+            bool duplicate = await db.DiscountPolicies.AnyAsync(p => p.Code.ToLower() == codeLower, ct);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(DiscountPolicyErrors.CodeDuplicate);
+            }
 
-            var validation = await DiscountConditionRules.ValidateReferencesAsync(db, request.Conditions
+            Error? validation = await DiscountConditionRules.ValidateReferencesAsync(db, request.Conditions
                 .Select(c => (c.ItemId, c.AreaId)), ct);
-            if (validation is not null) return Result.Failure<Response>(validation);
+            if (validation is not null)
+            {
+                return Result.Failure<Response>(validation);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             var policy = new DiscountPolicy
             {
@@ -102,9 +110,9 @@ public static class CreateDiscountPolicy
                 DaysOfWeek = string.IsNullOrWhiteSpace(request.DaysOfWeek) ? null : request.DaysOfWeek.Trim(),
                 IsActive = request.IsActive,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             };
-            foreach (var c in request.Conditions)
+            foreach (ConditionInput c in request.Conditions)
             {
                 policy.Conditions.Add(new DiscountPolicyCondition
                 {
@@ -116,12 +124,13 @@ public static class CreateDiscountPolicy
                     DiscountValue = c.DiscountValue,
                     DisplayOrder = c.DisplayOrder,
                     CreatedAt = now,
-                    UpdatedAt = now,
+                    UpdatedAt = now
                 });
             }
+
             db.DiscountPolicies.Add(policy);
 
-            var staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             try
             {
                 await db.SaveChangesAsync(ct);
@@ -139,7 +148,7 @@ public static class CreateDiscountPolicy
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"DiscountPolicy created: {policy.Code} ({request.Conditions.Count} conditions)",
+                Summary = $"DiscountPolicy created: {policy.Code} ({request.Conditions.Count} conditions)"
             });
             await db.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.Pricing, $"DiscountPolicy.Create(id={policy.Id})", ct);

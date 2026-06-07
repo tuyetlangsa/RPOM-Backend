@@ -25,7 +25,7 @@ public static class GetTable
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
         {
-            var row = await dbContext.Tables
+            Response? row = await dbContext.Tables
                 .Where(x => x.Id == request.Id)
                 .Select(x => new Response(
                     x.Id, x.AreaId, x.Code, x.SeatCount, x.Description, x.Status,

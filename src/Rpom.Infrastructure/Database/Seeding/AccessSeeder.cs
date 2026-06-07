@@ -6,18 +6,17 @@ using Rpom.Application.Abstraction.Authentication;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Access;
 using Rpom.Domain.Access;
-using Rpom.Infrastructure.Database;
 
 namespace Rpom.Infrastructure.Database.Seeding;
 
 /// <summary>
-/// Idempotent seeder for Area A (Access). Run once on app startup.
-/// Seeds:
-///   1. 8 PermissionGroups (UI grouping)
-///   2. ~33 Permissions (from <see cref="Permissions"/> catalog)
-///   3. 6 system Roles (labels only)
-///   4. 1 bootstrap Owner StaffAccount (creds from <see cref="BootstrapOptions"/>)
-///   5. Grants ALL permissions to the bootstrap Owner
+///     Idempotent seeder for Area A (Access). Run once on app startup.
+///     Seeds:
+///     1. 8 PermissionGroups (UI grouping)
+///     2. ~33 Permissions (from <see cref="Permissions" /> catalog)
+///     3. 6 system Roles (labels only)
+///     4. 1 bootstrap Owner StaffAccount (creds from <see cref="BootstrapOptions" />)
+///     5. Grants ALL permissions to the bootstrap Owner
 /// </summary>
 public sealed class AccessSeeder(
     IServiceScopeFactory serviceScopeFactory,
@@ -28,10 +27,10 @@ public sealed class AccessSeeder(
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        using var scope = serviceScopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-        var passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
-        var clock = scope.ServiceProvider.GetRequiredService<IDateTimeProvider>();
+        using IServiceScope scope = serviceScopeFactory.CreateScope();
+        ApplicationDbContext db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        IPasswordHasher passwordHasher = scope.ServiceProvider.GetRequiredService<IPasswordHasher>();
+        IDateTimeProvider clock = scope.ServiceProvider.GetRequiredService<IDateTimeProvider>();
 
         await SeedPermissionGroupsAsync(db, cancellationToken);
         await SeedPermissionsAsync(db, cancellationToken);
@@ -48,23 +47,27 @@ public sealed class AccessSeeder(
     {
         var groups = new (string Code, string Name, short Order)[]
         {
-            (PermissionGroups.Common,     "Common",            10),
-            (PermissionGroups.MasterData, "Master Data",       20),
-            (PermissionGroups.Pos,        "POS Operations",    30),
-            (PermissionGroups.Kds,        "Kitchen Display",   40),
-            (PermissionGroups.Cashier,    "Cashier",           50),
-            (PermissionGroups.Reporting,  "Reporting",         60),
-            (PermissionGroups.Ai,         "AI Assistant",      70),
-            (PermissionGroups.Access,     "Access Control",    80),
+            (PermissionGroups.Common, "Common", 10),
+            (PermissionGroups.MasterData, "Master Data", 20),
+            (PermissionGroups.Pos, "POS Operations", 30),
+            (PermissionGroups.Kds, "Kitchen Display", 40),
+            (PermissionGroups.Cashier, "Cashier", 50),
+            (PermissionGroups.Reporting, "Reporting", 60),
+            (PermissionGroups.Ai, "AI Assistant", 70),
+            (PermissionGroups.Access, "Access Control", 80)
         };
 
-        var existing = await db.PermissionGroups
+        List<string> existing = await db.PermissionGroups
             .Select(x => x.Code).ToListAsync(ct);
         var existingSet = existing.ToHashSet();
 
-        foreach (var g in groups)
+        foreach ((string Code, string Name, short Order) g in groups)
         {
-            if (existingSet.Contains(g.Code)) continue;
+            if (existingSet.Contains(g.Code))
+            {
+                continue;
+            }
+
             db.PermissionGroups.Add(new PermissionGroup
             {
                 Code = g.Code,
@@ -72,6 +75,7 @@ public sealed class AccessSeeder(
                 DisplayOrder = g.Order
             });
         }
+
         await db.SaveChangesAsync(ct);
     }
 
@@ -80,73 +84,74 @@ public sealed class AccessSeeder(
     private static async Task SeedPermissionsAsync(
         ApplicationDbContext db, CancellationToken ct)
     {
-        var groupIdByCode = await db.PermissionGroups
+        Dictionary<string, int> groupIdByCode = await db.PermissionGroups
             .ToDictionaryAsync(x => x.Code, x => x.Id, ct);
 
         var catalog = new (string Code, string Name, string Group)[]
         {
-            (Permissions.StaffLogin,             "Login to the app",                  PermissionGroups.Common),
+            (Permissions.StaffLogin, "Login to the app", PermissionGroups.Common),
 
-            (Permissions.MasterDataView,         "View master data",                  PermissionGroups.MasterData),
-            (Permissions.MasterDataManage,       "Create/edit/delete master data",    PermissionGroups.MasterData),
+            (Permissions.MasterDataView, "View master data", PermissionGroups.MasterData),
+            (Permissions.MasterDataManage, "Create/edit/delete master data", PermissionGroups.MasterData),
 
-            (Permissions.TicketOpen,             "Open ticket on table",              PermissionGroups.Pos),
-            (Permissions.TicketViewDetail,       "View ticket detail",                PermissionGroups.Pos),
-            (Permissions.TicketTransfer,         "Transfer ticket between tables",    PermissionGroups.Pos),
-            (Permissions.TicketMerge,            "Merge tickets",                     PermissionGroups.Pos),
-            (Permissions.TicketCancel,           "Cancel ticket with reason",         PermissionGroups.Pos),
-            (Permissions.OrderAddItems,          "Add items to cart",                 PermissionGroups.Pos),
-            (Permissions.OrderSendKitchen,       "Send order to kitchen",             PermissionGroups.Pos),
-            (Permissions.OrderItemCancelPending, "Cancel pending dish (out-of-stock)",PermissionGroups.Pos),
-            (Permissions.OrderItemRefundLine,    "Refund a damaged dish",             PermissionGroups.Pos),
-            (Permissions.ReservationCreate,      "Create reservation",                PermissionGroups.Pos),
-            (Permissions.ReservationCancel,      "Cancel reservation",                PermissionGroups.Pos),
+            (Permissions.TicketOpen, "Open ticket on table", PermissionGroups.Pos),
+            (Permissions.TicketViewDetail, "View ticket detail", PermissionGroups.Pos),
+            (Permissions.TicketTransfer, "Transfer ticket between tables", PermissionGroups.Pos),
+            (Permissions.TicketMerge, "Merge tickets", PermissionGroups.Pos),
+            (Permissions.TicketCancel, "Cancel ticket with reason", PermissionGroups.Pos),
+            (Permissions.OrderAddItems, "Add items to cart", PermissionGroups.Pos),
+            (Permissions.OrderSendKitchen, "Send order to kitchen", PermissionGroups.Pos),
+            (Permissions.OrderItemCancelPending, "Cancel pending dish (out-of-stock)", PermissionGroups.Pos),
+            (Permissions.OrderItemRefundLine, "Refund a damaged dish", PermissionGroups.Pos),
+            (Permissions.ReservationCreate, "Create reservation", PermissionGroups.Pos),
+            (Permissions.ReservationCancel, "Cancel reservation", PermissionGroups.Pos),
 
-            (Permissions.KdsView,                "View kitchen display",              PermissionGroups.Kds),
-            (Permissions.OrderItemStartCooking,  "Mark dish PROCESSING",              PermissionGroups.Kds),
-            (Permissions.OrderItemMarkReady,     "Mark dish READY",                   PermissionGroups.Kds),
+            (Permissions.KdsView, "View kitchen display", PermissionGroups.Kds),
+            (Permissions.OrderItemStartCooking, "Mark dish PROCESSING", PermissionGroups.Kds),
+            (Permissions.OrderItemMarkReady, "Mark dish READY", PermissionGroups.Kds),
 
-            (Permissions.CashDrawerOpen,         "Open cash drawer at counter",       PermissionGroups.Cashier),
-            (Permissions.CashDrawerClose,        "Close cash drawer (any opener)",    PermissionGroups.Cashier),
-            (Permissions.PaymentCash,            "Process cash payment",              PermissionGroups.Cashier),
-            (Permissions.PaymentQr,              "Process QR payment",                PermissionGroups.Cashier),
-            (Permissions.PaymentCancelPending,   "Cancel pending payment",            PermissionGroups.Cashier),
-            (Permissions.PaymentDeleteRecord,    "Soft-delete payment record",        PermissionGroups.Cashier),
-            (Permissions.TicketApplyDiscount,    "Apply discount policy at payment",  PermissionGroups.Cashier),
-            (Permissions.TicketClose,            "Close ticket after payment",        PermissionGroups.Cashier),
-            (Permissions.EInvoiceIssue,          "Issue VAT e-invoice",               PermissionGroups.Cashier),
-            (Permissions.CashierFloorPlan,       "View cashier floor plan",           PermissionGroups.Cashier),
-            (Permissions.CashierViewTicket,      "View ticket (cashier)",             PermissionGroups.Cashier),
-            (Permissions.CashierViewMenu,        "View cashier menu",                 PermissionGroups.Cashier),
+            (Permissions.CashDrawerOpen, "Open cash drawer at counter", PermissionGroups.Cashier),
+            (Permissions.CashDrawerClose, "Close cash drawer (any opener)", PermissionGroups.Cashier),
+            (Permissions.PaymentCash, "Process cash payment", PermissionGroups.Cashier),
+            (Permissions.PaymentQr, "Process QR payment", PermissionGroups.Cashier),
+            (Permissions.PaymentCancelPending, "Cancel pending payment", PermissionGroups.Cashier),
+            (Permissions.PaymentDeleteRecord, "Soft-delete payment record", PermissionGroups.Cashier),
+            (Permissions.TicketApplyDiscount, "Apply discount policy at payment", PermissionGroups.Cashier),
+            (Permissions.TicketClose, "Close ticket after payment", PermissionGroups.Cashier),
+            (Permissions.EInvoiceIssue, "Issue VAT e-invoice", PermissionGroups.Cashier),
+            (Permissions.CashierFloorPlan, "View cashier floor plan", PermissionGroups.Cashier),
+            (Permissions.CashierViewTicket, "View ticket (cashier)", PermissionGroups.Cashier),
+            (Permissions.CashierViewMenu, "View cashier menu", PermissionGroups.Cashier),
 
-            (Permissions.ReportRevenue,          "View revenue reports",              PermissionGroups.Reporting),
-            (Permissions.ReportShift,            "View shift reports",                PermissionGroups.Reporting),
-            (Permissions.ReportItemConsumption,  "View item-consumption reports",     PermissionGroups.Reporting),
-            (Permissions.ReportExportExcel,      "Export reports to Excel",           PermissionGroups.Reporting),
+            (Permissions.ReportRevenue, "View revenue reports", PermissionGroups.Reporting),
+            (Permissions.ReportShift, "View shift reports", PermissionGroups.Reporting),
+            (Permissions.ReportItemConsumption, "View item-consumption reports", PermissionGroups.Reporting),
+            (Permissions.ReportExportExcel, "Export reports to Excel", PermissionGroups.Reporting),
 
-            (Permissions.AiAsk,                  "Ask AI Operations Assistant",       PermissionGroups.Ai),
-            (Permissions.AiViewNotifications,    "View AI notifications",             PermissionGroups.Ai),
+            (Permissions.AiAsk, "Ask AI Operations Assistant", PermissionGroups.Ai),
+            (Permissions.AiViewNotifications, "View AI notifications", PermissionGroups.Ai),
 
-            (Permissions.StaffAccountManage,     "Manage staff accounts",             PermissionGroups.Access),
-            (Permissions.RoleManage,             "Manage roles",                      PermissionGroups.Access),
-            (Permissions.PermissionAssign,       "Assign permissions to accounts",    PermissionGroups.Access),
+            (Permissions.StaffAccountManage, "Manage staff accounts", PermissionGroups.Access),
+            (Permissions.RoleManage, "Manage roles", PermissionGroups.Access),
+            (Permissions.PermissionAssign, "Assign permissions to accounts", PermissionGroups.Access),
 
-            (Permissions.ConfigView,             "View configuration values",         PermissionGroups.Access),
-            (Permissions.ConfigManage,           "Update configuration values",       PermissionGroups.Access),
-            (Permissions.UpdateRoundingConfig,   "Update rounding precision config",   PermissionGroups.Access),
+            (Permissions.ConfigView, "View configuration values", PermissionGroups.Access),
+            (Permissions.ConfigManage, "Update configuration values", PermissionGroups.Access),
+            (Permissions.UpdateRoundingConfig, "Update rounding precision config", PermissionGroups.Access)
         };
 
-        var existingCodes = await db.Permissions.Select(x => x.Code).ToListAsync(ct);
+        List<string> existingCodes = await db.Permissions.Select(x => x.Code).ToListAsync(ct);
         var existingSet = existingCodes.ToHashSet();
 
         short order = 0;
-        foreach (var p in catalog)
+        foreach ((string Code, string Name, string Group) p in catalog)
         {
             if (existingSet.Contains(p.Code))
             {
                 order++;
                 continue;
             }
+
             db.Permissions.Add(new Permission
             {
                 Code = p.Code,
@@ -155,6 +160,7 @@ public sealed class AccessSeeder(
                 DisplayOrder = order++
             });
         }
+
         await db.SaveChangesAsync(ct);
     }
 
@@ -165,20 +171,24 @@ public sealed class AccessSeeder(
     {
         var roles = new (string Code, string Name)[]
         {
-            (Roles.Owner,        "Owner"),
-            (Roles.Manager,      "Manager"),
-            (Roles.Cashier,      "Cashier"),
-            (Roles.OrderStaff,   "Order Staff"),
+            (Roles.Owner, "Owner"),
+            (Roles.Manager, "Manager"),
+            (Roles.Cashier, "Cashier"),
+            (Roles.OrderStaff, "Order Staff"),
             (Roles.KitchenStaff, "Kitchen Staff"),
-            (Roles.AdminVendor,  "Admin (Vendor)"),
+            (Roles.AdminVendor, "Admin (Vendor)")
         };
 
         var existing = (await db.Roles.Select(x => x.Code).ToListAsync(ct)).ToHashSet();
-        var now = clock.UtcNow;
+        DateTime now = clock.UtcNow;
 
-        foreach (var r in roles)
+        foreach ((string Code, string Name) r in roles)
         {
-            if (existing.Contains(r.Code)) continue;
+            if (existing.Contains(r.Code))
+            {
+                continue;
+            }
+
             db.Roles.Add(new Role
             {
                 Code = r.Code,
@@ -189,6 +199,7 @@ public sealed class AccessSeeder(
                 UpdatedAt = now
             });
         }
+
         await db.SaveChangesAsync(ct);
     }
 
@@ -208,7 +219,7 @@ public sealed class AccessSeeder(
             return;
         }
 
-        var owner = await db.StaffAccounts
+        StaffAccount? owner = await db.StaffAccounts
             .FirstOrDefaultAsync(x => x.Username == _bootstrap.OwnerUsername, ct);
 
         if (owner is not null)
@@ -219,11 +230,11 @@ public sealed class AccessSeeder(
             return;
         }
 
-        var ownerRole = await db.Roles
-            .FirstOrDefaultAsync(x => x.Code == Roles.Owner, ct)
-            ?? throw new InvalidOperationException("OWNER role not seeded — seed order broken.");
+        Role ownerRole = await db.Roles
+                             .FirstOrDefaultAsync(x => x.Code == Roles.Owner, ct)
+                         ?? throw new InvalidOperationException("OWNER role not seeded — seed order broken.");
 
-        var now = clock.UtcNow;
+        DateTime now = clock.UtcNow;
         owner = new StaffAccount
         {
             Username = _bootstrap.OwnerUsername,
@@ -242,8 +253,8 @@ public sealed class AccessSeeder(
         await db.SaveChangesAsync(ct); // need owner.Id
 
         // Grant every permission to bootstrap Owner.
-        var allPermissionIds = await db.Permissions.Select(x => x.Id).ToListAsync(ct);
-        foreach (var pid in allPermissionIds)
+        List<int> allPermissionIds = await db.Permissions.Select(x => x.Id).ToListAsync(ct);
+        foreach (int pid in allPermissionIds)
         {
             db.StaffAccountPermissions.Add(new StaffAccountPermission
             {
@@ -252,6 +263,7 @@ public sealed class AccessSeeder(
                 CreatedAt = now
             });
         }
+
         await db.SaveChangesAsync(ct);
 
         logger.LogInformation(
@@ -261,22 +273,26 @@ public sealed class AccessSeeder(
     }
 
     /// <summary>
-    /// Idempotent permission sync — grants every Permission row that the
-    /// bootstrap Owner doesn't already have. Used on app restart to pick up
-    /// newly added permissions in the catalog.
+    ///     Idempotent permission sync — grants every Permission row that the
+    ///     bootstrap Owner doesn't already have. Used on app restart to pick up
+    ///     newly added permissions in the catalog.
     /// </summary>
     private static async Task SyncOwnerPermissionsAsync(
         ApplicationDbContext db, int ownerId, DateTime now, CancellationToken ct)
     {
-        var allPermissionIds = await db.Permissions.Select(x => x.Id).ToListAsync(ct);
+        List<int> allPermissionIds = await db.Permissions.Select(x => x.Id).ToListAsync(ct);
         var grantedIds = (await db.StaffAccountPermissions
             .Where(x => x.StaffAccountId == ownerId)
             .Select(x => x.PermissionId)
             .ToListAsync(ct)).ToHashSet();
 
-        foreach (var pid in allPermissionIds)
+        foreach (int pid in allPermissionIds)
         {
-            if (grantedIds.Contains(pid)) continue;
+            if (grantedIds.Contains(pid))
+            {
+                continue;
+            }
+
             db.StaffAccountPermissions.Add(new StaffAccountPermission
             {
                 StaffAccountId = ownerId,

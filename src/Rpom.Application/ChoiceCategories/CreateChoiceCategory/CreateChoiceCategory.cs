@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -22,8 +23,15 @@ public static class CreateChoiceCategory
         bool IsActive) : ICommand<Response>;
 
     public sealed record Response(
-        int Id, string Name, string? Note, short MinChoice, short? MaxChoice,
-        short DisplayOrder, bool IsActive, DateTime CreatedAt, DateTime UpdatedAt);
+        int Id,
+        string Name,
+        string? Note,
+        short MinChoice,
+        short? MaxChoice,
+        short DisplayOrder,
+        bool IsActive,
+        DateTime CreatedAt,
+        DateTime UpdatedAt);
 
     internal sealed class Validator : AbstractValidator<Command>
     {
@@ -47,13 +55,16 @@ public static class CreateChoiceCategory
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var name = request.Name.Trim();
-            var nameLower = name.ToLower();
-            var duplicate = await db.ChoiceCategories.AnyAsync(c => c.Name.ToLower() == nameLower, ct);
-            if (duplicate) return Result.Failure<Response>(ChoiceCategoryErrors.NameDuplicate);
+            string name = request.Name.Trim();
+            string nameLower = name.ToLower();
+            bool duplicate = await db.ChoiceCategories.AnyAsync(c => c.Name.ToLower() == nameLower, ct);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(ChoiceCategoryErrors.NameDuplicate);
+            }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
 
             var entity = new ChoiceCategory
             {
@@ -64,11 +75,11 @@ public static class CreateChoiceCategory
                 DisplayOrder = request.DisplayOrder,
                 IsActive = request.IsActive,
                 CreatedAt = now,
-                UpdatedAt = now,
+                UpdatedAt = now
             };
             db.ChoiceCategories.Add(entity);
 
-            var staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await db.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             try
             {
                 await db.SaveChangesAsync(ct);
@@ -86,7 +97,7 @@ public static class CreateChoiceCategory
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"ChoiceCategory created: {entity.Name}",
+                Summary = $"ChoiceCategory created: {entity.Name}"
             });
             await db.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.Menu, $"ChoiceCategory.Create(id={entity.Id})", ct);

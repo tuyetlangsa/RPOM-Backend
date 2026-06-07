@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -53,22 +54,30 @@ public static class UpdatePriceTable
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var entity = await dbContext.PriceTables.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<Response>(PriceTableErrors.NotFound);
+            PriceTable? entity = await dbContext.PriceTables.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+            if (entity is null)
+            {
+                return Result.Failure<Response>(PriceTableErrors.NotFound);
+            }
 
             if (request.BeginDate.HasValue && request.EndDate.HasValue
-                && request.BeginDate.Value > request.EndDate.Value)
+                                           && request.BeginDate.Value > request.EndDate.Value)
+            {
                 return Result.Failure<Response>(PriceTableErrors.DateRangeInvalid);
+            }
 
-            var code = request.Code.Trim();
-            var codeLower = code.ToLower();
-            var duplicate = await dbContext.PriceTables
+            string code = request.Code.Trim();
+            string codeLower = code.ToLower();
+            bool duplicate = await dbContext.PriceTables
                 .AnyAsync(x => x.Id != request.Id && x.Code.ToLower() == codeLower, ct);
-            if (duplicate) return Result.Failure<Response>(PriceTableErrors.CodeDuplicate);
+            if (duplicate)
+            {
+                return Result.Failure<Response>(PriceTableErrors.CodeDuplicate);
+            }
 
-            var now = clock.UtcNow;
-            var staffId = currentStaff.StaffAccountId;
-            var summary = BuildSummary(entity, request, code);
+            DateTime now = clock.UtcNow;
+            int staffId = currentStaff.StaffAccountId;
+            string summary = BuildSummary(entity, request, code);
 
             entity.Code = code;
             entity.Name = request.Name.Trim();
@@ -78,7 +87,7 @@ public static class UpdatePriceTable
             entity.IsActive = request.IsActive;
             entity.UpdatedAt = now;
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(PriceTable),
@@ -87,13 +96,13 @@ public static class UpdatePriceTable
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = summary,
+                Summary = summary
             });
 
             await dbContext.SaveChangesAsync(ct);
             await versionService.BumpAsync(VersionScopes.Pricing, $"PriceTable.Update(id={entity.Id})", ct);
 
-            var variantCount = await dbContext.PriceVariants.CountAsync(v => v.PriceTableId == entity.Id, ct);
+            int variantCount = await dbContext.PriceVariants.CountAsync(v => v.PriceTableId == entity.Id, ct);
             return Result.Success(new Response(
                 entity.Id, entity.Code, entity.Name, entity.Description,
                 entity.BeginDate, entity.EndDate, entity.IsActive,
@@ -104,17 +113,36 @@ public static class UpdatePriceTable
         {
             var diffs = new List<string>();
             if (before.Code != normalizedCode)
+            {
                 diffs.Add($"code: '{before.Code}' → '{normalizedCode}'");
+            }
+
             if (before.Name != after.Name.Trim())
+            {
                 diffs.Add($"name: '{before.Name}' → '{after.Name.Trim()}'");
+            }
+
             if ((before.Description ?? "") != (after.Description?.Trim() ?? ""))
+            {
                 diffs.Add("description changed");
+            }
+
             if (before.BeginDate != after.BeginDate)
-                diffs.Add($"beginDate: {before.BeginDate?.ToString() ?? "null"} → {after.BeginDate?.ToString() ?? "null"}");
+            {
+                diffs.Add(
+                    $"beginDate: {before.BeginDate?.ToString() ?? "null"} → {after.BeginDate?.ToString() ?? "null"}");
+            }
+
             if (before.EndDate != after.EndDate)
+            {
                 diffs.Add($"endDate: {before.EndDate?.ToString() ?? "null"} → {after.EndDate?.ToString() ?? "null"}");
+            }
+
             if (before.IsActive != after.IsActive)
+            {
                 diffs.Add($"isActive: {before.IsActive} → {after.IsActive}");
+            }
+
             return diffs.Count == 0 ? "PriceTable updated (no changes)" : string.Join("; ", diffs);
         }
     }

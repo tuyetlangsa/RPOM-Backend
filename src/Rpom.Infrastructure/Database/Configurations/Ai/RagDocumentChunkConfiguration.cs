@@ -1,6 +1,5 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
-using Pgvector.EntityFrameworkCore;
 using Rpom.Domain.Ai;
 
 namespace Rpom.Infrastructure.Database.Configurations.Ai;

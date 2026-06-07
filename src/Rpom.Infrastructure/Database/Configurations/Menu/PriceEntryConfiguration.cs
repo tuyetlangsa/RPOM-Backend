@@ -17,7 +17,8 @@ internal sealed class PriceEntryConfiguration : IEntityTypeConfiguration<PriceEn
 
         builder.HasIndex(x => x.PriceVariantId);
         builder.HasIndex(x => x.ItemId);
-        builder.HasIndex(x => new { x.PriceVariantId, x.ItemId }).IsUnique().HasDatabaseName("ux_price_entry_variant_item");
+        builder.HasIndex(x => new { x.PriceVariantId, x.ItemId }).IsUnique()
+            .HasDatabaseName("ux_price_entry_variant_item");
 
         builder.HasOne(x => x.PriceVariant)
             .WithMany(x => x.PriceEntries)

@@ -10,7 +10,11 @@ public class GetMenuPriceResolutionTests
     private static IRoundingConfig DefaultRc()
     {
         var rc = Substitute.For<IRoundingConfig>();
-        foreach (var kv in RoundingKeys.Defaults) rc.GetDigits(kv.Key).Returns(kv.Value);
+        foreach (var kv in RoundingKeys.Defaults)
+        {
+            rc.GetDigits(kv.Key).Returns(kv.Value);
+        }
+
         return rc;
     }
 

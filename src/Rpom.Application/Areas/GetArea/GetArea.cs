@@ -24,7 +24,7 @@ public static class GetArea
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
         {
-            var row = await dbContext.Areas
+            Response? row = await dbContext.Areas
                 .Where(x => x.Id == request.Id)
                 .Select(x => new Response(
                     x.Id, x.CounterId, x.Name, x.Description, x.DisplayOrder,

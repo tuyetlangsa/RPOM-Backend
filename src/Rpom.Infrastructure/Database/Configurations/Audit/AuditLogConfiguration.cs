@@ -16,7 +16,8 @@ internal sealed class AuditLogConfiguration : IEntityTypeConfiguration<AuditLog>
         builder.Property(x => x.Timestamp).HasDefaultValueSql("now()");
         builder.Property(x => x.Summary).HasMaxLength(500);
 
-        builder.HasIndex(x => new { x.EntityType, x.EntityId, x.Timestamp }).HasDatabaseName("ix_audit_log_entity_time");
+        builder.HasIndex(x => new { x.EntityType, x.EntityId, x.Timestamp })
+            .HasDatabaseName("ix_audit_log_entity_time");
         builder.HasIndex(x => new { x.ActorStaffAccountId, x.Timestamp }).HasDatabaseName("ix_audit_log_actor_time");
         builder.HasIndex(x => x.Timestamp).HasDatabaseName("ix_audit_log_time");
 

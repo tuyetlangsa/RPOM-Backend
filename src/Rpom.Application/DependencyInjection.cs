@@ -18,6 +18,7 @@ public static class DependencyInjection
             config.AddOpenBehavior(typeof(ExceptionHandlingPipelineBehavior<,>));
             config.AddOpenBehavior(typeof(LoggingPipelineBehavior<,>));
             config.AddOpenBehavior(typeof(ValidationPipelineBehavior<,>));
+            config.AddOpenBehavior(typeof(TransactionPipelineBehavior<,>));
         });
 
         services.AddValidatorsFromAssembly(

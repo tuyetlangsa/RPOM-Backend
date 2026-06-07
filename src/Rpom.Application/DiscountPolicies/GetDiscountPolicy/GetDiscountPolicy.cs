@@ -43,13 +43,24 @@ public static class GetDiscountPolicy
                 .Where(p => p.Id == request.Id)
                 .Select(p => new
                 {
-                    p.Id, p.Code, p.Name, p.Description, p.DiscountType, p.IsAutoApply,
-                    p.DaysOfWeek, p.IsActive, p.CreatedAt, p.UpdatedAt,
+                    p.Id,
+                    p.Code,
+                    p.Name,
+                    p.Description,
+                    p.DiscountType,
+                    p.IsAutoApply,
+                    p.DaysOfWeek,
+                    p.IsActive,
+                    p.CreatedAt,
+                    p.UpdatedAt
                 })
                 .FirstOrDefaultAsync(ct);
-            if (policy is null) return Result.Failure<Response>(DiscountPolicyErrors.NotFound);
+            if (policy is null)
+            {
+                return Result.Failure<Response>(DiscountPolicyErrors.NotFound);
+            }
 
-            var conditions = await db.DiscountPolicyConditions
+            List<ConditionRef> conditions = await db.DiscountPolicyConditions
                 .Where(c => c.DiscountPolicyId == request.Id)
                 .OrderBy(c => c.DisplayOrder)
                 .Select(c => new ConditionRef(

@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -51,18 +52,24 @@ public static class UpdateArea
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            var entity = await dbContext.Areas.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
-            if (entity is null) return Result.Failure<Response>(AreaErrors.NotFound);
+            Area? entity = await dbContext.Areas.FirstOrDefaultAsync(x => x.Id == request.Id, ct);
+            if (entity is null)
+            {
+                return Result.Failure<Response>(AreaErrors.NotFound);
+            }
 
             if (entity.CounterId != request.CounterId)
             {
-                var counterExists = await dbContext.Counters.AnyAsync(x => x.Id == request.CounterId, ct);
-                if (!counterExists) return Result.Failure<Response>(AreaErrors.CounterNotFound);
+                bool counterExists = await dbContext.Counters.AnyAsync(x => x.Id == request.CounterId, ct);
+                if (!counterExists)
+                {
+                    return Result.Failure<Response>(AreaErrors.CounterNotFound);
+                }
             }
 
-            var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
-            var summary = BuildSummary(entity, request);
+            int staffId = currentStaff.StaffAccountId;
+            DateTime now = clock.UtcNow;
+            string summary = BuildSummary(entity, request);
 
             entity.CounterId = request.CounterId;
             entity.Name = request.Name.Trim();
@@ -71,7 +78,7 @@ public static class UpdateArea
             entity.IsActive = request.IsActive;
             entity.UpdatedAt = now;
 
-            var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
+            StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(Area),
@@ -80,7 +87,7 @@ public static class UpdateArea
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = summary,
+                Summary = summary
             });
 
             await dbContext.SaveChangesAsync(ct);
@@ -95,15 +102,30 @@ public static class UpdateArea
         {
             var diffs = new List<string>();
             if (before.CounterId != after.CounterId)
+            {
                 diffs.Add($"counterId: {before.CounterId} → {after.CounterId}");
+            }
+
             if (before.Name != after.Name.Trim())
+            {
                 diffs.Add($"name: '{before.Name}' → '{after.Name.Trim()}'");
+            }
+
             if ((before.Description ?? "") != (after.Description?.Trim() ?? ""))
+            {
                 diffs.Add("description changed");
+            }
+
             if (before.DisplayOrder != after.DisplayOrder)
+            {
                 diffs.Add($"displayOrder: {before.DisplayOrder} → {after.DisplayOrder}");
+            }
+
             if (before.IsActive != after.IsActive)
+            {
                 diffs.Add($"isActive: {before.IsActive} → {after.IsActive}");
+            }
+
             return diffs.Count == 0 ? "Area updated (no changes)" : string.Join("; ", diffs);
         }
     }
