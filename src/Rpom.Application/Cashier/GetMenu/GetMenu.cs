@@ -115,7 +115,10 @@ public static class GetMenu
             var candidateVariants = await db.PriceVariants
                 .Where(v => v.IsActive && v.PriceTable.IsActive
                     && v.PriceTableId == activePriceTable.Id
-                    && (v.BeginTime == null || (v.BeginTime <= time && time < v.EndTime))
+                    // Time window is half-open [Begin, End); write-time validator enforces
+                    // both-or-neither, but filter symmetrically for defense-in-depth.
+                    && (v.BeginTime == null || v.BeginTime <= time)
+                    && (v.EndTime == null || time < v.EndTime)
                     && (v.AppliesToAllAreas
                         || db.PriceVariantAreas.Any(pva => pva.PriceVariantId == v.Id && pva.AreaId == table.AreaId)))
                 .Select(v => new

@@ -16,7 +16,7 @@ internal sealed class GetFloorPlanEndpoint : IEndpoint
                 return result.MatchOk();
             })
             .RequireAuthorization(Permissions.CashierFloorPlan)
-            .WithTags("FloorPlan")
+            .WithTags("Areas")
             .WithName("GetFloorPlan");
     }
 }
