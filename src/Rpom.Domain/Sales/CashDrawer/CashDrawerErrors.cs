@@ -24,6 +24,10 @@ public static class CashDrawerErrors
         "CashDrawer.DenominationInvalid",
         "Một số mệnh giá không tồn tại hoặc đã tắt.");
 
+    public static readonly Error ShiftInvalid = Error.BadRequest(
+        "CashDrawer.ShiftInvalid",
+        "Ca làm việc không tồn tại hoặc đã ngừng hoạt động.");
+
     public static readonly Error NotOpen = Error.Conflict(
         "CashDrawer.NotOpen",
         "Phiên quầy này đã đóng — không thể thao tác tiếp.");

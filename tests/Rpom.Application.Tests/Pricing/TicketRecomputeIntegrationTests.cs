@@ -138,6 +138,7 @@ public sealed class TicketRecomputeIntegrationTests : IAsyncLifetime
         var drawer = new CashDrawerSession
         {
             Counter = counter,
+            Shift = shift,
             OpenedByStaff = staff,
             OpenedAt = now,
             OpeningCash = 0m,
