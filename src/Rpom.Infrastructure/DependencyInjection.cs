@@ -46,7 +46,18 @@ public static class DependencyInjection
             .AddHealthChecks(configuration)
             .AddAuthenticationInternal(configuration)
             .AddAuthorizationInternal()
+            .AddPayments(configuration)
             .AddSeeding(configuration);
+    }
+
+    private static IServiceCollection AddPayments(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<Payments.SePayOptions>(
+            configuration.GetSection(Payments.SePayOptions.SectionName));
+        services.AddScoped<
+            Application.Abstraction.Payments.IQrPaymentGateway,
+            Payments.SePayQrPaymentGateway>();
+        return services;
     }
 
     private static IServiceCollection AddSeeding(this IServiceCollection services, IConfiguration configuration)

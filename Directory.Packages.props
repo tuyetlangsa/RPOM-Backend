@@ -3,13 +3,12 @@
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
-
   <ItemGroup Label="MediatR + FluentValidation (CQRS pipeline)">
     <PackageVersion Include="MediatR" Version="12.4.1" />
     <PackageVersion Include="FluentValidation" Version="11.11.0" />
     <PackageVersion Include="FluentValidation.DependencyInjectionExtensions" Version="11.11.0" />
+    <PackageVersion Include="Swashbuckle.AspNetCore.Annotations" Version="10.2.1" />
   </ItemGroup>
-
   <ItemGroup Label="EF Core + Postgres + pgvector">
     <PackageVersion Include="Microsoft.EntityFrameworkCore" Version="10.0.4" />
     <PackageVersion Include="Microsoft.EntityFrameworkCore.Design" Version="10.0.4" />
@@ -19,19 +18,16 @@
     <PackageVersion Include="Pgvector.EntityFrameworkCore" Version="0.3.0" />
     <PackageVersion Include="EFCore.NamingConventions" Version="10.0.1" />
   </ItemGroup>
-
   <ItemGroup Label="Authentication">
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="10.0.4" />
     <PackageVersion Include="BCrypt.Net-Next" Version="4.0.3" />
   </ItemGroup>
-
   <ItemGroup Label="Quartz (background jobs + outbox)">
     <PackageVersion Include="Quartz" Version="3.13.1" />
     <PackageVersion Include="Quartz.Extensions.Hosting" Version="3.13.1" />
     <PackageVersion Include="Quartz.Extensions.DependencyInjection" Version="3.13.1" />
     <PackageVersion Include="Quartz.Serialization.SystemTextJson" Version="3.13.1" />
   </ItemGroup>
-
   <ItemGroup Label="Logging">
     <PackageVersion Include="Serilog" Version="4.3.0" />
     <PackageVersion Include="Serilog.AspNetCore" Version="9.0.0" />
@@ -40,17 +36,14 @@
     <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.8" />
     <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.8" />
   </ItemGroup>
-
   <ItemGroup Label="Swagger / OpenAPI">
     <!-- Swashbuckle 10.x for .NET 10 + Microsoft.OpenApi 2.x compat -->
     <PackageVersion Include="Swashbuckle.AspNetCore" Version="10.2.1" />
     <PackageVersion Include="Microsoft.OpenApi" Version="2.7.5" />
   </ItemGroup>
-
   <ItemGroup Label="AI (Claude via Anthropic SDK)">
     <PackageVersion Include="Anthropic.SDK" Version="5.4.2" />
   </ItemGroup>
-
   <ItemGroup Label="Misc">
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.4" />
     <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.4" />
@@ -67,7 +60,6 @@
     <PackageVersion Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageVersion Include="AspNetCore.HealthChecks.NpgSql" Version="9.0.0" />
   </ItemGroup>
-
   <ItemGroup Label="Transitive security pins (CVE patches)">
     <!--
       Transitive from Quartz / Anthropic.SDK.
@@ -76,7 +68,6 @@
     -->
     <PackageVersion Include="System.Security.Cryptography.Xml" Version="10.0.8" />
   </ItemGroup>
-
   <ItemGroup Label="Test">
     <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
     <PackageVersion Include="xunit" Version="2.9.3" />
