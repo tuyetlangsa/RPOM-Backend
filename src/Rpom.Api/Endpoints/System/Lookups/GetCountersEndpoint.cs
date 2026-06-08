@@ -14,7 +14,7 @@ internal sealed class GetCountersEndpoint : IEndpoint
                 Result<IReadOnlyList<GetCounters.CounterItem>> result = await sender.Send(new GetCounters.Query(), ct);
                 return result.MatchOk();
             })
-            .RequireAuthorization()
+            .AllowAnonymous()
             .WithTags("Lookups")
             .WithName("GetCounters")
             .Produces<ApiResult<IReadOnlyList<GetCounters.CounterItem>>>()

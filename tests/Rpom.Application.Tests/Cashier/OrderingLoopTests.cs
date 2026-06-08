@@ -59,7 +59,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
 
         // Open ticket
         var open = await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
-            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None);
+            .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None);
         open.IsSuccess.Should().BeTrue();
         open.Value.Code.Should().StartWith("TK-");
         var ticketId = open.Value.TicketId;
@@ -100,7 +100,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
     public async Task Open_WithoutLock_Fails()
     {
         var open = await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
-            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None);
+            .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None);
         open.IsFailure.Should().BeTrue();
         open.Error.Code.Should().Be("TableLock.NotHeld");
     }
@@ -115,7 +115,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
         await AcquireLock();
 
         var open = await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
-            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None);
+            .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None);
         open.IsFailure.Should().BeTrue();
         open.Error.Code.Should().Be("Ticket.NoOpenCashDrawer");
     }
@@ -125,7 +125,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
     {
         await AcquireLock();
         var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
-            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
+            .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None)).Value.TicketId;
 
         var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
             .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
@@ -138,7 +138,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
     {
         await AcquireLock();
         var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
-            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
+            .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None)).Value.TicketId;
 
         // Two lines in one draft order.
         var a = await Add().Handle(new AddCartItem.Command(ticketId, _singleItemId, 1m, null, []), CancellationToken.None);
@@ -174,7 +174,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
     {
         await AcquireLock();
         var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
-            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
+            .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None)).Value.TicketId;
         await Add().Handle(new AddCartItem.Command(ticketId, _singleItemId, 1m, null, []), CancellationToken.None);
 
         var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
@@ -188,7 +188,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
     {
         await AcquireLock();
         var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
-            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
+            .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None)).Value.TicketId;
 
         var add = await Add().Handle(
             new AddCartItem.Command(ticketId, _singleItemId, 1m, null, []), CancellationToken.None);
@@ -204,7 +204,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
     {
         await AcquireLock();
         var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
-            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
+            .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None)).Value.TicketId;
 
         var add = await Add().Handle(
             new AddCartItem.Command(ticketId, _singleItemId, 1m, null, []), CancellationToken.None);
@@ -282,8 +282,9 @@ public sealed class OrderingLoopTests : IAsyncLifetime
         _ctx.AddRange(role, staff, counter, area, table, shift, uom, item, item2, priceTable, variant, entry, entry2);
         await _ctx.SaveChangesAsync();
 
-        // drawer.OpenedByStaffAccountId references staff after it has an id
+        // drawer.OpenedByStaffAccountId / ShiftId reference rows that now have ids
         drawer.OpenedByStaffAccountId = staff.Id;
+        drawer.ShiftId = shift.Id;
         _ctx.Add(drawer);
         await _ctx.SaveChangesAsync();
 

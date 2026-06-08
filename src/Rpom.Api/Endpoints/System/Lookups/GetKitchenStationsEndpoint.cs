@@ -15,7 +15,7 @@ internal sealed class GetKitchenStationsEndpoint : IEndpoint
                     await sender.Send(new GetKitchenStations.Query(), ct);
                 return result.MatchOk();
             })
-            .RequireAuthorization()
+            .AllowAnonymous()
             .WithTags("Lookups")
             .WithName("GetKitchenStations")
             .Produces<ApiResult<IReadOnlyList<GetKitchenStations.KitchenStationItem>>>()

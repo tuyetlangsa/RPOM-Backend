@@ -134,6 +134,17 @@ public static class GetMenu
             var visibleCategories = allCategories
                 .Where(c => areaCategoryPaths.Any(p => c.Path.StartsWith(p)))
                 .ToList();
+            // Also include ancestor categories whose ids appear in the path of any
+            // visible category — e.g. "Đồ uống" (parent) is not directly linked by
+            // AreaMenuCategory but is needed by the FE to build the tree.
+            var ancestorIds = visibleCategories
+                .SelectMany(c => c.Path.Split(';', StringSplitOptions.RemoveEmptyEntries).Select(int.Parse))
+                .Distinct()
+                .ToHashSet();
+            var missingAncestors = allCategories
+                .Where(c => ancestorIds.Contains(c.Id) && !visibleCategories.Any(vc => vc.Id == c.Id))
+                .ToList();
+            visibleCategories.AddRange(missingAncestors);
             var visibleCategoryIds = visibleCategories.Select(c => c.Id).ToHashSet();
 
             // 2. Items in those categories (junction), active.

@@ -54,6 +54,7 @@ public static class DependencyInjection
         services.Configure<BootstrapOptions>(configuration.GetSection(BootstrapOptions.SectionName));
         services.AddSingleton<AccessSeeder>();
         services.AddSingleton<LookupSeeder>();
+        services.AddSingleton<CashierDemoSeeder>();
         services.AddSingleton<ConfigValueSeeder>();
         services.AddSingleton<RoundingConfigSeeder>();
         return services;
