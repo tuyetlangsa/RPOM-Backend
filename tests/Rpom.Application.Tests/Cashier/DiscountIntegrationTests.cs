@@ -164,7 +164,7 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
     {
         await AcquireLock();
         var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
-            .Handle(new OpenTicket.Command(_tableId, 2, _shiftId, null), CancellationToken.None)).Value.TicketId;
+            .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None)).Value.TicketId;
 
         await new AddCartItem.Handler(_ctx, Staff(), Clock(), Guard(), new MenuPriceResolver(_ctx), Rc(), Cart(), Version())
             .Handle(new AddCartItem.Command(ticketId, _item1Id, quantity1, null, []), CancellationToken.None);
@@ -284,6 +284,7 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
         await _ctx.SaveChangesAsync();
 
         drawer.OpenedByStaffAccountId = staff.Id;
+        drawer.ShiftId = shift.Id;
         _ctx.Add(drawer);
         await _ctx.SaveChangesAsync();
 

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Rpom.Infrastructure.Database;
 namespace Rpom.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260607232923_AddShiftIdToCashDrawerSession")]
+    partial class AddShiftIdToCashDrawerSession
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -3685,136 +3688,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.ToTable("payment_methods", "public");
                 });
 
-            modelBuilder.Entity("Rpom.Domain.Sales.PaymentTransaction", b =>
-                {
-                    b.Property<long>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bigint")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
-
-                    b.Property<string>("AccountNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("account_number");
-
-                    b.Property<decimal>("Accumulated")
-                        .ValueGeneratedOnAdd()
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasDefaultValue(0m)
-                        .HasColumnName("accumulated");
-
-                    b.Property<string>("BankBrand")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("bank_brand");
-
-                    b.Property<string>("Code")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("code");
-
-                    b.Property<string>("Content")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("content");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)")
-                        .HasColumnName("description");
-
-                    b.Property<string>("Gateway")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasDefaultValue("SEPAY")
-                        .HasColumnName("gateway");
-
-                    b.Property<long>("GatewayTransactionId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("gateway_transaction_id");
-
-                    b.Property<long?>("MatchedPaymentDetailId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("matched_payment_detail_id");
-
-                    b.Property<string>("MatchedReferenceCode")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("matched_reference_code");
-
-                    b.Property<string>("RawPayload")
-                        .HasColumnType("text")
-                        .HasColumnName("raw_payload");
-
-                    b.Property<string>("ReferenceCode")
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("reference_code");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(20)
-                        .HasColumnType("character varying(20)")
-                        .HasDefaultValue("UNMATCHED")
-                        .HasColumnName("status");
-
-                    b.Property<string>("SubAccount")
-                        .HasMaxLength(50)
-                        .HasColumnType("character varying(50)")
-                        .HasColumnName("sub_account");
-
-                    b.Property<DateTime>("TransactionDate")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("transaction_date");
-
-                    b.Property<decimal>("TransferAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)")
-                        .HasColumnName("transfer_amount");
-
-                    b.Property<string>("TransferType")
-                        .IsRequired()
-                        .HasMaxLength(10)
-                        .HasColumnType("character varying(10)")
-                        .HasColumnName("transfer_type");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.HasKey("Id")
-                        .HasName("pk_payment_transactions");
-
-                    b.HasIndex("GatewayTransactionId")
-                        .IsUnique()
-                        .HasDatabaseName("ux_payment_transaction_gateway_tx_id");
-
-                    b.HasIndex("MatchedPaymentDetailId")
-                        .HasDatabaseName("ix_payment_transactions_matched_payment_detail_id");
-
-                    b.HasIndex("Status")
-                        .HasDatabaseName("ix_payment_transactions_status");
-
-                    b.ToTable("payment_transactions", "public", t =>
-                        {
-                            t.HasCheckConstraint("ck_payment_transaction_status", "status IN ('MATCHED', 'UNMATCHED', 'MISMATCH', 'DUPLICATE', 'IGNORED')");
-                        });
-                });
-
             modelBuilder.Entity("Rpom.Domain.Sales.Ticket", b =>
                 {
                     b.Property<long>("Id")
@@ -5085,17 +4958,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Item");
 
                     b.Navigation("OrderItem");
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Sales.PaymentTransaction", b =>
-                {
-                    b.HasOne("Rpom.Domain.Sales.TicketPaymentDetail", "MatchedPaymentDetail")
-                        .WithMany()
-                        .HasForeignKey("MatchedPaymentDetailId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_payment_transactions_ticket_payment_details_matched_payment");
-
-                    b.Navigation("MatchedPaymentDetail");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Sales.Ticket", b =>

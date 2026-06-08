@@ -45,6 +45,9 @@ await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
 
     RoundingConfigSeeder roundingConfigSeeder = scope.ServiceProvider.GetRequiredService<RoundingConfigSeeder>();
     await roundingConfigSeeder.SeedAsync();
+
+    CashierDemoSeeder cashierDemoSeeder = scope.ServiceProvider.GetRequiredService<CashierDemoSeeder>();
+    await cashierDemoSeeder.SeedAsync();
 }
 
 app.UseCors();

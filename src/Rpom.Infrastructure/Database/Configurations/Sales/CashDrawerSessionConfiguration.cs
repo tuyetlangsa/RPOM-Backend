@@ -38,9 +38,16 @@ internal sealed class CashDrawerSessionConfiguration : IEntityTypeConfiguration<
         builder.HasIndex(x => new { x.CounterId, x.Status })
             .HasDatabaseName("ix_cash_drawer_session_counter_status");
 
+        builder.HasIndex(x => x.ShiftId);
+
         builder.HasOne(x => x.Counter)
             .WithMany()
             .HasForeignKey(x => x.CounterId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Shift)
+            .WithMany()
+            .HasForeignKey(x => x.ShiftId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.OpenedByStaff)
