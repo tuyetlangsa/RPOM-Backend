@@ -12,7 +12,8 @@ namespace Rpom.Application.Payments.HandleSePayWebhook;
 public static class HandleSePayWebhook
 {
     public sealed record Command(
-        //string? AuthorizationHeader,
+        string? Signature,
+        string? Timestamp,
         long Id,
         string? Gateway,
         string? TransactionDate,
@@ -40,8 +41,9 @@ public static class HandleSePayWebhook
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            //if (!gateway.VerifyWebhookApiKey(request.AuthorizationHeader))
-            //    return Result.Failure<Response>(PaymentErrors.WebhookUnauthorized);
+            // Xác thực chữ ký HMAC-SHA256 trên raw body (RawPayload) + headers.
+            if (!gateway.VerifyWebhookSignature(request.RawPayload, request.Signature, request.Timestamp))
+                return Result.Failure<Response>(PaymentErrors.WebhookUnauthorized);
 
             var now = clock.UtcNow;
 
@@ -136,7 +138,7 @@ public static class HandleSePayWebhook
             var ticket = await dbContext.Tickets.FirstAsync(x => x.Id == payment.TicketId, ct);
             ticket.PaidAmount += payment.Amount;
             ticket.UpdatedAt = now;
-            ticket.Version++;
+            //ticket.Version++;
 
             dbContext.AuditLogs.Add(new AuditLog
             {

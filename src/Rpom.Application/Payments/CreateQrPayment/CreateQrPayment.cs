@@ -4,6 +4,7 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.Payments;
+using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.User;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
@@ -18,23 +19,26 @@ public static class CreateQrPayment
     public sealed record Response(
         long PaymentId,
         long TicketId,
-        [SwaggerSchema("Số tiền thanh toán qua QR.")]
+        [property: SwaggerSchema("Số tiền thanh toán qua QR.")]
         decimal Amount,
-        [SwaggerSchema("Trạng thái hiện tại của payment (PENDING, SUCCESS, FAILED).")]
+        [property: SwaggerSchema("Trạng thái hiện tại của payment (PENDING, SUCCESS, FAILED).")]
         string Status,
-        [SwaggerSchema("Mã tham chiếu duy nhất để đối soát giao dịch ngân hàng.")]
+        [property: SwaggerSchema("Mã tham chiếu duy nhất để đối soát giao dịch ngân hàng.")]
         string ReferenceCode,
-        [SwaggerSchema("URL ảnh QR để khách hàng quét thanh toán.")]
+        [property: SwaggerSchema("URL ảnh QR để khách hàng quét thanh toán.")]
         string QrImageUrl,
         string AccountNumber,
         string BankCode,
         string AccountName,
-        [SwaggerSchema("Tổng số tiền của ticket.")]
+        [property: SwaggerSchema("Tổng số tiền của ticket.")]
         decimal TotalAmount,
-        [SwaggerSchema("Số tiền đã thanh toán thành công (không tính mới tạo).")]
+        [property: SwaggerSchema("Số tiền đã thanh toán thành công (không tính mới tạo).")]
         decimal PaidAmount,
-        [SwaggerSchema("Số tiền còn lại chưa thanh toán (chỉ trừ payments có status SUCCESS, không trừ mới tạo).")]
+        [property: SwaggerSchema("Số tiền còn lại chưa thanh toán (chỉ trừ payments có status SUCCESS, không trừ mới tạo).")]
         decimal RemainingAmount,
+        [property: SwaggerSchema("Số tiền thừa/hoàn lại của toàn bộ hóa đơn.")]
+        decimal RefundAmount,
+        bool IsFullyPaid,
         DateTime CreatedAt);
 
     internal sealed class Validator : AbstractValidator<Command>
@@ -51,6 +55,7 @@ public static class CreateQrPayment
         IDbContext dbContext,
         ICurrentStaff currentStaff,
         IQrPaymentGateway gateway,
+        IRefreshPaymentTotalsService refreshService,
         IDateTimeProvider clock) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
@@ -67,9 +72,7 @@ public static class CreateQrPayment
             if (ticket.Status != TicketStatus.Open)
                 return Result.Failure<Response>(PaymentErrors.TicketNotOpen);
 
-            var total = ticket.TotalAmount;
-            var paid = ticket.PaidAmount;
-            var remainingAmount = total - paid;
+            var remainingAmount = ticket.TotalAmount - ticket.PaidAmount;
 
             if (remainingAmount <= 0)
                 return Result.Failure<Response>(PaymentErrors.NothingToPay);
@@ -111,6 +114,9 @@ public static class CreateQrPayment
                 return Result.Failure<Response>(PaymentErrors.ConcurrencyConflict);
             }
 
+            await refreshService.RefreshAsync(ticket.Id, ct);
+            await dbContext.SaveChangesAsync(ct);
+
             var reference = gateway.BuildReferenceCode(payment.Id);
             var qr = gateway.BuildQrCode(reference, payment.Amount);
 
@@ -127,11 +133,16 @@ public static class CreateQrPayment
             });
             await dbContext.SaveChangesAsync(ct);
 
+            var finalRemaining = ticket.TotalAmount - ticket.PaidAmount;
+
             return Result.Success(new Response(
                 payment.Id, ticket.Id, payment.Amount, payment.Status,
                 qr.ReferenceCode, qr.QrImageUrl, qr.AccountNumber, qr.BankCode, qr.AccountName,
-                total, paid,
+                ticket.TotalAmount,
+                ticket.PaidAmount,
                 remainingAmount < 0 ? 0 : remainingAmount,
+                ticket.RefundAmount,
+                finalRemaining <= 0,
                 now));
         }
     }

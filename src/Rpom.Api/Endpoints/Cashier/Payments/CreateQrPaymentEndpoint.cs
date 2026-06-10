@@ -18,6 +18,7 @@ internal sealed class CreateQrPaymentEndpoint : IEndpoint
                 return result.MatchCreated(r => $"/api/tickets/{ticketId}/payments/{r.PaymentId}");
             })
             .RequireAuthorization(Permissions.PaymentQr)
+            .Produces<ApiResult<CreateQrPayment.Response>>(StatusCodes.Status201Created)
             .WithTags("Payments")
             .WithName("CreateQrPayment")
             .WithSummary("Create a PENDING QR payment and return the VietQR (SePay) for the customer to scan.");

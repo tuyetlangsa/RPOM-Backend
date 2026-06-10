@@ -50,4 +50,16 @@ public static class PaymentErrors
     public static readonly Error PendingPaymentExists = Error.Conflict(
     "Payment.PendingPaymentExists",
     "Hóa đơn đang có một giao dịch chờ thanh toán. Vui lòng hoàn tất hoặc hủy giao dịch đó trước.");
+
+    public static readonly Error PaymentNotCash = Error.BadRequest(
+        "Payment.PaymentNotCash",
+        "Chỉ có thể xoá giao dịch thanh toán bằng tiền mặt.");
+
+    public static readonly Error PaymentNotSuccess = Error.Conflict(
+        "Payment.PaymentNotSuccess",
+        "Chỉ có thể xoá giao dịch đã thanh toán thành công (SUCCESS).");
+
+    public static readonly Error PaymentNotDeletableNegative = Error.BadRequest(
+        "Payment.PaymentNotDeletableNegative",
+        "Không thể xoá trực tiếp dòng tiền âm (tiền thối/hoàn). Hãy xoá dòng thanh toán gốc — dòng tiền thối sẽ tự bị xoá theo.");
 }

@@ -4,8 +4,7 @@ public sealed class SePayOptions
 {
     public const string SectionName = "SePay";
 
-    /// <summary>Webhook shared secret. Required for the webhook to accept calls.</summary>
-    //public string ApiKey { get; set; } = string.Empty;
+    public string WebhookSecret { get; set; } = string.Empty;
 
     public string AccountNumber { get; set; } = string.Empty;
 

@@ -1,4 +1,6 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Options;
 using Rpom.Application.Abstraction.Payments;
@@ -58,7 +60,9 @@ internal sealed class SePayQrPaymentGateway : IQrPaymentGateway
             $"&acc={Uri.EscapeDataString(_options.AccountNumber)}" +
             $"&template=compact" +
             $"&amount={Uri.EscapeDataString(amountText)}" +
-            $"&des={Uri.EscapeDataString(referenceCode)}";
+            $"&des={Uri.EscapeDataString(referenceCode)}" +
+            $"&showinfo=true" +
+            $"&store=NHA%20HANG%20RPOM";
 
         return new QrCodeDescriptor(
             referenceCode,
@@ -69,25 +73,35 @@ internal sealed class SePayQrPaymentGateway : IQrPaymentGateway
             amount);
     }
 
-    //public bool VerifyWebhookApiKey(string? authorizationHeader)
-    //{
-    //    if (string.IsNullOrWhiteSpace(_options.ApiKey)) return false;
-    //    if (string.IsNullOrWhiteSpace(authorizationHeader)) return false;
+    public bool VerifyWebhookSignature(string? rawBody, string? signatureHeader, string? timestampHeader)
+    {
+        if (string.IsNullOrWhiteSpace(_options.WebhookSecret)) return false;
+        if (string.IsNullOrWhiteSpace(rawBody)) return false;
+        if (string.IsNullOrWhiteSpace(signatureHeader)) return false;
+        if (string.IsNullOrWhiteSpace(timestampHeader)) return false;
 
-    //    // SePay sends "Authorization: Apikey <key>".
-    //    var value = authorizationHeader.Trim();
-    //    const string scheme = "Apikey ";
-    //    if (value.StartsWith(scheme, StringComparison.OrdinalIgnoreCase))
-    //        value = value[scheme.Length..].Trim();
+        // Chống replay: timestamp (unix seconds) phải nằm trong ±5 phút so với hiện tại.
+        if (!long.TryParse(timestampHeader.Trim(), NumberStyles.Integer,
+                CultureInfo.InvariantCulture, out var ts))
+            return false;
+        var nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+        if (Math.Abs(nowUnix - ts) > 300) return false;
 
-    //    return CryptographicEquals(value, _options.ApiKey);
-    //}
+        // SePay ký HMAC-SHA256 trên chuỗi "{timestamp}.{raw_body}" với Secret Key,
+        // gửi kèm header X-SePay-Signature: sha256={hex}. Phải dùng RAW body gốc.
+        var signingString = $"{timestampHeader.Trim()}.{rawBody}";
+        var keyBytes = Encoding.UTF8.GetBytes(_options.WebhookSecret);
+        var hashBytes = HMACSHA256.HashData(keyBytes, Encoding.UTF8.GetBytes(signingString));
+        var expected = "sha256=" + Convert.ToHexString(hashBytes).ToLowerInvariant();
+
+        // So sánh timing-safe.
+        return CryptographicEquals(signatureHeader.Trim(), expected);
+    }
 
     private static bool CryptographicEquals(string a, string b)
     {
-        if (a.Length != b.Length) return false;
-        var diff = 0;
-        for (var i = 0; i < a.Length; i++) diff |= a[i] ^ b[i];
-        return diff == 0;
+        var aBytes = Encoding.UTF8.GetBytes(a);
+        var bBytes = Encoding.UTF8.GetBytes(b);
+        return CryptographicOperations.FixedTimeEquals(aBytes, bBytes);
     }
 }
