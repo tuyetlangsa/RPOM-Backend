@@ -18,7 +18,7 @@ internal sealed class OpenCashDrawerEndpoint : IEndpoint
                         .Select(c => new OpenCashDrawer.CashCountInput(c.DenominationId, c.Quantity))
                         .ToList();
                     Result<OpenCashDrawer.Response> result = await sender.Send(
-                        new OpenCashDrawer.Command(request.CounterId, counts, request.Notes), ct);
+                        new OpenCashDrawer.Command(request.CounterId, request.ShiftId, counts, request.Notes), ct);
                     return result.MatchCreated(r => $"/api/cash-drawers/{r.Id}");
                 })
             .RequireAuthorization(Permissions.CashDrawerOpen)
@@ -29,13 +29,14 @@ internal sealed class OpenCashDrawerEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Open a new cash drawer session for a counter.")
             .WithDescription("""
-    Request: JSON body { counterId:int, openingCashCounts:[{ denominationId:int, quantity:int }],
+    Request: JSON body { counterId:int, shiftId:int, openingCashCounts:[{ denominationId:int, quantity:int }],
     notes?:string }. Response: 201 Created — Location header; JSON body with new session id.
 """);
     }
 
     internal sealed record Request(
         int CounterId,
+        int ShiftId,
         IReadOnlyList<CashCountInput> OpeningCashCounts,
         string? Notes);
 

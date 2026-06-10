@@ -17,13 +17,14 @@ namespace Rpom.Application.Cashier.OpenTicket;
 
 /// <summary>
 ///     Open a new ticket on a table. counterId/areaId are derived from the table (authoritative);
-///     shiftId comes from the request (client chose counter+shift at login). Snapshots the area's
-///     service-charge percents, marks the table OCCUPIED, and bumps FLOOR_PLAN. Requires the caller
-///     to hold the table operation lock. Multiple OPEN tickets per table are allowed (split bills).
+///     shiftId + cashDrawerSessionId are derived from the OPEN cash drawer at that counter (the
+///     drawer carries the shift chosen when it was opened). Snapshots the area's service-charge
+///     percents, marks the table OCCUPIED, and bumps FLOOR_PLAN. Requires the caller to hold the
+///     table operation lock. Multiple OPEN tickets per table are allowed (split bills).
 /// </summary>
 public static class OpenTicket
 {
-    public sealed record Command(int TableId, short GuestCount, int ShiftId, string? Notes)
+    public sealed record Command(int TableId, short GuestCount, string? Notes)
         : ICommand<Response>;
 
     public sealed record Response(long TicketId, string Code);
@@ -33,7 +34,6 @@ public static class OpenTicket
         public Validator()
         {
             RuleFor(x => x.TableId).GreaterThan(0);
-            RuleFor(x => x.ShiftId).GreaterThan(0);
             RuleFor(x => x.GuestCount).GreaterThan((short)0);
         }
     }
@@ -73,17 +73,11 @@ public static class OpenTicket
 
             var drawer = await db.CashDrawerSessions
                 .Where(d => d.CounterId == table.CounterId && d.Status == CashDrawerStatus.Open)
-                .Select(d => new { d.Id })
+                .Select(d => new { d.Id, d.ShiftId })
                 .FirstOrDefaultAsync(ct);
             if (drawer is null)
             {
                 return Result.Failure<Response>(TicketErrors.NoOpenCashDrawer);
-            }
-
-            bool shiftExists = await db.Shifts.AnyAsync(s => s.Id == request.ShiftId, ct);
-            if (!shiftExists)
-            {
-                return Result.Failure<Response>(TicketErrors.ShiftNotFound);
             }
 
             DateTime now = clock.UtcNow;
@@ -94,7 +88,7 @@ public static class OpenTicket
                 AreaId = table.AreaId,
                 CounterId = table.CounterId,
                 CashDrawerSessionId = drawer.Id,
-                ShiftId = request.ShiftId,
+                ShiftId = drawer.ShiftId,
                 GuestCount = request.GuestCount,
                 WaiterStaffId = staffId,
                 Status = TicketStatus.Open,

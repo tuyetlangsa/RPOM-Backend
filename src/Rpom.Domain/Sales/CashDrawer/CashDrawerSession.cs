@@ -1,5 +1,6 @@
 using Rpom.Domain.Access;
 using Rpom.Domain.Common;
+using Rpom.Domain.Operations;
 using Rpom.Domain.Restaurant;
 
 namespace Rpom.Domain.Sales.CashDrawer;
@@ -27,6 +28,9 @@ public class CashDrawerSession : Entity
 
     /// <summary>Counter this drawer belongs to.</summary>
     public int CounterId { get; set; }
+
+    /// <summary>Work shift this drawer session runs under — chosen when opening the drawer.</summary>
+    public int ShiftId { get; set; }
 
     /// <summary>Staff who opened the drawer (audit).</summary>
     public int OpenedByStaffAccountId { get; set; }
@@ -63,6 +67,7 @@ public class CashDrawerSession : Entity
     public int Version { get; set; }
 
     public virtual Counter Counter { get; set; } = null!;
+    public virtual Shift Shift { get; set; } = null!;
     public virtual StaffAccount OpenedByStaff { get; set; } = null!;
     public virtual StaffAccount? ClosedByStaff { get; set; }
     public virtual ICollection<CashDrawerCashCount> CashCounts { get; set; } = new List<CashDrawerCashCount>();

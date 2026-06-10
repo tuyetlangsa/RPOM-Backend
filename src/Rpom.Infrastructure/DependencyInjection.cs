@@ -46,7 +46,18 @@ public static class DependencyInjection
             .AddHealthChecks(configuration)
             .AddAuthenticationInternal(configuration)
             .AddAuthorizationInternal()
+            .AddPayments(configuration)
             .AddSeeding(configuration);
+    }
+
+    private static IServiceCollection AddPayments(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.Configure<Payments.SePayOptions>(
+            configuration.GetSection(Payments.SePayOptions.SectionName));
+        services.AddScoped<
+            Application.Abstraction.Payments.IQrPaymentGateway,
+            Payments.SePayQrPaymentGateway>();
+        return services;
     }
 
     private static IServiceCollection AddSeeding(this IServiceCollection services, IConfiguration configuration)
@@ -54,6 +65,7 @@ public static class DependencyInjection
         services.Configure<BootstrapOptions>(configuration.GetSection(BootstrapOptions.SectionName));
         services.AddSingleton<AccessSeeder>();
         services.AddSingleton<LookupSeeder>();
+        services.AddSingleton<CashierDemoSeeder>();
         services.AddSingleton<ConfigValueSeeder>();
         services.AddSingleton<RoundingConfigSeeder>();
         return services;
@@ -62,6 +74,7 @@ public static class DependencyInjection
     private static IServiceCollection AddDatabase(this IServiceCollection services, IConfiguration configuration)
     {
         services.TryAddSingleton<InsertOutboxMessagesInterceptor>();
+        services.TryAddSingleton<ConcurrencyVersionInterceptor>();
 
         services.AddDbContext<IDbContext, ApplicationDbContext>((sp, options) =>
             options
@@ -72,7 +85,9 @@ public static class DependencyInjection
                         .MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Default)
                         .UseVector())
                 .UseSnakeCaseNamingConvention()
-                .AddInterceptors(sp.GetRequiredService<InsertOutboxMessagesInterceptor>()));
+                .AddInterceptors(
+                    sp.GetRequiredService<InsertOutboxMessagesInterceptor>(),
+                    sp.GetRequiredService<ConcurrencyVersionInterceptor>()));
 
         services.Configure<OutboxOptions>(configuration.GetSection("Rpom:Outbox"));
         services.ConfigureOptions<ConfigureProcessOutboxJob>();

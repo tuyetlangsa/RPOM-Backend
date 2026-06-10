@@ -35,7 +35,11 @@ public class TicketPaymentDetail : Entity
     /// <summary>Poll cursor — async QR vendor callback updates.</summary>
     public DateTime UpdatedAt { get; set; }
 
+    public long? ParentPaymentDetailId { get; set; }
+
     public virtual Ticket Ticket { get; set; } = null!;
     public virtual PaymentMethod PaymentMethod { get; set; } = null!;
     public virtual StaffAccount ProcessedByStaff { get; set; } = null!;
+    public virtual TicketPaymentDetail? ParentPaymentDetail { get; set; }
+    public virtual ICollection<TicketPaymentDetail> ChildPaymentDetails { get; set; } = new List<TicketPaymentDetail>();
 }

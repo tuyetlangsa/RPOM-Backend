@@ -17,6 +17,8 @@ public static class GetCurrentCashDrawer
     public sealed record Response(
         long Id,
         int CounterId,
+        int ShiftId,
+        string ShiftName,
         int OpenedByStaffAccountId,
         string OpenedByStaffName,
         DateTime OpenedAt,
@@ -31,7 +33,8 @@ public static class GetCurrentCashDrawer
             Response? row = await dbContext.CashDrawerSessions
                 .Where(x => x.CounterId == request.CounterId && x.Status == CashDrawerStatus.Open)
                 .Select(x => new Response(
-                    x.Id, x.CounterId, x.OpenedByStaffAccountId,
+                    x.Id, x.CounterId, x.ShiftId, x.Shift.Name,
+                    x.OpenedByStaffAccountId,
                     x.OpenedByStaff.FullName,
                     x.OpenedAt, x.OpeningCash, x.Status, x.Notes))
                 .FirstOrDefaultAsync(ct);

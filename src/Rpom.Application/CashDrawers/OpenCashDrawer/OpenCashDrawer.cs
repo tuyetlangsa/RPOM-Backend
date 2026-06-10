@@ -24,6 +24,7 @@ public static class OpenCashDrawer
 
     public sealed record Command(
         int CounterId,
+        int ShiftId,
         IReadOnlyList<CashCountInput> OpeningCashCounts,
         string? Notes) : ICommand<Response>;
 
@@ -43,6 +44,7 @@ public static class OpenCashDrawer
         public Validator()
         {
             RuleFor(x => x.CounterId).GreaterThan(0);
+            RuleFor(x => x.ShiftId).GreaterThan(0);
             RuleFor(x => x.OpeningCashCounts).NotEmpty();
             RuleForEach(x => x.OpeningCashCounts).ChildRules(c =>
             {
@@ -75,6 +77,14 @@ public static class OpenCashDrawer
                 return Result.Failure<Response>(CashDrawerErrors.CounterAlreadyOpen);
             }
 
+            // Work shift must exist + active — Ticket.ShiftId is derived from this session.
+            bool shiftValid = await dbContext.Shifts
+                .AnyAsync(s => s.Id == request.ShiftId && s.IsActive, ct);
+            if (!shiftValid)
+            {
+                return Result.Failure<Response>(CashDrawerErrors.ShiftInvalid);
+            }
+
             // Validate denominations + compute opening cash
             var requestedIds = request.OpeningCashCounts.Select(x => x.DenominationId).Distinct().ToList();
             List<Denomination> denoms = await dbContext.Denominations
@@ -92,6 +102,7 @@ public static class OpenCashDrawer
             var entity = new CashDrawerSession
             {
                 CounterId = request.CounterId,
+                ShiftId = request.ShiftId,
                 OpenedByStaffAccountId = staffId,
                 OpenedAt = now,
                 Status = CashDrawerStatus.Open,
