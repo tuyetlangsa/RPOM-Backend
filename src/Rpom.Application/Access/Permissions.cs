@@ -38,6 +38,7 @@ public static class Permissions
     public const string KdsView = "kds:view";
     public const string OrderItemStartCooking = "order_item:start_cooking";
     public const string OrderItemMarkReady = "order_item:mark_ready";
+    public const string OrderItemMarkDone = "order_item:mark_done";
 
     // ============ Cashier — payment + cash drawer ============
     /// <summary>Open a cash drawer at a counter (count opening cash).</summary>

@@ -23,4 +23,18 @@ public static class ChoiceCategoryErrors
     public static readonly Error DuplicateModifierItem = Error.BadRequest(
         "ChoiceCategory.DuplicateModifierItem",
         "Danh sách modifier có Mặt hàng trùng lặp.");
+
+    public static Error MaxPerModifierExceedsMaxChoice(int itemId, int maxChoice) => Error.BadRequest(
+        "Modifier.MaxPerModifierExceedsMaxChoice",
+        $"MaxPerModifier của Item {itemId} vượt quá MaxChoice ({maxChoice}) của Nhóm lựa chọn. " +
+        "Modifier không thể được chọn đủ số lượng vì bị giới hạn bởi MaxChoice.");
+
+    public static Error MinPerModifierExceedsMaxPerModifier(int itemId) => Error.BadRequest(
+        "Modifier.MinPerModifierExceedsMaxPerModifier",
+        $"MinPerModifier của Item {itemId} lớn hơn MaxPerModifier. Min phải ≤ Max.");
+
+    public static Error MinPerModifierSumExceedsMaxChoice(int sumMin, int maxChoice) => Error.BadRequest(
+        "Modifier.MinPerModifierSumExceedsMaxChoice",
+        $"Tổng MinPerModifier ({sumMin}) của tất cả modifier vượt quá MaxChoice ({maxChoice}) của Nhóm lựa chọn. " +
+        "Không thể thoả mãn tất cả yêu cầu tối thiểu của modifier.");
 }
