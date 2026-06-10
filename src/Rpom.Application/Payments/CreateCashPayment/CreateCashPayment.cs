@@ -7,7 +7,9 @@ using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.User;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
+using Rpom.Domain.Restaurant;
 using Rpom.Domain.Sales;
+using Rpom.Domain.Sales.CashDrawer;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Rpom.Application.Payments.CreateCashPayment;
@@ -78,6 +80,26 @@ public static class CreateCashPayment
                 return Result.Failure<Response>(PaymentErrors.TicketNotFound);
             if (ticket.Status != TicketStatus.Open)
                 return Result.Failure<Response>(PaymentErrors.TicketNotOpen);
+
+            var table = await dbContext.Tables
+                .Where(t => t.Id == ticket.TableId && t.IsActive)
+                .Select(t => new
+                {
+                    t.Id,
+                    t.AreaId,
+                    t.Area.CounterId,
+                    t.Area.ServiceChargePercent,
+                    t.Area.ServiceChargeVatPercent
+                }).FirstOrDefaultAsync(ct);
+
+            var drawer = await dbContext.CashDrawerSessions
+                .Where(d => d.CounterId == table.CounterId && d.Status == CashDrawerStatus.Open)
+                .Select(d => new { d.Id, d.ShiftId })
+                .FirstOrDefaultAsync(ct);
+            if (drawer is null)
+            {
+                return Result.Failure<Response>(PaymentErrors.CashDrawerSessionsNotOpen);
+            }
 
             // Amount = 0 → giao dịch hoàn tiền thuần (thối phần khách đã trả thừa).
             var isRefund = request.Amount == 0m;
