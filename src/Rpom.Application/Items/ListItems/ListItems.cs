@@ -30,6 +30,7 @@ public static class ListItems
         bool IsStockable,
         bool HasRecipe,
         bool IsActive,
+        bool IsSetMenu,
         IReadOnlyList<string> CategoryNames,
         int? PrimaryCategoryId,
         string? PrimaryCategoryName);
@@ -97,6 +98,7 @@ public static class ListItems
                     x.IsStockable,
                     x.HasRecipe,
                     x.IsActive,
+                    IsSetMenu = x.SetMenu != null,
                     CategoryNames = x.ItemCategories.Select(ic => ic.Category.Name).ToList(),
                     PrimaryCategoryId = x.ItemCategories
                         .Where(ic => ic.IsMain)
@@ -110,7 +112,7 @@ public static class ListItems
             var items = rows
                 .Select(r => new Item(
                     r.Id, r.Code, r.Name, r.ImageUrl, r.BaseUomCode, r.VatPercent,
-                    r.IsStockable, r.HasRecipe, r.IsActive,
+                    r.IsStockable, r.HasRecipe, r.IsActive, r.IsSetMenu,
                     r.CategoryNames, r.PrimaryCategoryId, r.PrimaryCategoryName))
                 .ToList();
 

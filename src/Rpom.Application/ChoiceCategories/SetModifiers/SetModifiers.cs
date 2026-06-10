@@ -62,10 +62,49 @@ public static class SetModifiers
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
-            bool ccExists = await db.ChoiceCategories.AnyAsync(c => c.Id == request.ChoiceCategoryId, ct);
-            if (!ccExists)
+            var cc = await db.ChoiceCategories
+                .Where(c => c.Id == request.ChoiceCategoryId)
+                .Select(c => new { c.MinChoice, c.MaxChoice })
+                .FirstOrDefaultAsync(ct);
+            if (cc is null)
             {
                 return Result.Failure<Response>(ChoiceCategoryErrors.NotFound);
+            }
+
+            // A modifier's MaxPerModifier must not exceed the category's MaxChoice.
+            // Otherwise the modifier could never be fully selected (blocked by MaxChoice).
+            if (cc.MaxChoice != null)
+            {
+                var overshoot = request.Modifiers
+                    .Where(m => m.MaxPerModifier > cc.MaxChoice.Value)
+                    .Select(m => m.ItemId).ToList();
+                if (overshoot.Count > 0)
+                {
+                    return Result.Failure<Response>(ChoiceCategoryErrors.MaxPerModifierExceedsMaxChoice(
+                        overshoot.First(), cc.MaxChoice.Value));
+                }
+            }
+
+            // MinPerModifier must not exceed MaxPerModifier on the same modifier row.
+            var inverted = request.Modifiers
+                .Where(m => m.MinPerModifier > m.MaxPerModifier)
+                .Select(m => m.ItemId).ToList();
+            if (inverted.Count > 0)
+            {
+                return Result.Failure<Response>(ChoiceCategoryErrors.MinPerModifierExceedsMaxPerModifier(
+                    inverted.First()));
+            }
+
+            // Sum of MinPerModifier across all modifiers must not exceed MaxChoice.
+            // Otherwise it's impossible to satisfy every modifier's minimum.
+            if (cc.MaxChoice != null && request.Modifiers.Count > 0)
+            {
+                int sumMin = request.Modifiers.Sum(m => m.MinPerModifier);
+                if (sumMin > cc.MaxChoice.Value)
+                {
+                    return Result.Failure<Response>(ChoiceCategoryErrors.MinPerModifierSumExceedsMaxChoice(
+                        sumMin, cc.MaxChoice.Value));
+                }
             }
 
             var itemIds = request.Modifiers.Select(m => m.ItemId).ToList();
