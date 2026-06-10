@@ -132,6 +132,7 @@ public static class GetTicketDetails
         decimal VatItemAmount,
         decimal VatScAmount,
         decimal VatAmount,
+        decimal VatPercent,
         decimal LineTotal,
         string? Notes,
         DateTime CreatedAt,
@@ -361,6 +362,7 @@ public static class GetTicketDetails
                     c.VatItemAmount,
                     c.VatScAmount,
                     c.VatAmount,
+                    c.VatPercent,
                     c.LineTotal,
                     c.Notes,
                     c.CreatedAt,
@@ -380,7 +382,7 @@ public static class GetTicketDetails
             var orderingItems = cartItems.Select(c => new OrderingItem(
                     c.Id, c.OrderId, c.ItemId, c.ItemCode, c.ItemName, c.UomCode, c.UomName,
                     c.Quantity, c.UnitPrice, c.ChoicePricePerUnit, c.LineSubtotal,
-                    c.ServiceChargeAmount, c.VatItemAmount, c.VatScAmount, c.VatAmount, c.LineTotal,
+                    c.ServiceChargeAmount, c.VatItemAmount, c.VatScAmount, c.VatAmount, c.VatPercent, c.LineTotal,
                     c.Notes, c.CreatedAt, c.UpdatedAt,
                     (ciDetailsByItem.GetValueOrDefault(c.Id) ?? new()).Select(d => new ItemComponent(
                         d.ItemId, d.ItemName, d.ComponentType, d.Quantity, d.ExtraPrice, d.Notes)).ToList()))

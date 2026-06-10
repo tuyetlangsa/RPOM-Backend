@@ -122,8 +122,10 @@ public sealed class LookupSeeder(
             {
                 CounterId = counter.Id,
                 Name = "Khu VIP",
-                Description = "Phụ thu 15% — phục vụ riêng",
+                Description = "Phụ thu 5% phục vụ + 8% VAT trên phí",
                 DisplayOrder = 2,
+                ServiceChargePercent = 5m,
+                ServiceChargeVatPercent = 8m,
                 IsActive = true,
                 CreatedAt = now,
                 UpdatedAt = now

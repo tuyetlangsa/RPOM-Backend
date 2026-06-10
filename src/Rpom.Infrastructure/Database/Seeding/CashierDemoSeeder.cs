@@ -37,6 +37,8 @@ public sealed class CashierDemoSeeder(
         await SeedPricingAsync(db, now, ct);
         await SeedAreaMenuCategoriesAsync(db, now, ct);
         await SeedDiscountPoliciesAsync(db, now, ct);
+        await SeedVatIncludedItemsAsync(db, now, ct);
+        await SeedSetMenuDataAsync(db, now, ct);
 
         logger.LogInformation("CashierDemoSeeder finished.");
     }
@@ -100,6 +102,8 @@ public sealed class CashierDemoSeeder(
                 Permissions.TicketOpen,
                 Permissions.OrderAddItems,
                 Permissions.OrderSendKitchen,
+                Permissions.OrderItemCancelPending,
+                Permissions.OrderItemMarkDone,
                 Permissions.TicketApplyDiscount,
                 Permissions.CashDrawerOpen,
                 Permissions.CashDrawerClose,
@@ -353,6 +357,394 @@ public sealed class CashierDemoSeeder(
             });
             db.DiscountPolicies.Add(p2);
         }
+
+        // Policy 3: TICKET_THRESHOLD — bill ≥ 1,000k → giảm 100k cố định (FIXED)
+        var p3 = new DiscountPolicy
+        {
+            Code = "GIAM100",
+            Name = "Bill trên 1 triệu giảm 100k",
+            Description = "Tự động áp dụng khi bill ≥ 1.000.000đ — giảm thẳng 100.000đ",
+            DiscountType = DiscountType.TicketThreshold,
+            IsAutoApply = true,
+            DaysOfWeek = null,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        p3.Conditions.Add(new DiscountPolicyCondition
+        {
+            DiscountPolicy = p3,
+            ThresholdAmount = 1_000_000m,
+            AreaId = null,
+            ApplyType = DiscountApplyType.Fixed,
+            DiscountValue = 100_000m,
+            DisplayOrder = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        // Policy 4: QUANTITY_ITEM — 3 Phở → giảm 30k (FIXED per-item)
+        Item? phoItem = await db.Items.FirstOrDefaultAsync(i => i.Code == "PHO_BO_TAI", ct);
+        if (phoItem is not null)
+        {
+            var p4 = new DiscountPolicy
+            {
+                Code = "GIAM_PHO",
+                Name = "Mua 3 Phở giảm 30k",
+                Description = "Khách mua ≥ 3 Phở bò tái → giảm 30.000đ tiền phở",
+                DiscountType = DiscountType.QuantityItem,
+                IsAutoApply = false,
+                DaysOfWeek = null,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            p4.Conditions.Add(new DiscountPolicyCondition
+            {
+                DiscountPolicy = p4,
+                ItemId = phoItem.Id,
+                QuantityThreshold = 3m,
+                AreaId = null,
+                ApplyType = DiscountApplyType.Fixed,
+                DiscountValue = 30_000m,
+                DisplayOrder = 1,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+            db.DiscountPolicies.Add(p4);
+        }
+
+        // Policy 5: TICKET_THRESHOLD — bill ≥ 500k, chỉ áp dụng T2-T6 (manual, PERCENT)
+        var p5 = new DiscountPolicy
+        {
+            Code = "GIAM_TUAN",
+            Name = "Bill 500k giảm 5% (T2-T6)",
+            Description = "Áp dụng tay, bill ≥ 500k vào thứ 2-6 → giảm 5%",
+            DiscountType = DiscountType.TicketThreshold,
+            IsAutoApply = false,
+            DaysOfWeek = "1,2,3,4,5", // Mon-Fri
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        p5.Conditions.Add(new DiscountPolicyCondition
+        {
+            DiscountPolicy = p5,
+            ThresholdAmount = 500_000m,
+            AreaId = null,
+            ApplyType = DiscountApplyType.Percent,
+            DiscountValue = 5m,
+            DisplayOrder = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        db.DiscountPolicies.AddRange(p3, p5);
+        await db.SaveChangesAsync(ct);
+    }
+
+    // ─── VAT-included Items ────────────────────────────────────────────────────
+
+    private static async Task SeedVatIncludedItemsAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        if (await db.Items.AnyAsync(i => i.Code == "TRA_DA", ct)) return; // already seeded
+
+        var variant = await db.PriceVariants.FirstAsync(v => v.Code == "PV-BASE", ct);
+        var catNuoc = await db.Categories.FirstAsync(c => c.Code == "DOUONG_NGOT", ct);
+        var uom = await db.Uoms.FirstAsync(u => u.Code == "ly", ct);
+
+        // Trà đá — giá 5,000đ đã bao gồm VAT 10% → basePrice ≈ 4,545
+        var traDa = new Item
+        {
+            Code = "TRA_DA",
+            Name = "Trà đá (giá đã VAT)",
+            BaseUom = uom,
+            VatPercent = 10m,
+            IsStockable = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.Items.Add(traDa);
+        await db.SaveChangesAsync(ct);
+
+        db.ItemCategories.Add(new ItemCategory { ItemId = traDa.Id, CategoryId = catNuoc.Id, IsMain = true, CreatedAt = now });
+        db.PriceEntries.Add(new PriceEntry
+        {
+            PriceVariantId = variant.Id,
+            ItemId = traDa.Id,
+            Price = 5_000m,
+            IsVatIncluded = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        // Cà phê đen — giá 20,000đ đã bao gồm VAT 8% → basePrice ≈ 18,519
+        var caPhe = new Item
+        {
+            Code = "CA_PHE",
+            Name = "Cà phê đen (giá đã VAT)",
+            BaseUom = uom,
+            VatPercent = 8m,
+            IsStockable = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.Items.Add(caPhe);
+        await db.SaveChangesAsync(ct);
+
+        db.ItemCategories.Add(new ItemCategory { ItemId = caPhe.Id, CategoryId = catNuoc.Id, IsMain = true, CreatedAt = now });
+        db.PriceEntries.Add(new PriceEntry
+        {
+            PriceVariantId = variant.Id,
+            ItemId = caPhe.Id,
+            Price = 20_000m,
+            IsVatIncluded = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    // ─── Set Menu Data ─────────────────────────────────────────────────────────
+
+    private static async Task SeedSetMenuDataAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        if (await db.SetMenuDetails.AnyAsync(ct)) return;
+
+        // Existing items for components and modifiers.
+        var comGa = await db.Items.FirstAsync(i => i.Code == "COM_GA_XOI_MO", ct);
+        var coca = await db.Items.FirstAsync(i => i.Code == "COCA_LON", ct);
+        var pepsi = await db.Items.FirstAsync(i => i.Code == "PEPSI_LON", ct);
+        var nuocSuoi = await db.Items.FirstAsync(i => i.Code == "NUOC_LAVIE", ct);
+        var pho = await db.Items.FirstAsync(i => i.Code == "PHO_BO_TAI", ct);
+        var goiCuon = await db.Items.FirstAsync(i => i.Code == "GOI_CUON", ct);
+        var flan = await db.Items.FirstAsync(i => i.Code == "FLAN", ct);
+
+        // ── ChoiceCategory: "Đổi nước" (for Combo Gà) ──
+        var doiNuoc = new ChoiceCategory
+        {
+            Name = "Đổi nước",
+            MinChoice = 0,
+            MaxChoice = 1,
+            DisplayOrder = 1,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.ChoiceCategories.Add(doiNuoc);
+        await db.SaveChangesAsync(ct);
+
+        db.Modifiers.Add(new Modifier
+        {
+            ChoiceCategoryId = doiNuoc.Id,
+            ItemId = pepsi.Id,
+            ExtraPrice = 0m,
+            MinPerModifier = 0,
+            MaxPerModifier = 1,
+            DisplayOrder = 1,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+        db.Modifiers.Add(new Modifier
+        {
+            ChoiceCategoryId = doiNuoc.Id,
+            ItemId = nuocSuoi.Id,
+            ExtraPrice = 0m,
+            MinPerModifier = 0,
+            MaxPerModifier = 1,
+            DisplayOrder = 2,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        // ── ChoiceCategory: "Thêm món" (for Combo Phở) ──
+        var themMon = new ChoiceCategory
+        {
+            Name = "Thêm món",
+            MinChoice = 0,
+            MaxChoice = 2,
+            DisplayOrder = 1,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.ChoiceCategories.Add(themMon);
+        await db.SaveChangesAsync(ct);
+
+        db.Modifiers.Add(new Modifier
+        {
+            ChoiceCategoryId = themMon.Id,
+            ItemId = goiCuon.Id,
+            ExtraPrice = 15_000m,
+            MinPerModifier = 0,
+            MaxPerModifier = 2,
+            DisplayOrder = 1,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+        db.Modifiers.Add(new Modifier
+        {
+            ChoiceCategoryId = themMon.Id,
+            ItemId = flan.Id,
+            ExtraPrice = 10_000m,
+            MinPerModifier = 0,
+            MaxPerModifier = 2,
+            DisplayOrder = 2,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+        await db.SaveChangesAsync(ct);
+
+        // ── SetMenu items ──
+
+        // Combo Gà xối mỡ
+        var comboGa = new Item
+        {
+            Code = "COMBO_GA",
+            Name = "Combo Gà xối mỡ",
+            BaseUomId = comGa.BaseUomId,
+            VatPercent = 8m,
+            IsStockable = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.Items.Add(comboGa);
+        await db.SaveChangesAsync(ct);
+
+        // Link to category "Cơm" (MC_COM)
+        var catCom = await db.Categories.FirstAsync(c => c.Code == "MC_COM", ct);
+        db.ItemCategories.Add(new ItemCategory
+        {
+            ItemId = comboGa.Id,
+            CategoryId = catCom.Id,
+            IsMain = true,
+            CreatedAt = now,
+        });
+
+        // Price entry
+        var variant = await db.PriceVariants.FirstAsync(v => v.Code == "PV-BASE", ct);
+        db.PriceEntries.Add(new PriceEntry
+        {
+            PriceVariantId = variant.Id,
+            ItemId = comboGa.Id,
+            Price = 80_000m,
+            IsVatIncluded = false,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        // SetMenu row
+        db.SetMenus.Add(new SetMenu
+        {
+            ItemId = comboGa.Id,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+        await db.SaveChangesAsync(ct);
+
+        // SetMenuDetails
+        db.SetMenuDetails.Add(new SetMenuDetail
+        {
+            SetMenuItemId = comboGa.Id,
+            DetailType = SetMenuDetailType.Component,
+            ComponentItemId = comGa.Id,
+            Quantity = 1m,
+            IsFixed = true,
+            DisplayOrder = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+        db.SetMenuDetails.Add(new SetMenuDetail
+        {
+            SetMenuItemId = comboGa.Id,
+            DetailType = SetMenuDetailType.Component,
+            ComponentItemId = coca.Id,
+            Quantity = 1m,
+            IsFixed = true,
+            DisplayOrder = 2,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+        db.SetMenuDetails.Add(new SetMenuDetail
+        {
+            SetMenuItemId = comboGa.Id,
+            DetailType = SetMenuDetailType.ChoiceCategory,
+            ChoiceCategoryId = doiNuoc.Id,
+            DisplayOrder = 3,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        // Combo Phở
+        var comboPho = new Item
+        {
+            Code = "COMBO_PHO",
+            Name = "Combo Phở bò tái",
+            BaseUomId = pho.BaseUomId,
+            VatPercent = 8m,
+            IsStockable = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.Items.Add(comboPho);
+        await db.SaveChangesAsync(ct);
+
+        var catPho = await db.Categories.FirstAsync(c => c.Code == "MC_PHO", ct);
+        db.ItemCategories.Add(new ItemCategory
+        {
+            ItemId = comboPho.Id,
+            CategoryId = catPho.Id,
+            IsMain = true,
+            CreatedAt = now,
+        });
+
+        db.PriceEntries.Add(new PriceEntry
+        {
+            PriceVariantId = variant.Id,
+            ItemId = comboPho.Id,
+            Price = 65_000m,
+            IsVatIncluded = false,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+
+        db.SetMenus.Add(new SetMenu
+        {
+            ItemId = comboPho.Id,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+        await db.SaveChangesAsync(ct);
+
+        db.SetMenuDetails.Add(new SetMenuDetail
+        {
+            SetMenuItemId = comboPho.Id,
+            DetailType = SetMenuDetailType.Component,
+            ComponentItemId = pho.Id,
+            Quantity = 1m,
+            IsFixed = true,
+            DisplayOrder = 1,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
+        db.SetMenuDetails.Add(new SetMenuDetail
+        {
+            SetMenuItemId = comboPho.Id,
+            DetailType = SetMenuDetailType.ChoiceCategory,
+            ChoiceCategoryId = themMon.Id,
+            DisplayOrder = 2,
+            CreatedAt = now,
+            UpdatedAt = now,
+        });
 
         await db.SaveChangesAsync(ct);
     }

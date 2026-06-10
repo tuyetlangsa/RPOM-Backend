@@ -66,6 +66,9 @@ public static class SetMenuValidator
                 return Invalid;
             }
 
+            // Aggregate qty by modifier before checking — prevents bypassing MaxPerModifier
+            // by sending the same modifier in multiple detail rows.
+            var qtyByMod = new Dictionary<int, decimal>();
             foreach (Selection sel in sels)
             {
                 if (!modById.TryGetValue(sel.ItemId, out ModifierSpec? mod))
@@ -73,12 +76,19 @@ public static class SetMenuValidator
                     return Invalid; // not an option of this CC
                 }
 
-                if (sel.Quantity < mod.MinPerModifier || sel.Quantity > mod.MaxPerModifier)
+                decimal agg = qtyByMod.GetValueOrDefault(sel.ItemId, 0m) + sel.Quantity;
+                qtyByMod[sel.ItemId] = agg;
+
+                if (agg < mod.MinPerModifier || agg > mod.MaxPerModifier)
                 {
                     return Invalid;
                 }
+            }
 
-                choicePrice += mod.ExtraPrice * sel.Quantity;
+            foreach ((int itemId, decimal totalQty) in qtyByMod)
+            {
+                ModifierSpec mod = modById[itemId];
+                choicePrice += mod.ExtraPrice * totalQty;
             }
         }
 
