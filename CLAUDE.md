@@ -418,3 +418,64 @@ tests/
 Cập nhật file này TRƯỚC khi code. Memory sẽ stale, file này là source of truth.
 
 Đổi rule mà chưa update CLAUDE.md → re-apply rule cũ.
+
+---
+
+## 24. Order Item Lifecycle (BLOCKING)
+
+Sau khi SendOrder, OrderItem bắt đầu lifecycle. 4 API batch (`{ orderItemIds: long[] }`):
+
+| Action | Transition | Who | Side effects |
+|---|---|---|---|
+| **StartCook** | PENDING → PROCESSING | Kitchen | Order SENT→PROCESSING |
+| **MarkReady** | PROCESSING → READY | Kitchen | — |
+| **MarkDone** | READY → DONE | Order staff | All terminal → Order DONE |
+| **Cancel** | PENDING → CANCELLED | Order staff | TicketRecompute; All terminal → Order DONE |
+
+**Cancel gọi `TicketRecomputeService`** — xoá item khỏi bill, update Subtotal/VAT/Total.
+**MarkDone/Cancel** check toàn bộ OrderItem trên ticket: nếu tất cả DONE hoặc CANCELLED → Order → DONE.
+Tất cả require table lock + ticket OPEN.
+
+Permissions: `order_item:start_cooking`, `order_item:mark_ready`, `order_item:mark_done`, `order_item:cancel_pending`.
+
+## 25. CashDrawerSession.ShiftId
+
+- Entity `CashDrawerSession.ShiftId` FK → `Shifts.Id` (Restrict). Migration `20260607232923_AddShiftIdToCashDrawerSession`.
+- `OpenCashDrawer.Command` nhận `ShiftId` (validate shift active), lưu vào session.
+- `OpenTicket` **không** nhận ShiftId từ request — tự suy từ OPEN drawer (`drawer.ShiftId`).
+- `GetCurrentCashDrawer.Response` trả `ShiftId` + `ShiftName`.
+
+## 26. GetMenu — Ancestor Categories
+
+Handler trả về categories visible cho area + **ancestor categories** (vd "Đồ uống" là cha của "Bia").
+Sau khi filter `Path.StartsWith`, extract all ancestor IDs từ Path của mỗi visible category, include các ancestor còn thiếu.
+FE dùng `parentId` để build drill-down tree.
+
+## 27. Pricing Pipeline (tham khảo nhanh)
+
+```
+AddCartItem → CartRecomputeService (tính CartItem totals, discount=0)
+SendOrder    → TicketRecomputeService (tính OrderItem → TicketItemSum + Ticket header)
+CancelOrderItem → TicketRecomputeService (tính lại sau cancel)
+ApplyDiscount → TicketRecomputeService (tính lại sau discount)
+```
+
+`PricingCalculator.ComputeLine` dùng chung cho CartRecompute (discount=0) và TicketRecompute (có discount).
+`MenuPricing.ComputePrices` riêng cho GetMenu (strip/thêm VAT).
+
+## 28. SetMenuValidator — Rules
+
+- Fixed components phải có mặt.
+- Modifier qty aggregated trước khi check MinPerModifier ≤ Σqty ≤ MaxPerModifier.
+- MinChoice ≤ distinct modifiers ≤ MaxChoice.
+- SetModifiers handler: `MinPerModifier ≤ MaxPerModifier`, `MaxPerModifier ≤ MaxChoice`, `Σ MinPerModifier ≤ MaxChoice`.
+
+## 29. ListItems — isSetMenu Flag
+
+`GET /api/items?categoryId=&isActive=` trả `isSetMenu: true/false` cho mỗi item.
+Projection: `IsSetMenu = x.SetMenu != null`.
+ERP WinSetMenu dùng flag này để filter + in đậm.
+
+## 30. Changelog
+
+Toàn bộ thay đổi chi tiết: `CHANGES.md` trong repo root.
