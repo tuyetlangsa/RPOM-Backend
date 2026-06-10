@@ -24,6 +24,12 @@ internal sealed class TicketPaymentDetailConfiguration : IEntityTypeConfiguratio
         builder.HasIndex(x => x.TicketId);
         builder.HasIndex(x => new { x.TicketId, x.Status }).HasDatabaseName("ix_ticket_payment_detail_ticket_status");
         builder.HasIndex(x => x.Status);
+        builder.HasIndex(x => x.ParentPaymentDetailId);
+
+        builder.HasOne(x => x.ParentPaymentDetail)
+            .WithMany(x => x.ChildPaymentDetails)
+            .HasForeignKey(x => x.ParentPaymentDetailId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         // Filtered unique: dedup vendor callback retries.
         // Cash payments (TransactionRef=NULL) are exempt — many cash rows per ticket allowed.

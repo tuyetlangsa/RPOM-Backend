@@ -37,6 +37,7 @@ public sealed class LookupSeeder(
         await SeedKitchenStationsAsync(db, now, ct);
         await SeedUomsAsync(db, now, ct);
         await SeedDenominationsAsync(db, now, ct);
+        await SeedPaymentMethodsAsync(db, now, ct);
         await SeedCategoriesAsync(db, now, ct);
         await SeedItemsAsync(db, now, ct);
 
@@ -309,6 +310,31 @@ public sealed class LookupSeeder(
             });
         }
 
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedPaymentMethodsAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        var methods = new (string Code, string Name, string Description, short Order)[]
+        {
+            (PaymentMethodCodes.Cash, "Tiền mặt", "Thanh toán bằng tiền mặt tại quầy", 0),
+            (PaymentMethodCodes.Qr,   "QR - SePay", "Thanh toán chuyển khoản QR qua SePay", 1),
+        };
+        var existing = (await db.PaymentMethods.Select(x => x.Code).ToListAsync(ct)).ToHashSet();
+        foreach (var m in methods)
+        {
+            if (existing.Contains(m.Code)) continue;
+            db.PaymentMethods.Add(new PaymentMethod
+            {
+                Code = m.Code,
+                Name = m.Name,
+                Description = m.Description,
+                DisplayOrder = m.Order,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+        }
         await db.SaveChangesAsync(ct);
     }
 
