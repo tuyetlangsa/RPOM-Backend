@@ -5,9 +5,9 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
-using Rpom.Domain.Restaurant;
 using Rpom.Domain.Sales;
 using Rpom.Domain.Sales.CashDrawer;
 using Swashbuckle.AspNetCore.Annotations;
@@ -18,26 +18,26 @@ public static class CreateCashPayment
 {
     public sealed record Command(
         long TicketId,
-        decimal Amount,
-        decimal ReceivedAmount,
+        long Amount,
+        long ReceivedAmount,
         string? Notes) : ICommand<Response>;
 
     public sealed record Response(
         long PaymentId,
         long TicketId,
         [property: SwaggerSchema("Số tiền khách đưa.")]
-        decimal ReceivedAmount,
+        long ReceivedAmount,
         [property: SwaggerSchema("Số tiền thực tế cấn trừ.")]
-        decimal Amount,
+        long Amount,
         [property: SwaggerSchema("Tiền thối lại cho khách ngay tại giao dịch này.")]
-        decimal ChangeAmount,
+        long ChangeAmount,
         string Status,
-        decimal TotalAmount,
+        long TotalAmount,
         [property: SwaggerSchema("Tổng tiền đã thanh toán của hóa đơn.")]
-        decimal TicketPaidAmount,
-        decimal RemainingAmount,
+        long PaidAmount,
+        long RemainingAmount,
         [property: SwaggerSchema("Số tiền thừa/hoàn lại của toàn bộ hóa đơn.")]
-        decimal RefundAmount,
+        long RefundAmount,
         bool IsFullyPaid,
         DateTime ProcessedAt);
 
@@ -68,7 +68,8 @@ public static class CreateCashPayment
         IDbContext dbContext,
         ICurrentStaff currentStaff,
         IRefreshPaymentTotalsService refreshService,
-        IDateTimeProvider clock) : ICommandHandler<Command, Response>
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
@@ -91,6 +92,8 @@ public static class CreateCashPayment
                     t.Area.ServiceChargePercent,
                     t.Area.ServiceChargeVatPercent
                 }).FirstOrDefaultAsync(ct);
+            if (table is null)
+                return Result.Failure<Response>(PaymentErrors.TicketNotFound);
 
             var drawer = await dbContext.CashDrawerSessions
                 .Where(d => d.CounterId == table.CounterId && d.Status == CashDrawerStatus.Open)
@@ -202,18 +205,20 @@ public static class CreateCashPayment
             await dbContext.SaveChangesAsync(ct);
 
             var finalRemaining = ticket.TotalAmount - ticket.PaidAmount;
+            await versionService.BumpAsync(VersionScopes.FloorPlan, $"Payment.CreateCashPayment(id={payment.Id})", ct);
+            await versionService.BumpAsync(VersionScopes.Pricing, $"Payment.CreateCashPayment(id={payment.Id})", ct);
 
             return Result.Success(new Response(
                 payment.Id,
                 ticket.Id,
                 request.ReceivedAmount,
                 request.Amount,
-                ticket.ChangeAmount,
+                changeAmount,
                 payment.Status,
-                ticket.TotalAmount,
-                ticket.PaidAmount,
-                finalRemaining < 0 ? 0 : finalRemaining,
-                ticket.RefundAmount,
+                (long)ticket.TotalAmount,
+                (long)ticket.PaidAmount,
+                (long)(finalRemaining < 0 ? 0 : finalRemaining),
+                (long)ticket.RefundAmount,
                 finalRemaining <= 0,
                 now));
         }
