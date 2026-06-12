@@ -19,4 +19,12 @@ public static class TicketErrors
     public static readonly Error ShiftNotFound = Error.NotFound(
         "Ticket.ShiftNotFound",
         "Ca làm việc không tồn tại.");
+
+    public static readonly Error NotFullyPaid = Error.Conflict(
+        "Ticket.NotFullyPaid",
+        "Hoá đơn chưa thanh toán đủ — không thể đóng.");
+
+    public static readonly Error HasProcessingOrder = Error.Conflict(
+        "Ticket.HasProcessingOrder",
+        "Hoá đơn còn item đợt gọi món đang chế biến (PROCESSING). Hãy hoàn tất (DONE) hoặc huỷ các món/đợt đó trước khi đóng.");
 }
