@@ -78,6 +78,14 @@ public static class CloseCashDrawer
                 return Result.Failure<Response>(CashDrawerErrors.NotOpen);
             }
 
+            bool hasPendingPayment = await dbContext.TicketPaymentDetails
+                .AnyAsync(p => p.Status == TicketPaymentStatus.Pending
+                               && p.Ticket.CounterId == entity.CounterId, ct);
+            if (hasPendingPayment)
+            {
+                return Result.Failure<Response>(CashDrawerErrors.HasPendingPayment);
+            }
+
             if (request.ClosingCashCounts.Count == 0)
             {
                 return Result.Failure<Response>(CashDrawerErrors.CashCountsRequired);
@@ -112,9 +120,15 @@ public static class CloseCashDrawer
                 });
             }
 
-            // v1: expected = opening (no payment integration yet). Will become
-            // opening + Σ cash payments - Σ change once payment feature lands.
-            decimal expected = entity.OpeningCash;
+            decimal cashNet = await dbContext.TicketPaymentDetails
+                .Where(p => p.Status == TicketPaymentStatus.Success
+                            && p.PaymentMethod.Code == PaymentMethodCodes.Cash
+                            && p.Ticket.CounterId == entity.CounterId
+                            && p.UpdatedAt >= entity.OpenedAt
+                            && p.UpdatedAt <= now)
+                .SumAsync(p => (decimal?)p.Amount, ct) ?? 0m;
+
+            decimal expected = entity.OpeningCash + cashNet;
 
             entity.ClosedByStaffAccountId = staffId;
             entity.ClosedAt = now;

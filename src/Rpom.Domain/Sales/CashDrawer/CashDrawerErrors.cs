@@ -31,4 +31,8 @@ public static class CashDrawerErrors
     public static readonly Error NotOpen = Error.Conflict(
         "CashDrawer.NotOpen",
         "Phiên quầy này đã đóng — không thể thao tác tiếp.");
+
+    public static readonly Error HasPendingPayment = Error.Conflict(
+        "CashDrawer.HasPendingPayment",
+        "Quầy còn giao dịch thanh toán đang chờ (PENDING). Hãy hoàn tất hoặc huỷ trước khi đóng ca.");
 }

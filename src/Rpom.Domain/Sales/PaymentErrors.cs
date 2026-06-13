@@ -62,4 +62,8 @@ public static class PaymentErrors
     public static readonly Error PaymentNotDeletableNegative = Error.BadRequest(
         "Payment.PaymentNotDeletableNegative",
         "Không thể xoá trực tiếp dòng tiền âm (tiền thối/hoàn). Hãy xoá dòng thanh toán gốc — dòng tiền thối sẽ tự bị xoá theo.");
+
+    public static readonly Error CashDrawerSessionsNotOpen = Error.Conflict(
+        "Payment.CashDrawerSessionsNotOpen",
+        "Quầy mở ca tiền mặt đang đóng. Hãy thanh toán khi quầy được mở.");
 }

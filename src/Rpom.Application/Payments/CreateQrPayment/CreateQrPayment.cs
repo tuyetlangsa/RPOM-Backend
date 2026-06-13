@@ -6,21 +6,23 @@ using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.Payments;
 using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Sales;
+using Rpom.Domain.Sales.CashDrawer;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Rpom.Application.Payments.CreateQrPayment;
 public static class CreateQrPayment
 {
-    public sealed record Command(long TicketId, decimal Amount, string? Notes) : ICommand<Response>;
+    public sealed record Command(long TicketId, long Amount, string? Notes) : ICommand<Response>;
 
     public sealed record Response(
         long PaymentId,
         long TicketId,
         [property: SwaggerSchema("Số tiền thanh toán qua QR.")]
-        decimal Amount,
+        long Amount,
         [property: SwaggerSchema("Trạng thái hiện tại của payment (PENDING, SUCCESS, FAILED).")]
         string Status,
         [property: SwaggerSchema("Mã tham chiếu duy nhất để đối soát giao dịch ngân hàng.")]
@@ -31,13 +33,13 @@ public static class CreateQrPayment
         string BankCode,
         string AccountName,
         [property: SwaggerSchema("Tổng số tiền của ticket.")]
-        decimal TotalAmount,
+        long TotalAmount,
         [property: SwaggerSchema("Số tiền đã thanh toán thành công (không tính mới tạo).")]
-        decimal PaidAmount,
+        long PaidAmount,
         [property: SwaggerSchema("Số tiền còn lại chưa thanh toán (chỉ trừ payments có status SUCCESS, không trừ mới tạo).")]
-        decimal RemainingAmount,
+        long RemainingAmount,
         [property: SwaggerSchema("Số tiền thừa/hoàn lại của toàn bộ hóa đơn.")]
-        decimal RefundAmount,
+        long RefundAmount,
         bool IsFullyPaid,
         DateTime CreatedAt);
 
@@ -56,7 +58,8 @@ public static class CreateQrPayment
         ICurrentStaff currentStaff,
         IQrPaymentGateway gateway,
         IRefreshPaymentTotalsService refreshService,
-        IDateTimeProvider clock) : ICommandHandler<Command, Response>
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
@@ -71,6 +74,28 @@ public static class CreateQrPayment
                 return Result.Failure<Response>(PaymentErrors.TicketNotFound);
             if (ticket.Status != TicketStatus.Open)
                 return Result.Failure<Response>(PaymentErrors.TicketNotOpen);
+
+            var table = await dbContext.Tables
+                .Where(t => t.Id == ticket.TableId && t.IsActive)
+                .Select(t => new
+                {
+                    t.Id,
+                    t.AreaId,
+                    t.Area.CounterId,
+                    t.Area.ServiceChargePercent,
+                    t.Area.ServiceChargeVatPercent
+                }).FirstOrDefaultAsync(ct);
+            if (table is null)
+                return Result.Failure<Response>(PaymentErrors.TicketNotFound);
+
+            var drawer = await dbContext.CashDrawerSessions
+                .Where(d => d.CounterId == table.CounterId && d.Status == CashDrawerStatus.Open)
+                .Select(d => new { d.Id, d.ShiftId })
+                .FirstOrDefaultAsync(ct);
+            if (drawer is null)
+            {
+                return Result.Failure<Response>(PaymentErrors.CashDrawerSessionsNotOpen);
+            }
 
             var remainingAmount = ticket.TotalAmount - ticket.PaidAmount;
 
@@ -135,13 +160,16 @@ public static class CreateQrPayment
 
             var finalRemaining = ticket.TotalAmount - ticket.PaidAmount;
 
+            await versionService.BumpAsync(VersionScopes.FloorPlan, $"Payment.CreateQR(id={payment.Id})", ct);
+            await versionService.BumpAsync(VersionScopes.Pricing, $"Payment.CreateQR(id={payment.Id})", ct);
+
             return Result.Success(new Response(
-                payment.Id, ticket.Id, payment.Amount, payment.Status,
+                payment.Id, ticket.Id, (long)payment.Amount, payment.Status,
                 qr.ReferenceCode, qr.QrImageUrl, qr.AccountNumber, qr.BankCode, qr.AccountName,
-                ticket.TotalAmount,
-                ticket.PaidAmount,
-                remainingAmount < 0 ? 0 : remainingAmount,
-                ticket.RefundAmount,
+                (long)ticket.TotalAmount,
+                (long)ticket.PaidAmount,
+                (long)(remainingAmount < 0 ? 0 : remainingAmount),
+                (long)ticket.RefundAmount,
                 finalRemaining <= 0,
                 now));
         }
