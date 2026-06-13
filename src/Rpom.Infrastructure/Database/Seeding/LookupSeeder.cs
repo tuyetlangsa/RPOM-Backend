@@ -219,6 +219,8 @@ public sealed class LookupSeeder(
             ("chai", "Chai", "Đơn vị bán theo chai (nước ngọt, rượu, ...)"),
             ("lon", "Lon", "Đơn vị bán theo lon"),
             ("ly", "Ly", "Đơn vị bán theo ly / cốc"),
+            ("con", "Con", "Đơn vị bán theo con (cua, ghẹ, cá nguyên con)"),
+            ("suat", "Suất", "Đơn vị bán theo suất (combo, set menu)"),
             ("kg", "Kilogam", "Đơn vị khối lượng — gạo, thịt, hải sản tươi"),
             ("g", "Gam", "Đơn vị khối lượng nhỏ — gia vị, rau"),
             ("l", "Lít", "Đơn vị thể tích — bia hơi, nước"),
@@ -329,22 +331,48 @@ public sealed class LookupSeeder(
 
         var subRoots = new (string Code, string Name, short Order, (string Code, string Name)[] Children)[]
         {
-            ("DOUONG", "Đồ uống", 1, new[]
+            ("KHAIVI", "Khai vị", 1, new[]
             {
-                ("DOUONG_BIA", "Bia"),
-                ("DOUONG_NGOT", "Nước ngọt"),
-                ("DOUONG_NUOC", "Nước suối")
+                ("KV_GOI", "Gỏi & Nộm"),
+                ("KV_CHIEN", "Món chiên"),
+                ("KV_CUON", "Cuốn & Khai vị nguội")
             }),
             ("MONCHINH", "Món chính", 2, new[]
             {
                 ("MC_COM", "Cơm"),
-                ("MC_PHO", "Phở / Bún"),
-                ("MC_LAU", "Lẩu")
+                ("MC_PHO", "Phở & Bún"),
+                ("MC_MI", "Mì & Miến")
             }),
-            ("MONPHU", "Món phụ", 3, new[]
+            ("LAUNUONG", "Lẩu & Nướng", 3, new[]
             {
-                ("MP_KHAIVI", "Khai vị"),
-                ("MP_TRANGMIENG", "Tráng miệng")
+                ("LN_LAU", "Lẩu"),
+                ("LN_NUONG", "Nướng / BBQ")
+            }),
+            ("HAISAN", "Hải sản", 4, new[]
+            {
+                ("HS_TOM", "Tôm"),
+                ("HS_CUA", "Cua & Ghẹ"),
+                ("HS_CA", "Cá & Mực")
+            }),
+            ("MONCHAY", "Món chay", 5, new[]
+            {
+                ("MCH_CHAY", "Món chay")
+            }),
+            ("TRANGMIENG", "Tráng miệng", 6, new[]
+            {
+                ("TM_CHE", "Chè"),
+                ("TM_BANH", "Bánh & Kem")
+            }),
+            ("DOUONG", "Đồ uống", 7, new[]
+            {
+                ("DOUONG_BIA", "Bia"),
+                ("DOUONG_NGOT", "Nước ngọt & Nước suối"),
+                ("DU_CAPHE", "Cà phê"),
+                ("DU_TRA", "Trà & Sinh tố")
+            }),
+            ("COMBO", "Combo & Set menu", 8, new[]
+            {
+                ("CB_SET", "Combo")
             })
         };
 
@@ -400,85 +428,196 @@ public sealed class LookupSeeder(
 
         Dictionary<string, int> uomByCode = await db.Uoms.ToDictionaryAsync(u => u.Code, u => u.Id, ct);
         Dictionary<string, int> catByCode = await db.Categories.ToDictionaryAsync(c => c.Code, c => c.Id, ct);
-        KitchenStation? hotStation = await db.KitchenStations.FirstOrDefaultAsync(s => s.Code == "BN", ct);
-        KitchenStation? coldStation = await db.KitchenStations.FirstOrDefaultAsync(s => s.Code == "BL", ct);
+        int? hot = (await db.KitchenStations.FirstOrDefaultAsync(s => s.Code == "BN", ct))?.Id;
+        int? cold = (await db.KitchenStations.FirstOrDefaultAsync(s => s.Code == "BL", ct))?.Id;
 
-        var seeds = new (string Code, string Name, string Uom, decimal Vat, bool Stockable, bool HasRecipe,
-            int? StationId, string PrimaryCategory, string[] SubCategories)[]
-            {
-                ("BIA_HEINEKEN", "Bia Heineken lon", "lon", 10, true, false, coldStation?.Id, "DOUONG_BIA",
-                    Array.Empty<string>()),
-                ("BIA_TIGER", "Bia Tiger lon", "lon", 10, true, false, coldStation?.Id, "DOUONG_BIA",
-                    Array.Empty<string>()),
-                ("COCA_LON", "Coca-Cola lon", "lon", 10, true, false, coldStation?.Id, "DOUONG_NGOT",
-                    Array.Empty<string>()),
-                ("PEPSI_LON", "Pepsi lon", "lon", 10, true, false, coldStation?.Id, "DOUONG_NGOT",
-                    Array.Empty<string>()),
-                ("NUOC_LAVIE", "Nước suối Lavie chai", "chai", 10, true, false, coldStation?.Id, "DOUONG_NUOC",
-                    Array.Empty<string>()),
-                ("COM_GA_XOI_MO", "Cơm gà xối mỡ", "phan", 8, false, true, hotStation?.Id, "MC_COM",
-                    Array.Empty<string>()),
-                ("COM_SUON_BI", "Cơm sườn bì chả", "phan", 8, false, true, hotStation?.Id, "MC_COM",
-                    Array.Empty<string>()),
-                ("PHO_BO_TAI", "Phở bò tái", "to", 8, false, true, hotStation?.Id, "MC_PHO", Array.Empty<string>()),
-                ("BUN_BO_HUE", "Bún bò Huế", "to", 8, false, true, hotStation?.Id, "MC_PHO", Array.Empty<string>()),
-                ("LAU_THAI", "Lẩu Thái", "phan", 8, false, true, hotStation?.Id, "MC_LAU", Array.Empty<string>()),
-                ("GOI_CUON", "Gỏi cuốn tôm thịt", "dia", 8, false, true, hotStation?.Id, "MP_KHAIVI",
-                    Array.Empty<string>()),
-                ("NEM_NUONG", "Nem nướng cuốn bánh", "dia", 8, false, true, hotStation?.Id, "MP_KHAIVI",
-                    Array.Empty<string>()),
-                ("CHE_KHUC_BACH", "Chè khúc bạch", "ly", 8, false, true, coldStation?.Id, "MP_TRANGMIENG",
-                    Array.Empty<string>()),
-                ("FLAN", "Bánh flan", "ly", 8, false, true, coldStation?.Id, "MP_TRANGMIENG", Array.Empty<string>()),
-                ("THIT_BO", "Thịt bò tươi", "kg", 8, true, false, null, "NGUYEN_VAT_LIEU", Array.Empty<string>())
-            };
-
-        foreach ((string Code, string Name, string Uom, decimal Vat, bool Stockable, bool HasRecipe, int? StationId,
-                 string PrimaryCategory, string[] SubCategories) s in seeds)
+        // Per-leaf menu groups: (leaf category code, UOM code, VAT%, kitchen station, dish names).
+        // Item codes are generated as {leafCode}_{index}; combos are seeded separately by CashierDemoSeeder.
+        var groups = new (string Cat, string Uom, decimal Vat, int? Station, string[] Names)[]
         {
-            if (!uomByCode.TryGetValue(s.Uom, out int uomId))
+            ("KV_GOI", "dia", 8, hot, new[]
+            {
+                "Gỏi gà bắp cải", "Gỏi ngó sen tôm thịt", "Gỏi xoài khô bò", "Gỏi đu đủ tôm thịt",
+                "Nộm sứa hoa chuối", "Gỏi bò bóp thấu", "Gỏi cá trích", "Nộm rau muống tai heo",
+                "Gỏi mực chua cay", "Gỏi tôm càng", "Nộm bò khô đu đủ", "Gỏi gà xé phay"
+            }),
+            ("KV_CHIEN", "dia", 8, hot, new[]
+            {
+                "Chả giò rế", "Khoai tây chiên", "Nem chua rán", "Cánh gà chiên mắm",
+                "Mực chiên giòn", "Tôm chiên xù", "Đậu hũ chiên sả", "Chả cá chiên",
+                "Hành tây chiên giòn", "Bánh tôm chiên", "Phô mai que", "Gà popcorn",
+                "Cá viên chiên", "Bạch tuộc chiên giòn"
+            }),
+            ("KV_CUON", "dia", 8, cold, new[]
+            {
+                "Gỏi cuốn tôm thịt", "Bò bía", "Nem nướng cuốn bánh", "Bánh tráng cuốn thịt heo",
+                "Cuốn diếp cá tôm", "Phở cuốn", "Bì cuốn", "Cuốn cá hồi rong biển",
+                "Bánh ướt cuốn", "Cuốn tôm chấy"
+            }),
+            ("MC_COM", "phan", 8, hot, new[]
+            {
+                "Cơm gà xối mỡ", "Cơm sườn bì chả", "Cơm tấm sườn nướng", "Cơm chiên dương châu",
+                "Cơm chiên hải sản", "Cơm gà Hải Nam", "Cơm bò lúc lắc", "Cơm cá kho tộ",
+                "Cơm gà Singapore", "Cơm chiên cá mặn", "Cơm thịt kho trứng", "Cơm gà teriyaki",
+                "Cơm sườn Hàn Quốc", "Cơm tôm rim", "Cơm gà nướng mật ong", "Cơm chiên trứng muối",
+                "Cơm bò xào cải", "Cơm gà sốt nấm", "Cơm sườn ram mặn", "Cơm cá hồi áp chảo"
+            }),
+            ("MC_PHO", "to", 8, hot, new[]
+            {
+                "Phở bò tái", "Phở bò chín", "Phở bò tái nạm", "Phở gà",
+                "Phở sốt vang", "Bún bò Huế", "Bún chả Hà Nội", "Bún riêu cua",
+                "Bún mọc", "Bún thịt nướng", "Bún cá rô đồng", "Hủ tiếu Nam Vang",
+                "Hủ tiếu bò kho", "Bún măng vịt", "Phở trộn", "Bún đậu mắm tôm",
+                "Bún ốc", "Phở khô Gia Lai"
+            }),
+            ("MC_MI", "to", 8, hot, new[]
+            {
+                "Mì xào bò", "Mì xào hải sản", "Mì Quảng", "Miến xào cua",
+                "Mì vịt tiềm", "Mì hoành thánh", "Miến gà", "Mì xào giòn thập cẩm",
+                "Mì cay Hàn Quốc", "Miến lươn", "Mì trộn Indomie", "Mì udon bò"
+            }),
+            ("LN_LAU", "phan", 8, hot, new[]
+            {
+                "Lẩu Thái tôm yum", "Lẩu gà lá é", "Lẩu hải sản", "Lẩu bò nhúng giấm",
+                "Lẩu riêu cua bắp bò", "Lẩu cá kèo", "Lẩu nấm chay", "Lẩu mắm",
+                "Lẩu gà ớt hiểm", "Lẩu Tứ Xuyên", "Lẩu cua đồng", "Lẩu dê",
+                "Lẩu ếch măng cay", "Lẩu cá lăng"
+            }),
+            ("LN_NUONG", "phan", 8, hot, new[]
+            {
+                "Ba chỉ heo nướng", "Bò nướng tảng", "Sườn nướng BBQ", "Gà nướng muối ớt",
+                "Mực nướng sa tế", "Tôm nướng muối ớt", "Cá nướng giấy bạc", "Nầm bò nướng",
+                "Lòng nướng", "Bạch tuộc nướng", "Chân gà nướng", "Sụn gà nướng",
+                "Thịt xiên nướng", "Sò điệp nướng mỡ hành", "Dồi sụn nướng", "Cá hồi nướng",
+                "Bò cuộn nấm kim châm", "Tôm sú nướng phô mai", "Heo tộc nướng", "Ức gà nướng"
+            }),
+            ("HS_TOM", "phan", 8, hot, new[]
+            {
+                "Tôm hấp bia", "Tôm rang me", "Tôm sú hấp nước dừa", "Tôm cháy tỏi",
+                "Tôm hùm nướng phô mai", "Tôm sốt Thái", "Tôm chiên bột", "Tôm rim mặn ngọt",
+                "Tôm hấp sả", "Tôm xào rau củ", "Tôm nướng muối ớt xanh", "Tôm sốt bơ tỏi"
+            }),
+            ("HS_CUA", "con", 8, hot, new[]
+            {
+                "Cua rang me", "Cua sốt ớt Singapore", "Ghẹ hấp bia", "Cua rang muối",
+                "Ghẹ rang me", "Cua hấp", "Càng ghẹ rang muối", "Miến xào cua",
+                "Súp cua", "Ghẹ sốt trứng muối"
+            }),
+            ("HS_CA", "phan", 8, hot, new[]
+            {
+                "Mực hấp gừng", "Mực xào sa tế", "Cá lăng nướng", "Cá diêu hồng hấp Hong Kong",
+                "Cá kho tộ", "Mực một nắng nướng", "Cá basa kho tiêu", "Mực nhồi thịt",
+                "Cá thu sốt cà", "Bạch tuộc xào cay", "Cá hồi sốt teriyaki", "Cá chẽm hấp xì dầu",
+                "Mực trứng hấp", "Cá tầm nướng", "Cá nục kho", "Mực ống nướng"
+            }),
+            ("MCH_CHAY", "phan", 8, hot, new[]
+            {
+                "Đậu hũ sốt nấm", "Rau củ xào thập cẩm", "Cơm chiên chay", "Nấm kho tiêu",
+                "Lẩu nấm chay", "Gỏi cuốn chay", "Mì xào chay", "Canh chua chay",
+                "Đậu hũ chiên sả", "Chả giò chay", "Bún Huế chay", "Cà tím nướng mỡ hành",
+                "Súp rong biển chay", "Cơm tấm chay", "Phở chay", "Nem nướng chay"
+            }),
+            ("TM_CHE", "ly", 8, cold, new[]
+            {
+                "Chè khúc bạch", "Chè ba màu", "Chè thái sầu riêng", "Chè đậu xanh",
+                "Chè bưởi", "Chè hạt sen", "Chè trôi nước", "Chè chuối nước cốt dừa",
+                "Chè khoai môn", "Chè dưỡng nhan", "Sương sáo hạt lựu", "Chè thập cẩm"
+            }),
+            ("TM_BANH", "phan", 8, cold, new[]
+            {
+                "Bánh flan", "Rau câu dừa", "Kem dừa", "Kem chiên",
+                "Bánh tiramisu", "Bánh mousse chanh dây", "Bánh su kem", "Panna cotta",
+                "Bánh chuối nướng", "Kem cốt dừa", "Bánh kẹp lá dứa", "Sữa chua nếp cẩm"
+            }),
+            ("DOUONG_BIA", "lon", 10, cold, new[]
+            {
+                "Bia Heineken lon", "Bia Tiger lon", "Bia Saigon Special", "Bia 333",
+                "Bia Larue", "Bia Budweiser", "Bia Corona", "Bia Tiger Crystal",
+                "Bia Heineken Silver", "Bia Sapporo", "Bia Hà Nội", "Bia Huda"
+            }),
+            ("DOUONG_NGOT", "lon", 10, cold, new[]
+            {
+                "Coca-Cola lon", "Pepsi lon", "7Up lon", "Sprite lon",
+                "Fanta cam", "Mirinda xá xị", "Nước suối Lavie", "Nước suối Aquafina",
+                "Red Bull", "Sting dâu", "Number 1", "C2 trà xanh",
+                "Soda chanh", "Nước cam ép"
+            }),
+            ("DU_CAPHE", "ly", 10, cold, new[]
+            {
+                "Cà phê đen đá", "Cà phê sữa đá", "Bạc xỉu", "Cà phê muối",
+                "Cappuccino", "Latte", "Americano", "Espresso",
+                "Cà phê cốt dừa", "Mocha", "Cà phê trứng", "Caramel Macchiato",
+                "Cold Brew", "Cà phê đen nóng", "Cà phê sữa nóng", "Affogato"
+            }),
+            ("DU_TRA", "ly", 10, cold, new[]
+            {
+                "Trà đào cam sả", "Trà vải", "Trà sữa trân châu", "Trà tắc",
+                "Trà chanh", "Trà ô long", "Sinh tố bơ", "Sinh tố xoài",
+                "Sinh tố dâu", "Nước ép cà rốt", "Nước ép dứa", "Trà gừng mật ong",
+                "Trà hoa cúc", "Soda việt quất", "Sinh tố mãng cầu", "Trà sữa matcha",
+                "Nước ép ổi", "Trà đào hạt chia"
+            })
+        };
+
+        int seq = 1;
+        foreach ((string cat, string uom, decimal vat, int? station, string[] names) in groups)
+        {
+            if (!uomByCode.TryGetValue(uom, out int uomId) || !catByCode.TryGetValue(cat, out int catId))
             {
                 continue;
             }
 
-            if (!catByCode.TryGetValue(s.PrimaryCategory, out int primaryCatId))
+            foreach (string name in names)
             {
-                continue;
-            }
-
-            var item = new Item
-            {
-                Code = s.Code,
-                Name = s.Name,
-                BaseUomId = uomId,
-                VatPercent = s.Vat,
-                IsStockable = s.Stockable,
-                HasRecipe = s.HasRecipe,
-                KitchenStationId = s.StationId,
-                IsActive = true,
-                CreatedAt = now,
-                UpdatedAt = now
-            };
-            item.ItemCategories.Add(new ItemCategory
-            {
-                CategoryId = primaryCatId,
-                IsMain = true,
-                CreatedAt = now
-            });
-            foreach (string subCode in s.SubCategories)
-            {
-                if (catByCode.TryGetValue(subCode, out int subId))
+                bool isDrink = cat is "DOUONG_BIA" or "DOUONG_NGOT";
+                var item = new Item
                 {
-                    item.ItemCategories.Add(new ItemCategory
-                    {
-                        CategoryId = subId,
-                        IsMain = false,
-                        CreatedAt = now
-                    });
-                }
+                    Code = $"{cat}_{seq:D3}",
+                    Name = name,
+                    BaseUomId = uomId,
+                    VatPercent = vat,
+                    IsStockable = isDrink,         // bottled/canned drinks are stock-tracked
+                    HasRecipe = !isDrink,          // cooked dishes have recipes
+                    KitchenStationId = station,
+                    IsActive = true,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                item.ItemCategories.Add(new ItemCategory
+                {
+                    CategoryId = catId,
+                    IsMain = true,
+                    CreatedAt = now
+                });
+                db.Items.Add(item);
+                seq++;
             }
+        }
 
-            db.Items.Add(item);
+        // A couple of raw materials under NGUYEN_VAT_LIEU for stock demos.
+        if (catByCode.TryGetValue("NGUYEN_VAT_LIEU", out int nvlId) && uomByCode.TryGetValue("kg", out int kgId))
+        {
+            foreach ((string code, string name) in new[]
+                     {
+                         ("NVL_THIT_BO", "Thịt bò tươi"), ("NVL_TOM", "Tôm sú tươi"),
+                         ("NVL_RAU", "Rau ăn lẩu")
+                     })
+            {
+                var raw = new Item
+                {
+                    Code = code,
+                    Name = name,
+                    BaseUomId = kgId,
+                    VatPercent = 8m,
+                    IsStockable = true,
+                    HasRecipe = false,
+                    IsActive = true,
+                    CreatedAt = now,
+                    UpdatedAt = now
+                };
+                raw.ItemCategories.Add(new ItemCategory { CategoryId = nvlId, IsMain = true, CreatedAt = now });
+                db.Items.Add(raw);
+            }
         }
 
         await db.SaveChangesAsync(ct);
