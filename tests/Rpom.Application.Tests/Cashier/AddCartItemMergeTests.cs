@@ -182,7 +182,7 @@ public sealed class AddCartItemMergeTests : IAsyncLifetime
 
     private async Task<long> OpenTicketAsync()
     {
-        await new AcquireTableLock.Handler(_ctx, Staff(), Clock(), Version())
+        await new AcquireTableLock.Handler(_ctx, Staff(), Clock(), Version(), Config())
             .Handle(new AcquireTableLock.Command(_tableId), CancellationToken.None);
         var open = await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
             .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None);
@@ -193,9 +193,17 @@ public sealed class AddCartItemMergeTests : IAsyncLifetime
     private AddCartItem.Handler Add() => new(
         _ctx, Staff(), Clock(), Guard(), new MenuPriceResolver(_ctx), Rc(), Cart(), Version());
 
-    private TableOperationGuard Guard() => new(_ctx, Clock());
+    private TableOperationGuard Guard() => new(_ctx, Clock(), Config());
     private CartRecomputeService Cart() => new(_ctx, Rc(), Clock());
     private static IVersionService Version() => Substitute.For<IVersionService>();
+
+    // Null config → typed accessors fall back to defaults (TTL = 60s).
+    private static Rpom.Application.Abstraction.Configuration.IConfigValueService Config()
+    {
+        var c = Substitute.For<Rpom.Application.Abstraction.Configuration.IConfigValueService>();
+        c.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
+        return c;
+    }
 
     private ICurrentStaff Staff()
     {

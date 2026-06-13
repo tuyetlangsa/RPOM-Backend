@@ -225,14 +225,22 @@ public sealed class OrderingLoopTests : IAsyncLifetime
 
     private async Task AcquireLock()
     {
-        await new AcquireTableLock.Handler(_ctx, Staff(), Clock(), Version())
+        await new AcquireTableLock.Handler(_ctx, Staff(), Clock(), Version(), Config())
             .Handle(new AcquireTableLock.Command(_tableId), CancellationToken.None);
     }
 
-    private TableOperationGuard Guard() => new(_ctx, Clock());
+    private TableOperationGuard Guard() => new(_ctx, Clock(), Config());
     private CartRecomputeService Cart() => new(_ctx, Rc(), Clock());
     private TicketRecomputeService TicketRecompute() => new(_ctx, Rc(), Clock());
     private static IVersionService Version() => Substitute.For<IVersionService>();
+
+    // Null config → typed accessors fall back to defaults (TTL = 60s).
+    private static Rpom.Application.Abstraction.Configuration.IConfigValueService Config()
+    {
+        var c = Substitute.For<Rpom.Application.Abstraction.Configuration.IConfigValueService>();
+        c.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
+        return c;
+    }
 
     private ICurrentStaff Staff()
     {

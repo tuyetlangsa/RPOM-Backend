@@ -81,6 +81,8 @@ public static class GetFloorPlan
                 ConfigCodes.ReservationPreBufferMinutes, 30, ct);
             int grace = await config.GetIntAsync(
                 ConfigCodes.ReservationGracePeriodMinutes, 30, ct);
+            int lockTtl = await config.GetIntAsync(
+                ConfigCodes.TableLockTtlSeconds, ITableOperationGuard.DefaultTtlSeconds, ct);
 
             var areas = await db.Areas
                 .Where(a => a.CounterId == counter.Id && a.IsActive)
@@ -142,7 +144,7 @@ public static class GetFloorPlan
                 .ToListAsync(ct);
 
             // Live operation locks on these tables (stale ones filtered in memory).
-            DateTime lockCutoff = now.AddSeconds(-ITableOperationGuard.TtlSeconds);
+            DateTime lockCutoff = now.AddSeconds(-lockTtl);
             var liveLocks = await db.TableLocks
                 .Where(l => tableIds.Contains(l.TableId) && l.LastHeartbeatAt >= lockCutoff)
                 .Select(l => new { l.TableId, l.StaffAccountId, l.StaffName, l.AcquiredAt })
