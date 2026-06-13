@@ -24,5 +24,5 @@ internal sealed class CreateQrPaymentEndpoint : IEndpoint
             .WithSummary("Create a PENDING QR payment and return the VietQR (SePay) for the customer to scan.");
     }
 
-    internal sealed record Request(decimal Amount, string? Notes);
+    internal sealed record Request(long Amount, string? Notes);
 }
