@@ -13,16 +13,16 @@ public static class GetPaymentStatus
         long PaymentId,
         long TicketId,
         string PaymentMethodCode,
-        decimal Amount,
+        long Amount,
         string Status,
         string? TransactionRef,
         DateTime? ProcessedAt,
         DateTime CreatedAt,
         DateTime UpdatedAt,
-        decimal TicketTotalAmount,
-        decimal TicketPaidAmount,
-        decimal RemainingAmount,
-        decimal RefundAmount,
+        long TicketTotalAmount,
+        long TicketPaidAmount,
+        long RemainingAmount,
+        long RefundAmount,
         bool IsFullyPaid);
 
     internal sealed class Handler(IDbContext dbContext) : IQueryHandler<Query, Response>
@@ -58,16 +58,16 @@ public static class GetPaymentStatus
                 row.Id,
                 row.TicketId,
                 row.MethodCode,
-                row.Amount,
+                (long)row.Amount,
                 row.Status,
                 row.TransactionRef,
                 row.ProcessedAt,
                 row.CreatedAt,
                 row.UpdatedAt,
-                row.TicketTotal,
-                row.TicketPaid,
-                remaining < 0 ? 0 : remaining,
-                row.TicketRefund,
+                (long)row.TicketTotal,
+                (long)row.TicketPaid,
+                (long)(remaining < 0 ? 0 : remaining),
+                (long)row.TicketRefund,
                 remaining <= 0));
         }
     }

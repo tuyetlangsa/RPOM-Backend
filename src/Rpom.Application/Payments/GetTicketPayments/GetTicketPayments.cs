@@ -13,10 +13,10 @@ public static class GetTicketPayments
         long TicketId,
         string TicketCode,
         string TicketStatus,
-        decimal TotalAmount,
-        decimal PaidAmount,
-        decimal RemainingAmount,
-        decimal RefundAmount,
+        long TotalAmount,
+        long PaidAmount,
+        long RemainingAmount,
+        long RefundAmount,
         bool IsFullyPaid,
         IReadOnlyList<PaymentLine> Payments);
 
@@ -113,10 +113,10 @@ public static class GetTicketPayments
                 ticket.Id,
                 ticket.Code,
                 ticket.Status,
-                ticket.TotalAmount,
-                ticket.PaidAmount,
-                remaining < 0 ? 0 : remaining,
-                ticket.RefundAmount,
+                (long)ticket.TotalAmount,
+                (long)ticket.PaidAmount,
+                (long)(remaining < 0 ? 0 : remaining),
+                (long)ticket.RefundAmount,
                 remaining <= 0,
                 paymentLines));
         }
