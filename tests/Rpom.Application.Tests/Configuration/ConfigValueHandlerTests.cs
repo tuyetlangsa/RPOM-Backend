@@ -66,6 +66,39 @@ public sealed class ConfigValueHandlerTests : IAsyncLifetime
             .Which.ValueType.Should().Be(ConfigValueType.Number);
     }
 
+    [Fact]
+    public async Task Update_NumberWithNonNumeric_Fails()
+    {
+        var handler = new UpdateConfigValue.Handler(_ctx, Staff(), Clock());
+        var result = await handler.Handle(
+            new UpdateConfigValue.Command("restaurant.vat_default_percent", "abc"), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Config.InvalidValueForType");
+    }
+
+    [Fact]
+    public async Task Update_NumberWithNumeric_Succeeds()
+    {
+        var handler = new UpdateConfigValue.Handler(_ctx, Staff(), Clock());
+        var result = await handler.Handle(
+            new UpdateConfigValue.Command("restaurant.vat_default_percent", "12.5"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Value.Should().Be("12.5");
+    }
+
+    [Fact]
+    public async Task Update_UnknownCode_NotFound()
+    {
+        var handler = new UpdateConfigValue.Handler(_ctx, Staff(), Clock());
+        var result = await handler.Handle(
+            new UpdateConfigValue.Command("does.not.exist", "x"), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Config.NotFound");
+    }
+
     private ICurrentStaff Staff()
     {
         var s = Substitute.For<ICurrentStaff>();

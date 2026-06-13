@@ -11,4 +11,8 @@ public static class ConfigErrors
     public static readonly Error InvalidCode = Error.BadRequest(
         "Config.InvalidCode",
         "Config code không hợp lệ.");
+
+    public static readonly Error InvalidValueForType = Error.BadRequest(
+        "Config.InvalidValueForType",
+        "Giá trị không hợp lệ với kiểu dữ liệu của config này.");
 }

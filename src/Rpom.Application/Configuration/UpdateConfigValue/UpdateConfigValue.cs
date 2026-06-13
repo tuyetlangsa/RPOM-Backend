@@ -39,6 +39,11 @@ public static class UpdateConfigValue
                 return Result.Failure<Response>(ConfigErrors.NotFound);
             }
 
+            if (!ConfigValueType.IsValidValue(row.ValueType, request.Value))
+            {
+                return Result.Failure<Response>(ConfigErrors.InvalidValueForType);
+            }
+
             string? oldValue = row.Value;
             int staffId = currentStaff.StaffAccountId;
             DateTime now = clock.UtcNow;
