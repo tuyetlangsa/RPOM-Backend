@@ -1,3 +1,4 @@
+using System.Globalization;
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Clock;
@@ -20,6 +21,11 @@ namespace Rpom.Application.Cashier.AddCartItem;
 ///     min/max counts and quantities) and ChoicePricePerUnit is computed server-side from DB
 ///     ExtraPrice. Price is resolved via the shared resolver; the line is recomputed by the cart
 ///     service. Requires the table operation lock.
+///     <para>
+///     Merge rule: a note-free add folds into an existing identical note-free draft line (quantity
+///     bumped) instead of inserting a duplicate — singles match on item, set menus match on item +
+///     the full component/modifier selection. Any add carrying a line note is always a new line.
+///     </para>
 /// </summary>
 public static class AddCartItem
 {
@@ -148,6 +154,7 @@ public static class AddCartItem
             // Get-or-create the ticket's DRAFT order.
             Order? order = await db.Orders
                 .FirstOrDefaultAsync(o => o.TicketId == ticket.Id && o.Status == OrderStatus.Draft, ct);
+            bool orderExisted = order is not null;
             if (order is null)
             {
                 short maxNo = await db.Orders.Where(o => o.TicketId == ticket.Id)
@@ -165,6 +172,31 @@ public static class AddCartItem
                 await db.SaveChangesAsync(ct); // need order.Id for the cart item
             }
 
+            string? notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+
+            // Merge into an existing identical draft line instead of inserting a duplicate.
+            // A line carrying a note is ALWAYS kept separate — the kitchen must see each distinct
+            // instruction on its own line. Only note-free lines are candidates for quantity merge.
+            // (A brand-new order can have no prior line, so skip the lookup entirely.)
+            if (orderExisted && notes is null)
+            {
+                CartItem? mergeTarget =
+                    await FindMergeTargetAsync(order.Id, item.Id, item.IsSetMenu, detailRows, ct);
+                if (mergeTarget is not null)
+                {
+                    mergeTarget.Quantity += request.Quantity;
+                    mergeTarget.UpdatedAt = now;
+
+                    await cartRecompute.RecomputeAsync(order.Id, ct);
+                    await db.SaveChangesAsync(ct);
+                    await versionService.BumpAsync(
+                        VersionScopes.FloorPlan, $"Cart.Add(ticketId={ticket.Id})", ct);
+
+                    return Result.Success(
+                        new Response(mergeTarget.Id, order.Id, mergeTarget.LineTotal));
+                }
+            }
+
             var cartItem = new CartItem
             {
                 OrderId = order.Id,
@@ -180,7 +212,7 @@ public static class AddCartItem
                 VatPercent = item.VatPercent,
                 ServiceChargePercent = ticket.ServiceChargePercent,
                 ServiceChargeVatPercent = ticket.ServiceChargeVatPercent,
-                Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
+                Notes = notes,
                 CreatedAt = now,
                 UpdatedAt = now
             };
@@ -209,6 +241,65 @@ public static class AddCartItem
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"Cart.Add(ticketId={ticket.Id})", ct);
 
             return Result.Success(new Response(cartItem.Id, order.Id, cartItem.LineTotal));
+        }
+
+        /// <summary>
+        ///     Finds a note-free draft line in the same order that the incoming add can fold into.
+        ///     Single items match on ItemId alone. Set menus must additionally match the FULL
+        ///     component/modifier selection — every detail (ChoiceCategory, Item, type, quantity,
+        ///     per-component note) compared as an order-independent multiset. Returns the tracked
+        ///     entity so the caller can bump its quantity; null when no identical line exists.
+        /// </summary>
+        private async Task<CartItem?> FindMergeTargetAsync(
+            long orderId, int itemId, bool isSetMenu, IReadOnlyList<DetailRow> incoming, CancellationToken ct)
+        {
+            List<CartItem> candidates = await db.CartItems
+                .Where(c => c.OrderId == orderId && c.ItemId == itemId && c.Notes == null)
+                .ToListAsync(ct);
+            if (candidates.Count == 0)
+            {
+                return null;
+            }
+
+            if (!isSetMenu)
+            {
+                // Single item has no details to compare — any note-free line of the same item folds.
+                return candidates[0];
+            }
+
+            List<long> candidateIds = candidates.Select(c => c.Id).ToList();
+            Dictionary<long, List<string>> keysByCart = (await db.CartItemDetails
+                    .Where(d => candidateIds.Contains(d.CartItemId))
+                    .Select(d => new
+                    { d.CartItemId, d.ChoiceCategoryId, d.ItemId, d.ComponentType, d.Quantity, d.Notes })
+                    .ToListAsync(ct))
+                .GroupBy(d => d.CartItemId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(d => DetailKey(d.ChoiceCategoryId, d.ItemId, d.ComponentType, d.Quantity, d.Notes))
+                        .OrderBy(k => k, StringComparer.Ordinal).ToList());
+
+            List<string> incomingKeys = incoming
+                .Select(d => DetailKey(d.ChoiceCategoryId, d.ItemId, d.ComponentType, d.Quantity, d.Notes))
+                .OrderBy(k => k, StringComparer.Ordinal).ToList();
+
+            return candidates.FirstOrDefault(c =>
+            {
+                List<string> keys = keysByCart.GetValueOrDefault(c.Id) ?? [];
+                return keys.Count == incomingKeys.Count && keys.SequenceEqual(incomingKeys, StringComparer.Ordinal);
+            });
+        }
+
+        /// <summary>Canonical, order-independent key for one component/modifier selection.</summary>
+        private static string DetailKey(
+            int? choiceCategoryId, int itemId, string componentType, decimal quantity, string? notes)
+        {
+            string cc = choiceCategoryId?.ToString(CultureInfo.InvariantCulture) ?? "_";
+            string n = string.IsNullOrWhiteSpace(notes) ? "_" : notes.Trim();
+            // Scale-independent quantity: stored decimals come back with column scale (1.00000),
+            // incoming literals do not (1) — strip trailing zeros so both keys match.
+            string q = quantity.ToString("0.############################", CultureInfo.InvariantCulture);
+            return $"{cc}|{itemId}|{componentType}|{q}|{n}";
         }
 
         private async Task<BuildResult> BuildAndValidateSetMenuAsync(

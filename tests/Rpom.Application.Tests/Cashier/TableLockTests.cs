@@ -84,7 +84,7 @@ public sealed class TableLockTests : IAsyncLifetime
         await Acquire(_staffA);
         // Age staff A's lock beyond TTL.
         var row = await _ctx.TableLocks.FirstAsync(l => l.TableId == _tableId);
-        row.LastHeartbeatAt = DateTime.UtcNow.AddSeconds(-(ITableOperationGuard.TtlSeconds + 5));
+        row.LastHeartbeatAt = DateTime.UtcNow.AddSeconds(-(ITableOperationGuard.DefaultTtlSeconds + 5));
         await _ctx.SaveChangesAsync();
 
         var r = await Acquire(_staffB);
@@ -118,7 +118,7 @@ public sealed class TableLockTests : IAsyncLifetime
     public async Task Guard_RejectsNonHolder_AcceptsHolder()
     {
         await Acquire(_staffA);
-        var guard = new TableOperationGuard(_ctx, Clock());
+        var guard = new TableOperationGuard(_ctx, Clock(), Config());
 
         (await guard.EnsureHeldAsync(_tableId, _staffB, CancellationToken.None)).IsFailure.Should().BeTrue();
 
@@ -131,10 +131,26 @@ public sealed class TableLockTests : IAsyncLifetime
     {
         await Acquire(_staffA);
         var row = await _ctx.TableLocks.FirstAsync(l => l.TableId == _tableId);
-        row.LastHeartbeatAt = DateTime.UtcNow.AddSeconds(-(ITableOperationGuard.TtlSeconds + 5));
+        row.LastHeartbeatAt = DateTime.UtcNow.AddSeconds(-(ITableOperationGuard.DefaultTtlSeconds + 5));
         await _ctx.SaveChangesAsync();
 
-        var guard = new TableOperationGuard(_ctx, Clock());
+        var guard = new TableOperationGuard(_ctx, Clock(), Config());
+        (await guard.EnsureHeldAsync(_tableId, _staffA, CancellationToken.None)).IsFailure.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Guard_HonorsConfiguredTtl()
+    {
+        await Acquire(_staffA);
+        // Age the lock to 90s — beyond a configured 30s TTL but within the 60s default.
+        var row = await _ctx.TableLocks.FirstAsync(l => l.TableId == _tableId);
+        row.LastHeartbeatAt = DateTime.UtcNow.AddSeconds(-90);
+        await _ctx.SaveChangesAsync();
+
+        var config = Substitute.For<Rpom.Application.Abstraction.Configuration.IConfigValueService>();
+        config.GetAsync("table.lock_ttl_seconds", Arg.Any<CancellationToken>()).Returns("30");
+        var guard = new TableOperationGuard(_ctx, Clock(), config);
+
         (await guard.EnsureHeldAsync(_tableId, _staffA, CancellationToken.None)).IsFailure.Should().BeTrue();
     }
 
@@ -142,7 +158,9 @@ public sealed class TableLockTests : IAsyncLifetime
 
     private Task<Rpom.Domain.Common.Result<AcquireTableLock.Response>> Acquire(
         int staffId, IVersionService? version = null)
-        => new AcquireTableLock.Handler(_ctx, Staff(staffId), Clock(), version ?? Substitute.For<IVersionService>())
+        => new AcquireTableLock.Handler(
+                _ctx, Staff(staffId), Clock(),
+                version ?? Substitute.For<IVersionService>(), Config())
             .Handle(new AcquireTableLock.Command(_tableId), CancellationToken.None);
 
     private ICurrentStaff Staff(int staffId)
@@ -156,6 +174,14 @@ public sealed class TableLockTests : IAsyncLifetime
     {
         var c = Substitute.For<IDateTimeProvider>();
         c.UtcNow.Returns(_ => DateTime.UtcNow);
+        return c;
+    }
+
+    // Returns null for every code → GetIntAsync falls back to DefaultTtlSeconds (60).
+    private static Rpom.Application.Abstraction.Configuration.IConfigValueService Config()
+    {
+        var c = Substitute.For<Rpom.Application.Abstraction.Configuration.IConfigValueService>();
+        c.GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>()).Returns((string?)null);
         return c;
     }
 

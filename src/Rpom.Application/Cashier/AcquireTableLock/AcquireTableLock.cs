@@ -2,9 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
+using Rpom.Application.Abstraction.Configuration;
 using Rpom.Application.Abstraction.Tables;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Application.Configuration;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
 
@@ -31,7 +33,8 @@ public static class AcquireTableLock
         IDbContext db,
         ICurrentStaff currentStaff,
         IDateTimeProvider clock,
-        IVersionService versionService) : ICommandHandler<Command, Response>
+        IVersionService versionService,
+        IConfigValueService config) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
@@ -45,7 +48,9 @@ public static class AcquireTableLock
             }
 
             DateTime now = clock.UtcNow;
-            DateTime cutoff = now.AddSeconds(-ITableOperationGuard.TtlSeconds);
+            int ttl = await config.GetIntAsync(
+                ConfigCodes.TableLockTtlSeconds, ITableOperationGuard.DefaultTtlSeconds, ct);
+            DateTime cutoff = now.AddSeconds(-ttl);
             int staffId = currentStaff.StaffAccountId;
 
             var staff = await db.StaffAccounts
@@ -99,7 +104,7 @@ public static class AcquireTableLock
 
             return Result.Success(new Response(
                 lockRow.TableId, lockRow.StaffAccountId, lockRow.StaffName,
-                lockRow.AcquiredAt, lockRow.LastHeartbeatAt.AddSeconds(ITableOperationGuard.TtlSeconds)));
+                lockRow.AcquiredAt, lockRow.LastHeartbeatAt.AddSeconds(ttl)));
         }
     }
 }

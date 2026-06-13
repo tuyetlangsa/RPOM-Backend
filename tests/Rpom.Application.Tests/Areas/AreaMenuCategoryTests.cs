@@ -79,8 +79,9 @@ public sealed class AreaMenuCategoryTests : IAsyncLifetime
         childCat.ItemCount.Should().Be(1);
     }
 
-    [Fact] // Child assigned directly (parent NOT visible) → categoryIds intersect = visible only.
-    public async Task GetMenu_ChildAssigned_ExcludesNonVisibleParent()
+    [Fact] // Child assigned directly → parent surfaces as an ANCESTOR so the FE can build the
+           // drill-down tree (CLAUDE.md §26). item.categoryIds carries child + visible ancestors.
+    public async Task GetMenu_ChildAssigned_IncludesAncestorParentForTree()
     {
         var seed = await SeedTreeWithItemInChildAsync(assignToArea: AssignTarget.Child);
 
@@ -97,11 +98,13 @@ public sealed class AreaMenuCategoryTests : IAsyncLifetime
         var result = await handler.Handle(new GetMenu.Query(seed.TableId), CancellationToken.None);
 
         result.IsSuccess.Should().BeTrue();
-        result.Value.Categories.Should().NotContain(c => c.CategoryId == seed.ParentId);
+        // Both the directly-assigned child and its ancestor parent are returned.
+        result.Value.Categories.Should().Contain(c => c.CategoryId == seed.ChildId);
+        result.Value.Categories.Should().Contain(c => c.CategoryId == seed.ParentId);
 
         var item = result.Value.Items.Single(i => i.ItemId == seed.ItemId);
         item.CategoryIds.Should().Contain(seed.ChildId);
-        item.CategoryIds.Should().NotContain(seed.ParentId);
+        item.CategoryIds.Should().Contain(seed.ParentId);
     }
 
     [Fact] // PUT set → GET returns; replace removes old; empty clears.

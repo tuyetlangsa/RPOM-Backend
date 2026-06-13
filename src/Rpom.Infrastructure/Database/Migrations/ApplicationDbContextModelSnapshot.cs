@@ -836,6 +836,12 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("text")
                         .HasColumnName("value");
 
+                    b.Property<string>("ValueType")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("character varying(10)")
+                        .HasColumnName("value_type");
+
                     b.HasKey("Code")
                         .HasName("pk_config_values");
 

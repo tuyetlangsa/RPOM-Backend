@@ -1,6 +1,8 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
+using Rpom.Application.Abstraction.Configuration;
 using Rpom.Application.Abstraction.Data;
+using Rpom.Application.Configuration;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Domain.Common;
 
@@ -37,10 +39,14 @@ public static class ListItems
 
     internal sealed class Validator : AbstractValidator<Query>
     {
-        public Validator()
+        public Validator(IConfigValueService config)
         {
             RuleFor(x => x.PageNumber).GreaterThanOrEqualTo(1);
-            RuleFor(x => x.PageSize).InclusiveBetween(1, 500);
+            RuleFor(x => x.PageSize).GreaterThanOrEqualTo(1);
+            RuleFor(x => x.PageSize)
+                .MustAsync(async (size, ct) =>
+                    size <= await config.GetIntAsync(ConfigCodes.PaginationMaxPageSize, 500, ct))
+                .WithMessage("PageSize vượt quá giới hạn tối đa cho phép.");
         }
     }
 

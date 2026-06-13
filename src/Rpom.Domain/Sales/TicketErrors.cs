@@ -19,4 +19,12 @@ public static class TicketErrors
     public static readonly Error ShiftNotFound = Error.NotFound(
         "Ticket.ShiftNotFound",
         "Ca làm việc không tồn tại.");
+
+    public static readonly Error TransferSameTable = Error.Conflict(
+        "Ticket.TransferSameTable",
+        "Bàn đích trùng với bàn hiện tại của phiếu.");
+
+    public static readonly Error TransferCrossCounter = Error.Conflict(
+        "Ticket.TransferCrossCounter",
+        "Không thể chuyển phiếu sang bàn thuộc quầy khác.");
 }
