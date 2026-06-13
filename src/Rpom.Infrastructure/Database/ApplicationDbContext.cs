@@ -66,6 +66,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<OrderItem> OrderItems => Set<OrderItem>();
     public DbSet<OrderItemDetail> OrderItemDetails => Set<OrderItemDetail>();
     public DbSet<TicketPaymentDetail> TicketPaymentDetails => Set<TicketPaymentDetail>();
+    public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<TicketItemSum> TicketItemSums => Set<TicketItemSum>();
     public DbSet<EInvoice> EInvoices => Set<EInvoice>();
 

@@ -69,6 +69,7 @@ public interface IDbContext
     DbSet<OrderItem> OrderItems { get; }
     DbSet<OrderItemDetail> OrderItemDetails { get; }
     DbSet<TicketPaymentDetail> TicketPaymentDetails { get; }
+    DbSet<PaymentTransaction> PaymentTransactions { get; }
     DbSet<TicketItemSum> TicketItemSums { get; }
     DbSet<EInvoice> EInvoices { get; }
 

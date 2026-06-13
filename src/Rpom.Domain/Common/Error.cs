@@ -43,4 +43,10 @@ public record Error
         return new Error(code, description, ErrorType.Validation);
         // bad request: 400
     }
+
+    public static Error Unauthorized(string code, string description)
+    {
+        return new Error(code, description, ErrorType.UnAuthorized);
+        // unauthorized: 401
+    }
 }
