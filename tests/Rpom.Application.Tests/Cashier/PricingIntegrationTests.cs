@@ -113,10 +113,11 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         await AcquireLock();
         var ticket = await OpenTicket();
 
-        // Add 3 Pho items individually to get 3 OrderItems.
-        await AddItem(ticket, _phoId, 1);
-        await AddItem(ticket, _phoId, 1);
-        await AddItem(ticket, _phoId, 1);
+        // Add 3 Pho items as distinct lines (distinct notes prevent the note-free merge) to get
+        // 3 OrderItems. Notes don't affect price.
+        await AddItem(ticket, _phoId, 1, "bàn 1");
+        await AddItem(ticket, _phoId, 1, "bàn 2");
+        await AddItem(ticket, _phoId, 1, "bàn 3");
         var send = await Send(ticket);
         // 3 * 50000 = 150000 + 8% VAT = 162000
         send.Value.TotalAmount.Should().Be(162_000m);
@@ -170,10 +171,10 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         return r.Value.TicketId;
     }
 
-    private Task<Result<AddCartItem.Response>> AddItem(long ticketId, int itemId, decimal qty)
+    private Task<Result<AddCartItem.Response>> AddItem(long ticketId, int itemId, decimal qty, string? notes = null)
     {
         return new AddCartItem.Handler(_ctx, Staff(), Clock(), Guard(), PriceResolver(), Rc(), Cart(), Version())
-            .Handle(new AddCartItem.Command(ticketId, itemId, qty, null, []), CancellationToken.None);
+            .Handle(new AddCartItem.Command(ticketId, itemId, qty, notes, []), CancellationToken.None);
     }
 
     private Task<Result<SendOrder.Response>> Send(long ticketId)
