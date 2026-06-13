@@ -12,6 +12,7 @@ public static class GetConfigValues
     public sealed record ConfigValueItem(
         string Code,
         string? Value,
+        string ValueType,
         string? Description,
         DateTime UpdatedAt,
         int? UpdatedByStaffAccountId);
@@ -23,7 +24,7 @@ public static class GetConfigValues
             List<ConfigValueItem> rows = await dbContext.ConfigValues
                 .OrderBy(x => x.Code)
                 .Select(x => new ConfigValueItem(
-                    x.Code, x.Value, x.Description, x.UpdatedAt, x.UpdatedByStaffAccountId))
+                    x.Code, x.Value, x.ValueType, x.Description, x.UpdatedAt, x.UpdatedByStaffAccountId))
                 .ToListAsync(ct);
             return Result.Success<IReadOnlyList<ConfigValueItem>>(rows);
         }
