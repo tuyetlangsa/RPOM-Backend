@@ -127,6 +127,7 @@ public static class CreateCashPayment
 
             // Tiền thối tại quầy = phần khách đưa dư so với số cấn trừ (chỉ tính khi > 0).
             var changeAmount = request.ReceivedAmount - request.Amount;
+            ticket.ChangeAmount = changeAmount;
 
             var method = await dbContext.PaymentMethods
                 .FirstOrDefaultAsync(x => x.Code == PaymentMethodCodes.Cash && x.IsActive, ct);
