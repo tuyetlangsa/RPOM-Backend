@@ -14,6 +14,7 @@ internal sealed class ConfigValueConfiguration : IEntityTypeConfiguration<Config
         builder.Property(x => x.Code).HasMaxLength(100).ValueGeneratedNever();
         builder.Property(x => x.Value).HasColumnType("text");
         builder.Property(x => x.Description).HasMaxLength(500);
+        builder.Property(x => x.ValueType).HasMaxLength(10).IsRequired();
         builder.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
         // No FK on UpdatedByStaffAccountId — soft ref (like AuditLog).
     }

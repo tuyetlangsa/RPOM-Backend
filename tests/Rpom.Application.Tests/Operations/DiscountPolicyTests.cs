@@ -353,6 +353,7 @@ public sealed class DiscountPolicyTests : IAsyncLifetime
         var drawer = new Rpom.Domain.Sales.CashDrawer.CashDrawerSession
         {
             Counter = counter,
+            Shift = shift,
             OpenedByStaffAccountId = _staffId,
             Status = "OPEN",
             OpeningCash = 0m,

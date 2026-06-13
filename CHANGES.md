@@ -218,7 +218,20 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 |---|---|
 | `MENU` | Item, Category, Price thay đổi |
 | `PRICING` | Discount apply/remove |
-| `FLOOR_PLAN` | Ticket open/send/cancel, Table lock/unlock, OrderItem lifecycle |
+| `FLOOR_PLAN` | Ticket open/send/cancel/transfer, Table lock/unlock, OrderItem lifecycle |
 | `KITCHEN` | StartCook, MarkReady, MarkDone, CancelOrderItem |
 | `ACCESS` | Staff/Permission changes |
 | `CONFIG` | System config changes |
+
+---
+
+## 12. Transfer Table (E2)
+
+- **Spec**: `~/CapstoneProject/docs/superpowers/specs/2026-06-13-transfer-table-design.md`
+- **Use case**: `src/Rpom.Application/Cashier/TransferTable/TransferTable.cs`
+- **Endpoint**: `POST /api/cashier/tickets/{ticketId:long}/transfer-table` body `{ targetTableId }`, perm `ticket:transfer`.
+- Chuyển ticket OPEN sang bàn khác **cùng counter**; lock bàn nguồn; bàn đích → OCCUPIED, bàn nguồn giữ nguyên (defer free-bàn).
+- **SENT OrderItem giữ nguyên giá** (snapshot, giống F2). Đổi Area → **clear sạch DRAFT cart** + service charge theo config.
+- **Config mới** `transfer.use_target_area_service_charge` (BOOL, default `true`): true = re-snapshot SC từ Area đích + `TicketRecompute`; false = giữ SC của phiếu.
+- **Errors mới**: `Ticket.TransferSameTable`, `Ticket.TransferCrossCounter`.
+- **Tests**: `tests/Rpom.Application.Tests/Cashier/TransferTableTests.cs` (8 cases: same-area, cross-area SC true/false, not-open, same-table, cross-counter, no-lock, target-not-found).

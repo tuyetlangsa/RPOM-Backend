@@ -22,31 +22,43 @@ public sealed class ConfigValueSeeder(
         IDateTimeProvider clock = scope.ServiceProvider.GetRequiredService<IDateTimeProvider>();
         DateTime now = clock.UtcNow;
 
-        var defaults = new (string Code, string? Value, string Description)[]
+        var defaults = new (string Code, string? Value, string ValueType, string Description)[]
         {
             // ----- Restaurant profile -----
-            (ConfigCodes.RestaurantName, "RPOM Demo", "Tên nhà hàng hiển thị trên bill"),
-            (ConfigCodes.RestaurantAddress, "Hồ Chí Minh", "Địa chỉ hiển thị trên bill"),
-            (ConfigCodes.RestaurantTaxCode, "", "Mã số thuế nhà hàng (VAT invoice)"),
-            (ConfigCodes.RestaurantPhone, "", "SĐT nhà hàng"),
-            (ConfigCodes.VatDefaultPercent, "10.00", "VAT mặc định (%); Ticket snapshot lúc thanh toán"),
-            (ConfigCodes.ServiceChargeDefaultPercent, "5.00", "Service charge mặc định (%)"),
+            (ConfigCodes.RestaurantName, "RPOM Demo", ConfigValueType.Text, "Tên nhà hàng hiển thị trên bill"),
+            (ConfigCodes.RestaurantAddress, "Hồ Chí Minh", ConfigValueType.Text, "Địa chỉ hiển thị trên bill"),
+            (ConfigCodes.RestaurantTaxCode, "", ConfigValueType.Text, "Mã số thuế nhà hàng (VAT invoice)"),
+            (ConfigCodes.RestaurantPhone, "", ConfigValueType.Text, "SĐT nhà hàng"),
+            (ConfigCodes.VatDefaultPercent, "10.00", ConfigValueType.Number, "VAT mặc định (%); Ticket snapshot lúc thanh toán"),
+            (ConfigCodes.ServiceChargeDefaultPercent, "5.00", ConfigValueType.Number, "Service charge mặc định (%)"),
 
             // ----- Reservation hold window -----
-            (ConfigCodes.ReservationPreBufferMinutes, "30", "Pre-buffer hold window (phút) trước TargetTime"),
-            (ConfigCodes.ReservationGracePeriodMinutes, "30", "Grace period hold window (phút) sau TargetTime"),
+            (ConfigCodes.ReservationPreBufferMinutes, "30", ConfigValueType.Number, "Pre-buffer hold window (phút) trước TargetTime"),
+            (ConfigCodes.ReservationGracePeriodMinutes, "30", ConfigValueType.Number, "Grace period hold window (phút) sau TargetTime"),
 
             // ----- Kitchen -----
-            (ConfigCodes.KitchenLateThresholdMinutes, "15",
+            (ConfigCodes.KitchenLateThresholdMinutes, "15", ConfigValueType.Number,
                 "Ngưỡng (phút) mà PROCESSING dish được hiển thị LATE trên KDS"),
 
             // ----- Printing -----
-            (ConfigCodes.KdsPrintCopiesDefault, "1", "Số bản in mặc định cho printer")
+            (ConfigCodes.KdsPrintCopiesDefault, "1", ConfigValueType.Number, "Số bản in mặc định cho printer"),
+
+            // ----- Table operation lock -----
+            (ConfigCodes.TableLockTtlSeconds, "60", ConfigValueType.Number,
+                "Thời gian giữ lock bàn (giây) sau heartbeat cuối"),
+
+            // ----- Pagination -----
+            (ConfigCodes.PaginationMaxPageSize, "500", ConfigValueType.Number,
+                "Số bản ghi tối đa cho mỗi trang khi list"),
+
+            // ----- Transfer table -----
+            (ConfigCodes.TransferUseTargetAreaServiceCharge, "true", ConfigValueType.Bool,
+                "Khi chuyển bàn sang khu khác: true = dùng service charge của khu đích; false = giữ service charge của phiếu.")
         };
 
         var existing = (await db.ConfigValues.Select(x => x.Code).ToListAsync(ct)).ToHashSet();
         int added = 0;
-        foreach ((string Code, string? Value, string Description) d in defaults)
+        foreach ((string Code, string? Value, string ValueType, string Description) d in defaults)
         {
             if (existing.Contains(d.Code))
             {
@@ -57,6 +69,7 @@ public sealed class ConfigValueSeeder(
             {
                 Code = d.Code,
                 Value = d.Value,
+                ValueType = d.ValueType,
                 Description = d.Description,
                 UpdatedAt = now,
                 UpdatedByStaffAccountId = null

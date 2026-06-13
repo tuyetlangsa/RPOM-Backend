@@ -24,4 +24,13 @@ public static class ConfigCodes
 
     // ============ Printing ============
     public const string KdsPrintCopiesDefault = "printer.copies_default";
+
+    // ============ Table operation lock ============
+    public const string TableLockTtlSeconds = "table.lock_ttl_seconds";
+
+    // ============ Pagination ============
+    public const string PaginationMaxPageSize = "pagination.max_page_size";
+
+    // ============ Transfer table ============
+    public const string TransferUseTargetAreaServiceCharge = "transfer.use_target_area_service_charge";
 }

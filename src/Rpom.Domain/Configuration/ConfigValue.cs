@@ -16,6 +16,9 @@ public class ConfigValue : Entity
     /// <summary>Stored as text. NULL = unset (caller uses fallback).</summary>
     public string? Value { get; set; }
 
+    /// <summary>Render/validation hint for the config UI: BOOL | TEXT | NUMBER | TIME.</summary>
+    public string ValueType { get; set; } = null!;
+
     public string? Description { get; set; }
     public DateTime UpdatedAt { get; set; }
 

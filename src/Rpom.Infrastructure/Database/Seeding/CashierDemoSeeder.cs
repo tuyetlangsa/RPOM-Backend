@@ -37,7 +37,6 @@ public sealed class CashierDemoSeeder(
         await SeedPricingAsync(db, now, ct);
         await SeedAreaMenuCategoriesAsync(db, now, ct);
         await SeedDiscountPoliciesAsync(db, now, ct);
-        await SeedVatIncludedItemsAsync(db, now, ct);
         await SeedSetMenuDataAsync(db, now, ct);
 
         logger.LogInformation("CashierDemoSeeder finished.");
@@ -54,12 +53,21 @@ public sealed class CashierDemoSeeder(
         Dictionary<string, int> roleIds = await db.Roles
             .ToDictionaryAsync(r => r.Code, r => r.Id, ct);
 
-        var accounts = new (string Username, string Password, string FullName, string Role)[]
+        // Generate a realistic staffing roster (password "123" for every demo account).
+        var accounts = new List<(string Username, string Password, string FullName, string Role)>();
+        void AddBatch(string prefix, int count, string fullNamePrefix, string role)
         {
-            ("thungan", "123", "Nguyễn Thu Ngân", Roles.Cashier),
-            ("phucvu", "123", "Trần Phục Vụ", Roles.OrderStaff),
-            ("dau-bep", "123", "Lê Đầu Bếp", Roles.KitchenStaff),
-        };
+            for (int i = 1; i <= count; i++)
+            {
+                accounts.Add(($"{prefix}{i:D2}", "123", $"{fullNamePrefix} {i:D2}", role));
+            }
+        }
+
+        AddBatch("cashier", 10, "Thu ngân", Roles.Cashier);
+        AddBatch("order", 10, "Phục vụ", Roles.OrderStaff);
+        AddBatch("kitchen", 10, "Đầu bếp", Roles.KitchenStaff);
+        AddBatch("manager", 3, "Quản lý", Roles.Manager);
+        accounts.Add(("owner01", "123", "Chủ nhà hàng", Roles.Owner));
 
         foreach ((string username, string password, string fullName, string role) in accounts)
         {
@@ -100,6 +108,7 @@ public sealed class CashierDemoSeeder(
                 Permissions.CashierViewTicket,
                 Permissions.CashierViewMenu,
                 Permissions.TicketOpen,
+                Permissions.TicketTransfer,
                 Permissions.OrderAddItems,
                 Permissions.OrderSendKitchen,
                 Permissions.OrderItemCancelPending,
@@ -118,6 +127,7 @@ public sealed class CashierDemoSeeder(
                 Permissions.CashierViewTicket,
                 Permissions.CashierViewMenu,
                 Permissions.TicketOpen,
+                Permissions.TicketTransfer,
                 Permissions.OrderAddItems,
                 Permissions.OrderSendKitchen,
             },
@@ -127,7 +137,43 @@ public sealed class CashierDemoSeeder(
                 Permissions.KdsView,
                 Permissions.OrderItemStartCooking,
                 Permissions.OrderItemMarkReady,
+                Permissions.OrderItemMarkDone,
             },
+            [Roles.Manager] = new[]
+            {
+                Permissions.StaffLogin,
+                Permissions.MasterDataView,
+                Permissions.CashierFloorPlan,
+                Permissions.CashierViewTicket,
+                Permissions.CashierViewMenu,
+                Permissions.TicketOpen,
+                Permissions.TicketViewDetail,
+                Permissions.TicketTransfer,
+                Permissions.TicketMerge,
+                Permissions.TicketCancel,
+                Permissions.OrderAddItems,
+                Permissions.OrderSendKitchen,
+                Permissions.OrderItemCancelPending,
+                Permissions.OrderItemRefundLine,
+                Permissions.OrderItemMarkDone,
+                Permissions.TicketApplyDiscount,
+                Permissions.TicketClose,
+                Permissions.CashDrawerOpen,
+                Permissions.CashDrawerClose,
+                Permissions.PaymentCash,
+                Permissions.PaymentQr,
+                Permissions.PaymentCancelPending,
+                Permissions.EInvoiceIssue,
+                Permissions.ReservationCreate,
+                Permissions.ReservationCancel,
+                Permissions.ReportRevenue,
+                Permissions.ReportShift,
+                Permissions.ReportItemConsumption,
+                Permissions.ReportExportExcel,
+                Permissions.ConfigView,
+            },
+            // Owner gets the full permission catalog.
+            [Roles.Owner] = allPermissions.Select(p => p.Code).ToArray(),
         };
 
         foreach (StaffAccount staff in staffAccounts)
@@ -169,16 +215,35 @@ public sealed class CashierDemoSeeder(
 
     // ─── Pricing ──────────────────────────────────────────────────────────────
 
+    /// <summary>Base pre-VAT price (VND) per leaf category — varied per item below.</summary>
+    private static readonly Dictionary<string, decimal> BasePriceByCategory = new()
+    {
+        ["KV_GOI"] = 55_000m, ["KV_CHIEN"] = 45_000m, ["KV_CUON"] = 50_000m,
+        ["MC_COM"] = 55_000m, ["MC_PHO"] = 55_000m, ["MC_MI"] = 50_000m,
+        ["LN_LAU"] = 269_000m, ["LN_NUONG"] = 95_000m,
+        ["HS_TOM"] = 159_000m, ["HS_CUA"] = 299_000m, ["HS_CA"] = 129_000m,
+        ["MCH_CHAY"] = 55_000m,
+        ["TM_CHE"] = 29_000m, ["TM_BANH"] = 35_000m,
+        ["DOUONG_BIA"] = 22_000m, ["DOUONG_NGOT"] = 15_000m,
+        ["DU_CAPHE"] = 35_000m, ["DU_TRA"] = 45_000m,
+        ["CB_SET"] = 120_000m,
+    };
+
+    private static decimal RoundThousand(decimal v) =>
+        Math.Round(v / 1000m, 0, MidpointRounding.AwayFromZero) * 1000m;
+
     private static async Task SeedPricingAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
     {
         if (await db.PriceTables.AnyAsync(ct)) return;
 
-        // 1 PriceTable, 1 Variant covering all areas, entries for all Hàng bán items.
+        var vipArea = await db.Areas.FirstOrDefaultAsync(a => a.Name == "Khu VIP", ct);
+
+        // 1 PriceTable with 3 variants: default, happy-hour (14-17h), VIP-area (+20%).
         var table = new PriceTable
         {
             Code = "PT-DEFAULT",
-            Name = "Bảng giá mặc định",
-            Description = "Seed tự động — giá gốc cho tất cả món",
+            Name = "Bảng giá nhà hàng",
+            Description = "Seed tự động — giá gốc + happy hour + khu VIP",
             BeginDate = new DateOnly(2024, 1, 1),
             EndDate = null,
             IsActive = true,
@@ -188,69 +253,92 @@ public sealed class CashierDemoSeeder(
         db.PriceTables.Add(table);
         await db.SaveChangesAsync(ct);
 
-        var variant = new PriceVariant
+        var vDefault = new PriceVariant
         {
             PriceTableId = table.Id,
-            Code = "PV-BASE",
+            Code = "PV-DEFAULT",
             Name = "Giá cơ bản",
             AppliesToAllAreas = true,
             IsActive = true,
             CreatedAt = now,
             UpdatedAt = now,
         };
-        db.PriceVariants.Add(variant);
+        var vHappy = new PriceVariant
+        {
+            PriceTableId = table.Id,
+            Code = "PV-HAPPY",
+            Name = "Happy Hour 14h-17h",
+            BeginTime = new TimeOnly(14, 0),
+            EndTime = new TimeOnly(17, 0),
+            AppliesToAllAreas = true,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        var vVip = new PriceVariant
+        {
+            PriceTableId = table.Id,
+            Code = "PV-VIP",
+            Name = "Giá khu VIP",
+            AppliesToAllAreas = false,
+            IsActive = true,
+            CreatedAt = now,
+            UpdatedAt = now,
+        };
+        db.PriceVariants.AddRange(vDefault, vHappy, vVip);
         await db.SaveChangesAsync(ct);
 
-        // Get all Hàng bán items (those under HANG_BAN category tree)
+        if (vipArea is not null)
+        {
+            db.PriceVariantAreas.Add(new PriceVariantArea
+            {
+                PriceVariantId = vVip.Id,
+                AreaId = vipArea.Id,
+                CreatedAt = now,
+            });
+        }
+
+        // All sellable items under HANG_BAN (combos are priced later in the set-menu seed).
         Category? hangBan = await db.Categories.FirstOrDefaultAsync(c => c.Code == "HANG_BAN", ct);
         if (hangBan is null) return;
 
-        var hangBanIds = await db.Categories
+        var hangBanCatIds = await db.Categories
             .Where(c => c.Path.Contains($"{hangBan.Id};") || c.Id == hangBan.Id)
             .Select(c => c.Id)
             .ToListAsync(ct);
 
-        var itemIds = await db.ItemCategories
-            .Where(ic => hangBanIds.Contains(ic.CategoryId))
-            .Select(ic => ic.ItemId)
-            .Distinct()
+        // Map each sellable item to its MAIN category code to look up a base price.
+        var rows = await db.ItemCategories
+            .Where(ic => ic.IsMain && hangBanCatIds.Contains(ic.CategoryId))
+            .Select(ic => new { ic.ItemId, ic.Category.Code })
             .ToListAsync(ct);
 
-        var items = await db.Items
-            .Where(i => itemIds.Contains(i.Id))
-            .Select(i => new { i.Id, i.Name })
-            .ToListAsync(ct);
-
-        // Simple price mapping by item name pattern
-        foreach (var item in items)
+        foreach (var r in rows)
         {
-            decimal price = item.Name switch
+            if (!BasePriceByCategory.TryGetValue(r.Code, out decimal baseP))
             {
-                string n when n.Contains("Heineken") => 25_000m,
-                string n when n.Contains("Tiger") => 22_000m,
-                string n when n.Contains("Coca") => 15_000m,
-                string n when n.Contains("Pepsi") => 15_000m,
-                string n when n.Contains("Lavie") => 10_000m,
-                string n when n.Contains("gà xối mỡ") => 55_000m,
-                string n when n.Contains("sườn") => 50_000m,
-                string n when n.Contains("Phở") => 50_000m,
-                string n when n.Contains("Bún bò") => 55_000m,
-                string n when n.Contains("Lẩu") => 200_000m,
-                string n when n.Contains("Gỏi cuốn") => 45_000m,
-                string n when n.Contains("Nem nướng") => 55_000m,
-                string n when n.Contains("Chè") => 25_000m,
-                string n when n.Contains("flan") => 20_000m,
-                _ => 30_000m,
-            };
+                continue;
+            }
+
+            // Deterministic per-item variation so the menu isn't flat.
+            decimal price = baseP + (r.ItemId % 5) * 5_000m;
+            // Drinks (cà phê, trà) are commonly quoted VAT-included; demo both code paths.
+            bool vatIncluded = r.Code is "DU_CAPHE" or "DU_TRA";
 
             db.PriceEntries.Add(new PriceEntry
             {
-                PriceVariantId = variant.Id,
-                ItemId = item.Id,
-                Price = price,
-                IsVatIncluded = false,
-                CreatedAt = now,
-                UpdatedAt = now,
+                PriceVariantId = vDefault.Id, ItemId = r.ItemId,
+                Price = price, IsVatIncluded = vatIncluded, CreatedAt = now, UpdatedAt = now,
+            });
+            db.PriceEntries.Add(new PriceEntry
+            {
+                PriceVariantId = vHappy.Id, ItemId = r.ItemId,
+                Price = RoundThousand(price * 0.85m), IsVatIncluded = vatIncluded, CreatedAt = now, UpdatedAt = now,
+            });
+            db.PriceEntries.Add(new PriceEntry
+            {
+                PriceVariantId = vVip.Id, ItemId = r.ItemId,
+                Price = RoundThousand(price * 1.20m), IsVatIncluded = vatIncluded, CreatedAt = now, UpdatedAt = now,
             });
         }
 
@@ -264,9 +352,12 @@ public sealed class CashierDemoSeeder(
         if (await db.AreaMenuCategories.AnyAsync(ct)) return;
 
         var areas = await db.Areas.Where(a => a.IsActive).ToListAsync(ct);
-        // Assign all Hàng bán subcategories to all areas
-        var subCategoryCodes = new[] { "DOUONG_BIA", "DOUONG_NGOT", "DOUONG_NUOC", "MC_COM", "MC_PHO", "MC_LAU", "MP_KHAIVI", "MP_TRANGMIENG" };
-        var categories = await db.Categories.Where(c => subCategoryCodes.Contains(c.Code)).ToListAsync(ct);
+        // Assign the top-level Hàng bán groups to every area; descendants are included via Path.
+        var groupCodes = new[]
+        {
+            "KHAIVI", "MONCHINH", "LAUNUONG", "HAISAN", "MONCHAY", "TRANGMIENG", "DOUONG", "COMBO"
+        };
+        var categories = await db.Categories.Where(c => groupCodes.Contains(c.Code)).ToListAsync(ct);
 
         foreach (Area area in areas)
         {
@@ -328,7 +419,10 @@ public sealed class CashierDemoSeeder(
         db.DiscountPolicies.Add(p1);
 
         // Policy 2: QUANTITY_ITEM — 5 bia → giảm 20%
-        Item? biaItem = await db.Items.FirstOrDefaultAsync(i => i.Code == "BIA_HEINEKEN", ct);
+        Item? biaItem = await db.Items
+            .Where(i => i.ItemCategories.Any(ic => ic.Category.Code == "DOUONG_BIA"))
+            .OrderBy(i => i.Id)
+            .FirstOrDefaultAsync(ct);
         if (biaItem is not null)
         {
             var p2 = new DiscountPolicy
@@ -384,7 +478,10 @@ public sealed class CashierDemoSeeder(
         });
 
         // Policy 4: QUANTITY_ITEM — 3 Phở → giảm 30k (FIXED per-item)
-        Item? phoItem = await db.Items.FirstOrDefaultAsync(i => i.Code == "PHO_BO_TAI", ct);
+        Item? phoItem = await db.Items
+            .Where(i => i.ItemCategories.Any(ic => ic.Category.Code == "MC_PHO"))
+            .OrderBy(i => i.Id)
+            .FirstOrDefaultAsync(ct);
         if (phoItem is not null)
         {
             var p4 = new DiscountPolicy
@@ -443,308 +540,166 @@ public sealed class CashierDemoSeeder(
         await db.SaveChangesAsync(ct);
     }
 
-    // ─── VAT-included Items ────────────────────────────────────────────────────
-
-    private static async Task SeedVatIncludedItemsAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
-    {
-        if (await db.Items.AnyAsync(i => i.Code == "TRA_DA", ct)) return; // already seeded
-
-        var variant = await db.PriceVariants.FirstAsync(v => v.Code == "PV-BASE", ct);
-        var catNuoc = await db.Categories.FirstAsync(c => c.Code == "DOUONG_NGOT", ct);
-        var uom = await db.Uoms.FirstAsync(u => u.Code == "ly", ct);
-
-        // Trà đá — giá 5,000đ đã bao gồm VAT 10% → basePrice ≈ 4,545
-        var traDa = new Item
-        {
-            Code = "TRA_DA",
-            Name = "Trà đá (giá đã VAT)",
-            BaseUom = uom,
-            VatPercent = 10m,
-            IsStockable = false,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        };
-        db.Items.Add(traDa);
-        await db.SaveChangesAsync(ct);
-
-        db.ItemCategories.Add(new ItemCategory { ItemId = traDa.Id, CategoryId = catNuoc.Id, IsMain = true, CreatedAt = now });
-        db.PriceEntries.Add(new PriceEntry
-        {
-            PriceVariantId = variant.Id,
-            ItemId = traDa.Id,
-            Price = 5_000m,
-            IsVatIncluded = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-
-        // Cà phê đen — giá 20,000đ đã bao gồm VAT 8% → basePrice ≈ 18,519
-        var caPhe = new Item
-        {
-            Code = "CA_PHE",
-            Name = "Cà phê đen (giá đã VAT)",
-            BaseUom = uom,
-            VatPercent = 8m,
-            IsStockable = false,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        };
-        db.Items.Add(caPhe);
-        await db.SaveChangesAsync(ct);
-
-        db.ItemCategories.Add(new ItemCategory { ItemId = caPhe.Id, CategoryId = catNuoc.Id, IsMain = true, CreatedAt = now });
-        db.PriceEntries.Add(new PriceEntry
-        {
-            PriceVariantId = variant.Id,
-            ItemId = caPhe.Id,
-            Price = 20_000m,
-            IsVatIncluded = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-
-        await db.SaveChangesAsync(ct);
-    }
-
-    // ─── Set Menu Data ─────────────────────────────────────────────────────────
+    // ─── Set Menu Data (combos) ──────────────────────────────────────────────
 
     private static async Task SeedSetMenuDataAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
     {
         if (await db.SetMenuDetails.AnyAsync(ct)) return;
 
-        // Existing items for components and modifiers.
-        var comGa = await db.Items.FirstAsync(i => i.Code == "COM_GA_XOI_MO", ct);
-        var coca = await db.Items.FirstAsync(i => i.Code == "COCA_LON", ct);
-        var pepsi = await db.Items.FirstAsync(i => i.Code == "PEPSI_LON", ct);
-        var nuocSuoi = await db.Items.FirstAsync(i => i.Code == "NUOC_LAVIE", ct);
-        var pho = await db.Items.FirstAsync(i => i.Code == "PHO_BO_TAI", ct);
-        var goiCuon = await db.Items.FirstAsync(i => i.Code == "GOI_CUON", ct);
-        var flan = await db.Items.FirstAsync(i => i.Code == "FLAN", ct);
+        PriceVariant vDefault = await db.PriceVariants.FirstAsync(v => v.Code == "PV-DEFAULT", ct);
+        PriceVariant vHappy = await db.PriceVariants.FirstAsync(v => v.Code == "PV-HAPPY", ct);
+        PriceVariant vVip = await db.PriceVariants.FirstAsync(v => v.Code == "PV-VIP", ct);
+        Uom suat = await db.Uoms.FirstAsync(u => u.Code == "suat", ct);
+        Category cbSet = await db.Categories.FirstAsync(c => c.Code == "CB_SET", ct);
 
-        // ── ChoiceCategory: "Đổi nước" (for Combo Gà) ──
-        var doiNuoc = new ChoiceCategory
+        async Task<List<Item>> ItemsIn(string code) => await db.Items
+            .Where(i => i.ItemCategories.Any(ic => ic.Category.Code == code))
+            .OrderBy(i => i.Id)
+            .ToListAsync(ct);
+
+        var mains = (await ItemsIn("MC_COM"))
+            .Concat(await ItemsIn("MC_PHO"))
+            .Concat(await ItemsIn("MC_MI"))
+            .Concat(await ItemsIn("LN_NUONG"))
+            .ToList();
+        List<Item> drinks = await ItemsIn("DOUONG_NGOT");
+        List<Item> apps = await ItemsIn("KV_CHIEN");
+        List<Item> desserts = await ItemsIn("TM_CHE");
+
+        if (mains.Count == 0 || drinks.Count == 0)
         {
-            Name = "Đổi nước",
-            MinChoice = 0,
-            MaxChoice = 1,
-            DisplayOrder = 1,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
+            return;
+        }
+
+        // ── Shared choice categories + their modifiers ──
+        var ccDoiNuoc = new ChoiceCategory
+        {
+            Name = "Đổi nước", MinChoice = 0, MaxChoice = 1, DisplayOrder = 1,
+            IsActive = true, CreatedAt = now, UpdatedAt = now,
         };
-        db.ChoiceCategories.Add(doiNuoc);
-        await db.SaveChangesAsync(ct);
-
-        db.Modifiers.Add(new Modifier
+        var ccThemKhaiVi = new ChoiceCategory
         {
-            ChoiceCategoryId = doiNuoc.Id,
-            ItemId = pepsi.Id,
-            ExtraPrice = 0m,
-            MinPerModifier = 0,
-            MaxPerModifier = 1,
-            DisplayOrder = 1,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        db.Modifiers.Add(new Modifier
-        {
-            ChoiceCategoryId = doiNuoc.Id,
-            ItemId = nuocSuoi.Id,
-            ExtraPrice = 0m,
-            MinPerModifier = 0,
-            MaxPerModifier = 1,
-            DisplayOrder = 2,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-
-        // ── ChoiceCategory: "Thêm món" (for Combo Phở) ──
-        var themMon = new ChoiceCategory
-        {
-            Name = "Thêm món",
-            MinChoice = 0,
-            MaxChoice = 2,
-            DisplayOrder = 1,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
+            Name = "Thêm khai vị", MinChoice = 0, MaxChoice = 2, DisplayOrder = 2,
+            IsActive = true, CreatedAt = now, UpdatedAt = now,
         };
-        db.ChoiceCategories.Add(themMon);
-        await db.SaveChangesAsync(ct);
-
-        db.Modifiers.Add(new Modifier
+        var ccThemTrangMieng = new ChoiceCategory
         {
-            ChoiceCategoryId = themMon.Id,
-            ItemId = goiCuon.Id,
-            ExtraPrice = 15_000m,
-            MinPerModifier = 0,
-            MaxPerModifier = 2,
-            DisplayOrder = 1,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        db.Modifiers.Add(new Modifier
-        {
-            ChoiceCategoryId = themMon.Id,
-            ItemId = flan.Id,
-            ExtraPrice = 10_000m,
-            MinPerModifier = 0,
-            MaxPerModifier = 2,
-            DisplayOrder = 2,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        await db.SaveChangesAsync(ct);
-
-        // ── SetMenu items ──
-
-        // Combo Gà xối mỡ
-        var comboGa = new Item
-        {
-            Code = "COMBO_GA",
-            Name = "Combo Gà xối mỡ",
-            BaseUomId = comGa.BaseUomId,
-            VatPercent = 8m,
-            IsStockable = false,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
+            Name = "Thêm tráng miệng", MinChoice = 0, MaxChoice = 1, DisplayOrder = 3,
+            IsActive = true, CreatedAt = now, UpdatedAt = now,
         };
-        db.Items.Add(comboGa);
+        db.ChoiceCategories.AddRange(ccDoiNuoc, ccThemKhaiVi, ccThemTrangMieng);
         await db.SaveChangesAsync(ct);
 
-        // Link to category "Cơm" (MC_COM)
-        var catCom = await db.Categories.FirstAsync(c => c.Code == "MC_COM", ct);
-        db.ItemCategories.Add(new ItemCategory
+        short mOrder = 1;
+        foreach (Item d in drinks.Take(5))
         {
-            ItemId = comboGa.Id,
-            CategoryId = catCom.Id,
-            IsMain = true,
-            CreatedAt = now,
-        });
+            db.Modifiers.Add(new Modifier
+            {
+                ChoiceCategoryId = ccDoiNuoc.Id, ItemId = d.Id, ExtraPrice = 0m,
+                MinPerModifier = 0, MaxPerModifier = 1, DisplayOrder = mOrder++,
+                IsActive = true, CreatedAt = now, UpdatedAt = now,
+            });
+        }
 
-        // Price entry
-        var variant = await db.PriceVariants.FirstAsync(v => v.Code == "PV-BASE", ct);
-        db.PriceEntries.Add(new PriceEntry
+        mOrder = 1;
+        foreach (Item a in apps.Take(4))
         {
-            PriceVariantId = variant.Id,
-            ItemId = comboGa.Id,
-            Price = 80_000m,
-            IsVatIncluded = false,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
+            db.Modifiers.Add(new Modifier
+            {
+                ChoiceCategoryId = ccThemKhaiVi.Id, ItemId = a.Id, ExtraPrice = 20_000m,
+                MinPerModifier = 0, MaxPerModifier = 1, DisplayOrder = mOrder++,
+                IsActive = true, CreatedAt = now, UpdatedAt = now,
+            });
+        }
 
-        // SetMenu row
-        db.SetMenus.Add(new SetMenu
+        mOrder = 1;
+        foreach (Item d in desserts.Take(3))
         {
-            ItemId = comboGa.Id,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
+            db.Modifiers.Add(new Modifier
+            {
+                ChoiceCategoryId = ccThemTrangMieng.Id, ItemId = d.Id, ExtraPrice = 15_000m,
+                MinPerModifier = 0, MaxPerModifier = 1, DisplayOrder = mOrder++,
+                IsActive = true, CreatedAt = now, UpdatedAt = now,
+            });
+        }
+
         await db.SaveChangesAsync(ct);
 
-        // SetMenuDetails
-        db.SetMenuDetails.Add(new SetMenuDetail
+        // ── 30 combos ──
+        for (int i = 0; i < 30; i++)
         {
-            SetMenuItemId = comboGa.Id,
-            DetailType = SetMenuDetailType.Component,
-            ComponentItemId = comGa.Id,
-            Quantity = 1m,
-            IsFixed = true,
-            DisplayOrder = 1,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        db.SetMenuDetails.Add(new SetMenuDetail
-        {
-            SetMenuItemId = comboGa.Id,
-            DetailType = SetMenuDetailType.Component,
-            ComponentItemId = coca.Id,
-            Quantity = 1m,
-            IsFixed = true,
-            DisplayOrder = 2,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        db.SetMenuDetails.Add(new SetMenuDetail
-        {
-            SetMenuItemId = comboGa.Id,
-            DetailType = SetMenuDetailType.ChoiceCategory,
-            ChoiceCategoryId = doiNuoc.Id,
-            DisplayOrder = 3,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
+            Item main = mains[i % mains.Count];
+            Item drink = drinks[i % drinks.Count];
 
-        // Combo Phở
-        var comboPho = new Item
-        {
-            Code = "COMBO_PHO",
-            Name = "Combo Phở bò tái",
-            BaseUomId = pho.BaseUomId,
-            VatPercent = 8m,
-            IsStockable = false,
-            IsActive = true,
-            CreatedAt = now,
-            UpdatedAt = now,
-        };
-        db.Items.Add(comboPho);
-        await db.SaveChangesAsync(ct);
+            var combo = new Item
+            {
+                Code = $"COMBO_{i + 1:D3}",
+                Name = $"Combo {main.Name}",
+                BaseUomId = suat.Id,
+                VatPercent = 8m,
+                IsStockable = false,
+                HasRecipe = false,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            };
+            db.Items.Add(combo);
+            await db.SaveChangesAsync(ct);
 
-        var catPho = await db.Categories.FirstAsync(c => c.Code == "MC_PHO", ct);
-        db.ItemCategories.Add(new ItemCategory
-        {
-            ItemId = comboPho.Id,
-            CategoryId = catPho.Id,
-            IsMain = true,
-            CreatedAt = now,
-        });
+            db.ItemCategories.Add(new ItemCategory
+            {
+                ItemId = combo.Id, CategoryId = cbSet.Id, IsMain = true, CreatedAt = now,
+            });
 
-        db.PriceEntries.Add(new PriceEntry
-        {
-            PriceVariantId = variant.Id,
-            ItemId = comboPho.Id,
-            Price = 65_000m,
-            IsVatIncluded = false,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
+            decimal price = 99_000m + (i % 6) * 10_000m;
+            db.PriceEntries.Add(new PriceEntry
+            {
+                PriceVariantId = vDefault.Id, ItemId = combo.Id, Price = price,
+                IsVatIncluded = false, CreatedAt = now, UpdatedAt = now,
+            });
+            db.PriceEntries.Add(new PriceEntry
+            {
+                PriceVariantId = vHappy.Id, ItemId = combo.Id, Price = RoundThousand(price * 0.85m),
+                IsVatIncluded = false, CreatedAt = now, UpdatedAt = now,
+            });
+            db.PriceEntries.Add(new PriceEntry
+            {
+                PriceVariantId = vVip.Id, ItemId = combo.Id, Price = RoundThousand(price * 1.20m),
+                IsVatIncluded = false, CreatedAt = now, UpdatedAt = now,
+            });
 
-        db.SetMenus.Add(new SetMenu
-        {
-            ItemId = comboPho.Id,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        await db.SaveChangesAsync(ct);
+            db.SetMenus.Add(new SetMenu
+            {
+                ItemId = combo.Id,
+                Description = $"Combo gồm {main.Name} + nước uống",
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
 
-        db.SetMenuDetails.Add(new SetMenuDetail
-        {
-            SetMenuItemId = comboPho.Id,
-            DetailType = SetMenuDetailType.Component,
-            ComponentItemId = pho.Id,
-            Quantity = 1m,
-            IsFixed = true,
-            DisplayOrder = 1,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
-        db.SetMenuDetails.Add(new SetMenuDetail
-        {
-            SetMenuItemId = comboPho.Id,
-            DetailType = SetMenuDetailType.ChoiceCategory,
-            ChoiceCategoryId = themMon.Id,
-            DisplayOrder = 2,
-            CreatedAt = now,
-            UpdatedAt = now,
-        });
+            db.SetMenuDetails.Add(new SetMenuDetail
+            {
+                SetMenuItemId = combo.Id, DetailType = SetMenuDetailType.Component,
+                ComponentItemId = main.Id, Quantity = 1m, IsFixed = true, DisplayOrder = 1,
+                CreatedAt = now, UpdatedAt = now,
+            });
+            db.SetMenuDetails.Add(new SetMenuDetail
+            {
+                SetMenuItemId = combo.Id, DetailType = SetMenuDetailType.Component,
+                ComponentItemId = drink.Id, Quantity = 1m, IsFixed = true, DisplayOrder = 2,
+                CreatedAt = now, UpdatedAt = now,
+            });
+            db.SetMenuDetails.Add(new SetMenuDetail
+            {
+                SetMenuItemId = combo.Id, DetailType = SetMenuDetailType.ChoiceCategory,
+                ChoiceCategoryId = ccDoiNuoc.Id, DisplayOrder = 3, CreatedAt = now, UpdatedAt = now,
+            });
+            db.SetMenuDetails.Add(new SetMenuDetail
+            {
+                SetMenuItemId = combo.Id, DetailType = SetMenuDetailType.ChoiceCategory,
+                ChoiceCategoryId = (i % 2 == 0 ? ccThemKhaiVi.Id : ccThemTrangMieng.Id),
+                DisplayOrder = 4, CreatedAt = now, UpdatedAt = now,
+            });
+        }
 
         await db.SaveChangesAsync(ct);
     }
