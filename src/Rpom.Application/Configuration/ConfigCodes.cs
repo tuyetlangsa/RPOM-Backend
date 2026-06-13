@@ -30,4 +30,7 @@ public static class ConfigCodes
 
     // ============ Pagination ============
     public const string PaginationMaxPageSize = "pagination.max_page_size";
+
+    // ============ Transfer table ============
+    public const string TransferUseTargetAreaServiceCharge = "transfer.use_target_area_service_charge";
 }

@@ -49,7 +49,11 @@ public sealed class ConfigValueSeeder(
 
             // ----- Pagination -----
             (ConfigCodes.PaginationMaxPageSize, "500", ConfigValueType.Number,
-                "Số bản ghi tối đa cho mỗi trang khi list")
+                "Số bản ghi tối đa cho mỗi trang khi list"),
+
+            // ----- Transfer table -----
+            (ConfigCodes.TransferUseTargetAreaServiceCharge, "true", ConfigValueType.Bool,
+                "Khi chuyển bàn sang khu khác: true = dùng service charge của khu đích; false = giữ service charge của phiếu.")
         };
 
         var existing = (await db.ConfigValues.Select(x => x.Code).ToListAsync(ct)).ToHashSet();
