@@ -23,4 +23,16 @@ public static class OrderItemErrors
     public static readonly Error WrongTicket = Error.BadRequest(
         "OrderItem.WrongTicket",
         "Một hoặc nhiều món không thuộc phiếu này.");
+
+    public static readonly Error NotRefundable = Error.Conflict(
+        "OrderItem.NotRefundable",
+        "Chỉ có thể trả món đã/đang nấu (PROCESSING/READY/DONE). Món chưa nấu hãy dùng Huỷ.");
+
+    public static readonly Error CannotRefundRefund = Error.Conflict(
+        "OrderItem.CannotRefundRefund",
+        "Không thể trả một dòng trả hàng.");
+
+    public static readonly Error RefundQuantityExceeded = Error.Conflict(
+        "OrderItem.RefundQuantityExceeded",
+        "Số lượng trả vượt quá số lượng còn lại của món.");
 }
