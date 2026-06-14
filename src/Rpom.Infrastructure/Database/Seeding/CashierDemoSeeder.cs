@@ -113,6 +113,7 @@ public sealed class CashierDemoSeeder(
                 Permissions.OrderAddItems,
                 Permissions.OrderSendKitchen,
                 Permissions.OrderItemCancelPending,
+                Permissions.OrderItemRefundLine,
                 Permissions.OrderItemMarkDone,
                 Permissions.TicketApplyDiscount,
                 Permissions.CashDrawerOpen,

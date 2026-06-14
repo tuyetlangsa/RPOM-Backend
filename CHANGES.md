@@ -269,3 +269,19 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 - **Behavior change**: refund/cancel làm subtotal tụt dưới ngưỡng → discount **tự gỡ** (trước đây giữ nguyên). FIXED discount giữ đúng số tiền khi bill đổi (vd order thêm → % co lại, tiền giảm vẫn ~100k).
 - **Docs**: CLAUDE.md §12 (bỏ exact-amount guarantee) + §5 (precision discount %).
 - **Tests**: +5 unit `DiscountResolverTests.cs`, +2 integration (re-derive giữ amount, gỡ khi dưới ngưỡng). Full suite 169 pass; assertion exact cũ (291,600 / 972,000) không đổi.
+
+---
+
+## 16. Refund Line (trả hàng)
+
+- **Spec**: `~/CapstoneProject/docs/superpowers/specs/2026-06-14-discount-percent-engine-design.md` §10.
+- Trả món đã/đang nấu = **dòng OrderItem qty ÂM** trỏ về dòng gốc qua `OriginalOrderItemId`. Cơ chế: `AddRefundLine` tạo CartItem DRAFT âm → **SendOrder** (sẵn có) materialize thành OrderItem âm. KHÔNG có endpoint `/refund` gửi riêng.
+- **Use case**: `src/Rpom.Application/Cashier/AddRefundLine/AddRefundLine.cs`.
+- **Endpoint**: `POST /api/cashier/tickets/{ticketId:long}/order-items/{orderItemId:long}/refund-line` body `{ quantity, cancellationReasonId, cancellationNote? }` (`quantity` dương, server lưu âm), perm `order_item:refund_line`.
+- **Guards**: ticket OPEN + giữ lock; gốc thuộc ticket; gốc PROCESSING/READY/DONE (PENDING dùng Cancel) → `OrderItem.NotRefundable`; gốc là dòng dương non-refund → `OrderItem.CannotRefundRefund`; reason active → `Ticket.InvalidCancellationReason`; `quantity ≤ gốc − (đã refund committed + draft)` → `OrderItem.RefundQuantityExceeded`.
+- **Snapshot** từ OrderItem gốc (ItemCode/Name, Uom*, UnitPrice, ChoicePrice, VAT%, SC%). Dòng refund qua SendOrder → status **PENDING** (chạy lifecycle bếp), ghi AuditLog `REFUND` (EntityId = OrderItem gốc) lúc gửi.
+- **Schema**: thêm `OriginalOrderItemId`, `CancellationReasonId`, `CancellationNote` vào `CartItem` (migration `AddRefundFieldsToCartItem`).
+- **AddCartItem**: note-free merge loại dòng refund (`OriginalOrderItemId == null`) để add món thường không gộp nhầm vào dòng âm.
+- **Tiền/discount**: do percent-engine lo (dòng âm → tiền âm, net-negative cleanup). VD trả 1/3 phở → bill còn net 2 = 108,000.
+- **Permission**: grant `order_item:refund_line` cho role **Cashier**.
+- **Tests**: +6 integration (tạo dòng âm linked, PENDING-original/exceed/inactive-reason blocked, SendOrder materialize+audit+credit, không merge nhầm). Full suite 175 pass.
