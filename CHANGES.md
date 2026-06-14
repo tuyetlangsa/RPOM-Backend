@@ -255,3 +255,17 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 - **Errors mới**: `Ticket.HasActiveItems`, `Ticket.HasPendingPayment`, `Ticket.HasSuccessfulPayment`, `Ticket.InvalidCancellationReason`, `Ticket.InvalidManager`.
 - **Permission**: grant `ticket:cancel` cho role **Cashier** (người giữ table lock gọi endpoint; manager duyệt trong body).
 - **Tests**: +8 trong `PricingIntegrationTests.cs` (empty cancel + lock release + audit, active item blocked, after-all-cancelled OK, pending/success payment blocked, draft cart dropped, non-manager blocked, inactive reason blocked).
+
+---
+
+## 15. Discount Engine → Percent-Based (F2-style)
+
+- **Spec**: `~/CapstoneProject/docs/superpowers/specs/2026-06-14-discount-percent-engine-design.md`
+- Chuyển discount engine từ **frozen per-line amount** sang **percent-based**, re-derive mỗi recompute. Nguồn sự thật = `Ticket.DiscountPolicyId`.
+- **`DiscountResolver`** (`src/Rpom.Application/Cashier/Pricing/DiscountResolver.cs`): pure, fixed→% (`fixedValue/currentSubtotal`), re-check điều kiện, cap ≤100.
+- **`TicketRecomputeService`**: mỗi recompute re-derive % của policy đang gắn (attached-policy only, **không** re-select); tụt dưới ngưỡng → gỡ `DiscountPolicyId`; dòng net-âm → discount 0. **`PricingCalculator`** percent-only (bỏ `ForcedLineDiscountAmount`/`ForcedTicketDiscountAmount`).
+- **`ApplyDiscountPolicy`** + **`SendOrder` auto-apply**: chỉ **chọn + gắn** policy; recompute lo toàn bộ math. Auto-apply vẫn ghi AuditLog `APPLY_DISCOUNT`.
+- **Schema**: discount-percent cột nới `decimal(5,2)` → `decimal(9,6)` (migration `WidenDiscountPercentPrecision`). VAT%/SC% giữ `(5,2)`.
+- **Behavior change**: refund/cancel làm subtotal tụt dưới ngưỡng → discount **tự gỡ** (trước đây giữ nguyên). FIXED discount giữ đúng số tiền khi bill đổi (vd order thêm → % co lại, tiền giảm vẫn ~100k).
+- **Docs**: CLAUDE.md §12 (bỏ exact-amount guarantee) + §5 (precision discount %).
+- **Tests**: +5 unit `DiscountResolverTests.cs`, +2 integration (re-derive giữ amount, gỡ khi dưới ngưỡng). Full suite 169 pass; assertion exact cũ (291,600 / 972,000) không đổi.
