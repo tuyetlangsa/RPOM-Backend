@@ -35,4 +35,12 @@ public static class TicketErrors
     public static readonly Error HasProcessingOrder = Error.Conflict(
         "Ticket.HasProcessingOrder",
         "Hoá đơn còn item đợt gọi món đang chế biến (PROCESSING). Hãy hoàn tất (DONE) hoặc huỷ các món/đợt đó trước khi đóng.");
+
+    public static readonly Error MergeSameTicket = Error.BadRequest(
+        "Ticket.MergeSameTicket",
+        "Không thể gộp một hoá đơn với chính nó.");
+
+    public static readonly Error MergeDifferentArea = Error.Conflict(
+        "Ticket.MergeDifferentArea",
+        "Hai hoá đơn không cùng khu vực — không thể gộp.");
 }

@@ -38,6 +38,7 @@ public sealed class LookupSeeder(
         await SeedUomsAsync(db, now, ct);
         await SeedDenominationsAsync(db, now, ct);
         await SeedPaymentMethodsAsync(db, now, ct);
+        await SeedCancellationReasonsAsync(db, now, ct);
         await SeedCategoriesAsync(db, now, ct);
         await SeedItemsAsync(db, now, ct);
 
@@ -332,6 +333,35 @@ public sealed class LookupSeeder(
                 Name = m.Name,
                 Description = m.Description,
                 DisplayOrder = m.Order,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now,
+            });
+        }
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedCancellationReasonsAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        var reasons = new (string Code, string Name, short Order)[]
+        {
+            ("CUS_CHANGE_MIND", "Khách đổi ý",          0),
+            ("OUT_OF_STOCK",    "Hết hàng",             1),
+            ("WRONG_DISH",      "Sai món",              2),
+            ("FOREIGN_OBJECT",  "Dị vật trong món",     3),
+            ("QUALITY",         "Chất lượng không đạt", 4),
+            ("MERGE",           "Gộp hoá đơn",          5),
+            ("OTHER",           "Lý do khác",           6),
+        };
+        var existing = (await db.CancellationReasons.Select(x => x.Code).ToListAsync(ct)).ToHashSet();
+        foreach (var r in reasons)
+        {
+            if (existing.Contains(r.Code)) continue;
+            db.CancellationReasons.Add(new CancellationReason
+            {
+                Code = r.Code,
+                Name = r.Name,
+                DisplayOrder = r.Order,
                 IsActive = true,
                 CreatedAt = now,
                 UpdatedAt = now,
