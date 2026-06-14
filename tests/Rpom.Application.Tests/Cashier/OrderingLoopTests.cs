@@ -81,7 +81,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
         upd.IsSuccess.Should().BeTrue();
 
         // Send order
-        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
         send.IsSuccess.Should().BeTrue();
         send.Value.ItemCount.Should().Be(1);
@@ -127,7 +127,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
         var ticketId = (await new OpenTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
             .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None)).Value.TicketId;
 
-        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
         send.IsFailure.Should().BeTrue();
         send.Error.Code.Should().Be("Order.EmptyCart");
@@ -145,7 +145,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
         var b = await Add().Handle(new AddCartItem.Command(ticketId, _item2Id, 2m, null, []), CancellationToken.None);
 
         // Send only line A.
-        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new SendOrder.Command(ticketId, new[] { a.Value.CartItemId }), CancellationToken.None);
         send.IsSuccess.Should().BeTrue();
         send.Value.ItemCount.Should().Be(1);
@@ -177,7 +177,7 @@ public sealed class OrderingLoopTests : IAsyncLifetime
             .Handle(new OpenTicket.Command(_tableId, 2, null), CancellationToken.None)).Value.TicketId;
         await Add().Handle(new AddCartItem.Command(ticketId, _singleItemId, 1m, null, []), CancellationToken.None);
 
-        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new SendOrder.Command(ticketId, new long[] { 999999 }), CancellationToken.None);
         send.IsFailure.Should().BeTrue();
         send.Error.Code.Should().Be("Order.CartItemNotFound");

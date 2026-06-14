@@ -39,7 +39,6 @@ public static class SendOrder
         IDateTimeProvider clock,
         ITableOperationGuard guard,
         ITicketRecomputeService ticketRecompute,
-        IRoundingConfig rc,
         IVersionService versionService) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
@@ -213,7 +212,7 @@ public static class SendOrder
             await db.SaveChangesAsync(ct);
 
             // ---- Auto-apply discount ----
-            var discountApplied = await TryAutoApplyDiscountAsync(ticket.Id, now, ct);
+            var discountApplied = await TryAutoApplyDiscountAsync(ticket.Id, ct);
             if (discountApplied)
             {
                 await ticketRecompute.RecomputeAsync(ticket.Id, ct);
@@ -237,7 +236,7 @@ public static class SendOrder
         /// Evaluate all active auto-apply policies against the ticket, pick the best match,
         /// and apply it. Returns true when a discount was applied (caller must recompute).
         /// </summary>
-        private async Task<bool> TryAutoApplyDiscountAsync(long ticketId, DateTime now, CancellationToken ct)
+        private async Task<bool> TryAutoApplyDiscountAsync(long ticketId, CancellationToken ct)
         {
             var policies = await db.DiscountPolicies
                 .Where(p => p.IsAutoApply && p.IsActive)
@@ -293,85 +292,7 @@ public static class SendOrder
 
             var ticketEntity = await db.Tickets.FirstAsync(t => t.Id == ticketId, ct);
             ticketEntity.DiscountPolicyId = bestPolicy.Id;
-
-            if (bestEval.ApplyType == DiscountApplyType.Percent)
-            {
-                if (bestPolicy.DiscountType == DiscountType.TicketThreshold)
-                {
-                    ticketEntity.DiscountPercent = bestEval.DiscountValue;
-                }
-                else
-                {
-                    foreach (var o in orderItems.Where(o => o.ItemId == bestEval.MatchedItemId))
-                    {
-                        o.LineDiscountPercent = bestEval.DiscountValue;
-                    }
-                }
-            }
-            else
-            {
-                // FIXED distribution.
-                var affected = bestPolicy.DiscountType == DiscountType.TicketThreshold
-                    ? orderItems
-                    : orderItems.Where(o => o.ItemId == bestEval.MatchedItemId).ToList();
-
-                if (affected.Count > 0)
-                {
-                    decimal totalSubtotal = affected.Sum(o => o.LineSubtotal);
-                    if (totalSubtotal > 0m)
-                    {
-                        decimal remaining = bestEval.DiscountValue;
-                        var ordered = affected.OrderBy(o => o.SentAt).ToList();
-                        for (int i = 0; i < ordered.Count; i++)
-                        {
-                            var o = ordered[i];
-                            if (i == ordered.Count - 1)
-                            {
-                                if (bestPolicy.DiscountType == DiscountType.TicketThreshold)
-                                {
-                                    o.TicketDiscountAmount = remaining;
-                                }
-                                else
-                                {
-                                    o.LineDiscountAmount = remaining;
-                                }
-                            }
-                            else
-                            {
-                                decimal share = Money.Round(
-                                    bestEval.DiscountValue * o.LineSubtotal / totalSubtotal,
-                                    rc, RoundingKeys.LineDiscount);
-                                if (bestPolicy.DiscountType == DiscountType.TicketThreshold)
-                                {
-                                    o.TicketDiscountAmount = share;
-                                }
-                                else
-                                {
-                                    o.LineDiscountAmount = share;
-                                }
-
-                                remaining -= share;
-                            }
-
-                            o.LineDiscountPercent = 0m;
-                            o.TicketDiscountPercent = 0m;
-                        }
-                    }
-                }
-            }
-
-            var staff = await db.StaffAccounts.FirstAsync(s => s.Id == currentStaff.StaffAccountId, ct);
-            db.AuditLogs.Add(new AuditLog
-            {
-                EntityType = nameof(Ticket),
-                EntityId = ticketId,
-                Action = "APPLY_DISCOUNT",
-                ActorStaffAccountId = currentStaff.StaffAccountId,
-                ActorFullName = staff.FullName,
-                Timestamp = now,
-                Summary = $"Auto discount \"{bestPolicy.Code}\" applied: {bestEval.ApplyType} {bestEval.DiscountValue}",
-            });
-
+            // Percents derived by TicketRecomputeService; caller recomputes after this returns.
             return true;
         }
     }

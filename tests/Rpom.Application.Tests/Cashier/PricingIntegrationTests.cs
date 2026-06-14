@@ -280,7 +280,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         var a = await AddItem(ticket, _phoId, 2);
         var b = await AddItem(ticket, _cocaId, 1);
 
-        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+        var send = await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new SendOrder.Command(ticket, new List<long> { a.Value.CartItemId }), CancellationToken.None);
         send.IsSuccess.Should().BeTrue();
 
@@ -452,7 +452,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
 
     private Task<Result<SendOrder.Response>> Send(long ticketId)
     {
-        return new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+        return new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
     }
 
