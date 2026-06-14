@@ -115,6 +115,38 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task FixedDiscount_ReDerivesPercent_KeepsAmountAsBillGrows()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        for (int i = 0; i < 20; i++) await AddItem(ticket, _phoId, 1);   // 20 * 50k = 1,000,000
+        var send = await Send(ticket);
+        send.Value.TotalAmount.Should().BeApproximately(972_000m, 1m);
+
+        for (int i = 0; i < 4; i++) await AddItem(ticket, _phoId, 1);
+        await Send(ticket);
+        var t = await _ctx.Tickets.AsNoTracking().FirstAsync(x => x.Id == ticket);
+        t.DiscountAmount.Should().BeApproximately(100_000m, 1m);
+    }
+
+    [Fact]
+    public async Task FixedDiscount_RemovedWhenSubtotalDropsBelowThreshold()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        for (int i = 0; i < 20; i++) await AddItem(ticket, _phoId, 1);   // 1,000,000
+        await Send(ticket);
+
+        var item = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket && o.Status == OrderItemStatus.Pending);
+        await new CancelOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+            .Handle(new CancelOrderItem.Command(ticket, new List<long> { item.Id }), CancellationToken.None);
+
+        var t = await _ctx.Tickets.AsNoTracking().FirstAsync(x => x.Id == ticket);
+        t.DiscountAmount.Should().Be(0m);
+        t.DiscountPolicyId.Should().BeNull();
+    }
+
+    [Fact]
     public async Task CancelOrderItem_RecomputesTicket()
     {
         await AcquireLock();
