@@ -428,6 +428,33 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         await _ctx.SaveChangesAsync();
     }
 
+    [Fact]
+    public async Task AddCartItem_DoesNotMergeIntoRefundLine()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 2);
+        await Send(ticket);
+        var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
+
+        // Refund 1 (negative draft line for pho, note-free).
+        await new AddRefundLine.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
+            .Handle(new AddRefundLine.Command(ticket, original.Id, 1, _reasonActiveId, null), CancellationToken.None);
+
+        // Add 1 more pho normally (note-free) — must be a SEPARATE positive line, not merged into the refund line.
+        await AddItem(ticket, _phoId, 1);
+
+        var draftOrderId = await _ctx.Orders.Where(o => o.TicketId == ticket && o.Status == OrderStatus.Draft)
+            .Select(o => o.Id).FirstAsync();
+        var phoLines = await _ctx.CartItems.AsNoTracking()
+            .Where(c => c.OrderId == draftOrderId && c.ItemId == _phoId).ToListAsync();
+        phoLines.Count.Should().Be(2);
+        phoLines.Should().Contain(c => c.Quantity == -1m);
+        phoLines.Should().Contain(c => c.Quantity == 1m && c.OriginalOrderItemId == null);
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────────
 
     private async Task AcquireLock()
