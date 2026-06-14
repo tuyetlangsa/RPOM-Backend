@@ -532,6 +532,39 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         r.Error.Code.Should().Be("Ticket.InvalidCancellationReason");
     }
 
+    [Fact]
+    public async Task SendOrder_MaterializesRefundLine_LinkedAndAudited_CreditsBill()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 3);            // 3 pho = 150,000
+        await Send(ticket);
+        var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
+        await new MarkReadyOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new MarkReadyOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
+        await new MarkDoneOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new MarkDoneOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
+
+        await new AddRefundLine.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
+            .Handle(new AddRefundLine.Command(ticket, original.Id, 1, _reasonActiveId, "vỡ"), CancellationToken.None);
+        await Send(ticket);   // materialize the refund line
+
+        var refundRow = await _ctx.OrderItems.AsNoTracking().FirstAsync(o => o.OriginalOrderItemId == original.Id);
+        refundRow.Quantity.Should().Be(-1m);
+        refundRow.Status.Should().Be(OrderItemStatus.Pending);
+        refundRow.CancellationReasonId.Should().Be(_reasonActiveId);
+
+        (await _ctx.AuditLogs.AnyAsync(a =>
+            a.EntityType == nameof(OrderItem) && a.EntityId == original.Id && a.Action == "REFUND"))
+            .Should().BeTrue();
+
+        // Bill: net 2 pho = 100,000 + 8% VAT = 108,000.
+        var t = await _ctx.Tickets.AsNoTracking().FirstAsync(x => x.Id == ticket);
+        t.TotalAmount.Should().Be(108_000m);
+    }
+
     private ICurrentStaff Staff() => CreateStaff.Staff(_staffId);
     private IDateTimeProvider Clock() => CreateStaff.Clock();
     private ITableOperationGuard Guard() => new TableOperationGuard(_ctx, Clock(), Config());

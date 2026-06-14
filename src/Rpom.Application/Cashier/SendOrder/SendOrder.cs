@@ -164,6 +164,9 @@ public static class SendOrder
                     ServiceChargeVatPercent = c.ServiceChargeVatPercent,
                     KitchenStationId = stationByItem.GetValueOrDefault(c.ItemId),
                     Status = OrderItemStatus.Pending,
+                    OriginalOrderItemId = c.OriginalOrderItemId,
+                    CancellationReasonId = c.CancellationReasonId,
+                    CancellationNote = c.CancellationNote,
                     SentAt = now,
                     Notes = c.Notes,
                     CreatedAt = now,
@@ -206,6 +209,22 @@ public static class SendOrder
                 Timestamp = now,
                 Summary = $"Order #{order.OrderNumber} sent: {selected.Count} items (ticket {ticket.Id})"
             });
+
+            // Refund lines (negative-qty CartItems linked to an original DONE OrderItem) get their own
+            // REFUND audit, keyed to the ORIGINAL OrderItem so the original's history shows the refund.
+            foreach (CartItem c in selected.Where(c => c.OriginalOrderItemId is not null))
+            {
+                db.AuditLogs.Add(new AuditLog
+                {
+                    EntityType = nameof(OrderItem),
+                    EntityId = c.OriginalOrderItemId!.Value,
+                    Action = "REFUND",
+                    ActorStaffAccountId = currentStaff.StaffAccountId,
+                    ActorFullName = staff.FullName,
+                    Timestamp = now,
+                    Summary = $"Refund {Math.Abs(c.Quantity)} x {c.ItemName} (ticket {ticket.Id})"
+                });
+            }
             await db.SaveChangesAsync(ct);
 
             await ticketRecompute.RecomputeAsync(ticket.Id, ct);
