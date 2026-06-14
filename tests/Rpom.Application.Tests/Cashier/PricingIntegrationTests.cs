@@ -10,6 +10,7 @@ using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Cashier.AcquireTableLock;
 using Rpom.Application.Cashier.AddCartItem;
+using Rpom.Application.Cashier.AddRefundLine;
 using Rpom.Application.Cashier.CancelOrderItem;
 using Rpom.Application.Cashier.CancelTicket;
 using Rpom.Application.Cashier.MarkDoneOrderItem;
@@ -454,6 +455,81 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
     {
         return new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task AddRefundLine_CreatesNegativeDraftCartLine_LinkedToOriginal()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 3);
+        await Send(ticket);
+        var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
+        await new MarkReadyOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new MarkReadyOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
+        await new MarkDoneOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new MarkDoneOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
+
+        var r = await new AddRefundLine.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
+            .Handle(new AddRefundLine.Command(ticket, original.Id, 1, _reasonActiveId, "vỡ"), CancellationToken.None);
+        r.IsSuccess.Should().BeTrue();
+
+        var draft = await _ctx.CartItems.AsNoTracking().FirstAsync(c => c.OriginalOrderItemId == original.Id);
+        draft.Quantity.Should().Be(-1m);
+        draft.ItemId.Should().Be(original.ItemId);
+        draft.UnitPrice.Should().Be(original.UnitPrice);
+        draft.CancellationReasonId.Should().Be(_reasonActiveId);
+    }
+
+    [Fact]
+    public async Task AddRefundLine_PendingOriginal_Fails()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 2);
+        await Send(ticket);
+        var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket); // PENDING
+
+        var r = await new AddRefundLine.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
+            .Handle(new AddRefundLine.Command(ticket, original.Id, 1, _reasonActiveId, null), CancellationToken.None);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be("OrderItem.NotRefundable");
+    }
+
+    [Fact]
+    public async Task AddRefundLine_ExceedsRemaining_Fails()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 2);
+        await Send(ticket);
+        var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
+
+        var r = await new AddRefundLine.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
+            .Handle(new AddRefundLine.Command(ticket, original.Id, 3, _reasonActiveId, null), CancellationToken.None);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be("OrderItem.RefundQuantityExceeded");
+    }
+
+    [Fact]
+    public async Task AddRefundLine_InactiveReason_Fails()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 2);
+        await Send(ticket);
+        var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
+
+        var r = await new AddRefundLine.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
+            .Handle(new AddRefundLine.Command(ticket, original.Id, 1, _reasonInactiveId, null), CancellationToken.None);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be("Ticket.InvalidCancellationReason");
     }
 
     private ICurrentStaff Staff() => CreateStaff.Staff(_staffId);
