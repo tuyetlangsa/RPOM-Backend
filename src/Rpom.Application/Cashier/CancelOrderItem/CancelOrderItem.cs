@@ -67,23 +67,13 @@ public static class CancelOrderItem
                 oi.UpdatedAt = now;
             }
 
-            // If ALL items are terminal, close parent orders.
-            var allItems = await db.OrderItems
-                .Where(oi => oi.TicketId == request.TicketId)
-                .Select(oi => new { oi.Id, oi.OrderId, oi.Status })
-                .ToListAsync(ct);
-            var allTerminal = allItems.All(oi =>
-                oi.Status == OrderItemStatus.Done || oi.Status == OrderItemStatus.Cancelled);
-            if (allTerminal)
-            {
-                var orderIds = allItems.Select(oi => oi.OrderId).Distinct().ToList();
-                var orders = await db.Orders.Where(o => orderIds.Contains(o.Id)).ToListAsync(ct);
-                foreach (var o in orders.Where(o => o.Status != OrderStatus.Done && o.Status != OrderStatus.Deleted))
-                {
-                    o.Status = OrderStatus.Done;
-                    o.UpdatedAt = now;
-                }
-            }
+            // Persist cancellations FIRST: the rollup below reads order-item status via a
+            // projection (server-side SQL), which does not see unsaved tracked changes.
+            await db.SaveChangesAsync(ct);
+
+            // Per affected order: if all its own items are terminal, roll the order up to DONE.
+            await OrderRollup.BumpFullyTerminalOrdersAsync(
+                db, items.Select(oi => oi.OrderId).Distinct().ToList(), now, ct);
 
             await db.SaveChangesAsync(ct);
             await ticketRecompute.RecomputeAsync(ticket.Id, ct);

@@ -11,8 +11,11 @@ using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Cashier.AcquireTableLock;
 using Rpom.Application.Cashier.AddCartItem;
 using Rpom.Application.Cashier.CancelOrderItem;
+using Rpom.Application.Cashier.MarkDoneOrderItem;
+using Rpom.Application.Cashier.MarkReadyOrderItem;
 using Rpom.Application.Cashier.OpenTicket;
 using Rpom.Application.Cashier.SendOrder;
+using Rpom.Application.Cashier.StartCookOrderItem;
 using Rpom.Domain.Access;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
@@ -136,6 +139,102 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         // Remaining 2 items: 100000 + 8% VAT = 108000
         var final = await _ctx.Tickets.AsNoTracking().FirstAsync(t => t.Id == ticket);
         final.TotalAmount.Should().Be(108_000m);
+    }
+
+    [Fact]
+    public async Task CancelAllItems_OneByOne_BumpsParentOrderToDone()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 1, "1");
+        await AddItem(ticket, _phoId, 1, "2");
+        await AddItem(ticket, _phoId, 1, "3");
+        await Send(ticket);
+
+        var items = await _ctx.OrderItems
+            .Where(oi => oi.TicketId == ticket && oi.Status == OrderItemStatus.Pending)
+            .ToListAsync();
+        items.Count.Should().Be(3);
+        long orderId = items[0].OrderId;
+
+        // Cancel one at a time (separate handler calls, each its own SaveChanges).
+        foreach (var it in items)
+        {
+            var c = await new CancelOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+                .Handle(new CancelOrderItem.Command(ticket, new List<long> { it.Id }), CancellationToken.None);
+            c.IsSuccess.Should().BeTrue();
+        }
+
+        // All items terminal → parent order must roll up to DONE.
+        var order = await _ctx.Orders.AsNoTracking().FirstAsync(o => o.Id == orderId);
+        order.Status.Should().Be(OrderStatus.Done);
+    }
+
+    [Fact]
+    public async Task CancelMultiOrderBatch_BumpsOnlyFullyCancelledOrder()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+
+        // Order A: one item.
+        await AddItem(ticket, _phoId, 1, "a1");
+        await Send(ticket);
+        // Order B: two items.
+        await AddItem(ticket, _phoId, 1, "b1");
+        await AddItem(ticket, _phoId, 1, "b2");
+        await Send(ticket);
+
+        var orders = await _ctx.Orders.AsNoTracking()
+            .Where(o => o.TicketId == ticket && o.Status != OrderStatus.Draft)
+            .OrderBy(o => o.OrderNumber).ToListAsync();
+        orders.Count.Should().Be(2);
+        long orderA = orders[0].Id, orderB = orders[1].Id;
+
+        var itemA = await _ctx.OrderItems.AsNoTracking().FirstAsync(oi => oi.OrderId == orderA);
+        var itemsB = await _ctx.OrderItems.AsNoTracking().Where(oi => oi.OrderId == orderB).OrderBy(oi => oi.Id).ToListAsync();
+
+        // One batch: cancel all of A + only the first item of B.
+        var c = await new CancelOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+            .Handle(new CancelOrderItem.Command(ticket, new List<long> { itemA.Id, itemsB[0].Id }), CancellationToken.None);
+        c.IsSuccess.Should().BeTrue();
+
+        var a = await _ctx.Orders.AsNoTracking().FirstAsync(o => o.Id == orderA);
+        var b = await _ctx.Orders.AsNoTracking().FirstAsync(o => o.Id == orderB);
+        a.Status.Should().Be(OrderStatus.Done);   // all its items cancelled
+        b.Status.Should().Be(OrderStatus.Sent);   // still has one PENDING item
+    }
+
+    [Fact]
+    public async Task MarkDoneAllItems_OneByOne_BumpsParentOrderToDone()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 1, "1");
+        await AddItem(ticket, _phoId, 1, "2");
+        await Send(ticket);
+
+        var items = await _ctx.OrderItems
+            .Where(oi => oi.TicketId == ticket && oi.Status == OrderItemStatus.Pending)
+            .ToListAsync();
+        items.Count.Should().Be(2);
+        long orderId = items[0].OrderId;
+        var ids = items.Select(i => i.Id).ToList();
+
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new StartCookOrderItem.Command(ticket, ids), CancellationToken.None);
+        await new MarkReadyOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new MarkReadyOrderItem.Command(ticket, ids), CancellationToken.None);
+
+        // Mark done one at a time.
+        foreach (var id in ids)
+        {
+            var d = await new MarkDoneOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+                .Handle(new MarkDoneOrderItem.Command(ticket, new List<long> { id }), CancellationToken.None);
+            d.IsSuccess.Should().BeTrue();
+        }
+
+        var order = await _ctx.Orders.AsNoTracking().FirstAsync(o => o.Id == orderId);
+        order.Status.Should().Be(OrderStatus.Done);
     }
 
     [Fact]
