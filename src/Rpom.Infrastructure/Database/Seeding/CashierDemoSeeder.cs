@@ -109,6 +109,7 @@ public sealed class CashierDemoSeeder(
                 Permissions.CashierViewMenu,
                 Permissions.TicketOpen,
                 Permissions.TicketTransfer,
+                Permissions.TicketCancel,
                 Permissions.OrderAddItems,
                 Permissions.OrderSendKitchen,
                 Permissions.OrderItemCancelPending,

@@ -11,12 +11,14 @@ using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Cashier.AcquireTableLock;
 using Rpom.Application.Cashier.AddCartItem;
 using Rpom.Application.Cashier.CancelOrderItem;
+using Rpom.Application.Cashier.CancelTicket;
 using Rpom.Application.Cashier.MarkDoneOrderItem;
 using Rpom.Application.Cashier.MarkReadyOrderItem;
 using Rpom.Application.Cashier.OpenTicket;
 using Rpom.Application.Cashier.SendOrder;
 using Rpom.Application.Cashier.StartCookOrderItem;
 using Rpom.Domain.Access;
+using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
 using Rpom.Domain.Operations;
@@ -36,6 +38,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         new PostgreSqlBuilder().WithImage("pgvector/pgvector:pg17").Build();
     private ApplicationDbContext _ctx = null!;
     private int _staffId, _tableId, _shiftId;
+    private int _managerId, _reasonActiveId, _reasonInactiveId;
     private int _phoId, _biaId, _cocaId, _traDaId, _caPheId;
 
     public async Task InitializeAsync()
@@ -254,6 +257,144 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         cart.Should().Be(1);
     }
 
+    // ─── Cancel Ticket ──────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CancelEmptyTicket_SetsCancelledReleasesLockAndAudits()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+
+        var r = await CancelTicketCall(ticket, _managerId, _reasonActiveId, "mo nham");
+        r.IsSuccess.Should().BeTrue();
+        r.Value.Status.Should().Be(TicketStatus.Cancelled);
+
+        var t = await _ctx.Tickets.AsNoTracking().FirstAsync(x => x.Id == ticket);
+        t.Status.Should().Be(TicketStatus.Cancelled);
+        t.CancelledAt.Should().NotBeNull();
+        t.CancellationReasonId.Should().Be(_reasonActiveId);
+        t.ManagerStaffId.Should().Be(_managerId);
+
+        (await _ctx.TableLocks.AnyAsync(l => l.TableId == _tableId)).Should().BeFalse();
+        (await _ctx.AuditLogs.AnyAsync(a =>
+            a.EntityType == nameof(Ticket) && a.EntityId == ticket && a.Action == "CANCEL")).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CancelTicket_WithActiveOrderItem_Fails()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 1);
+        await Send(ticket);
+
+        var r = await CancelTicketCall(ticket, _managerId, _reasonActiveId, null);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be("Ticket.HasActiveItems");
+
+        (await _ctx.Tickets.AsNoTracking().FirstAsync(x => x.Id == ticket)).Status.Should().Be(TicketStatus.Open);
+    }
+
+    [Fact]
+    public async Task CancelTicket_AfterAllItemsCancelled_Succeeds()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 1);
+        await Send(ticket);
+        var item = await _ctx.OrderItems.FirstAsync(oi => oi.TicketId == ticket);
+        await new CancelOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
+            .Handle(new CancelOrderItem.Command(ticket, new List<long> { item.Id }), CancellationToken.None);
+
+        var r = await CancelTicketCall(ticket, _managerId, _reasonActiveId, null);
+        r.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CancelTicket_WithPendingPayment_Fails()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddPayment(ticket, TicketPaymentStatus.Pending);
+
+        var r = await CancelTicketCall(ticket, _managerId, _reasonActiveId, null);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be("Ticket.HasPendingPayment");
+    }
+
+    [Fact]
+    public async Task CancelTicket_WithSuccessPayment_Fails()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddPayment(ticket, TicketPaymentStatus.Success);
+
+        var r = await CancelTicketCall(ticket, _managerId, _reasonActiveId, null);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be("Ticket.HasSuccessfulPayment");
+    }
+
+    [Fact]
+    public async Task CancelTicket_DropsDraftCart()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+        await AddItem(ticket, _phoId, 1);   // stays in DRAFT cart (not sent)
+
+        var r = await CancelTicketCall(ticket, _managerId, _reasonActiveId, null);
+        r.IsSuccess.Should().BeTrue();
+
+        var draftOrderIds = await _ctx.Orders.AsNoTracking()
+            .Where(o => o.TicketId == ticket && o.Status == OrderStatus.Draft).Select(o => o.Id).ToListAsync();
+        (await _ctx.CartItems.AnyAsync(c => draftOrderIds.Contains(c.OrderId))).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CancelTicket_NonManager_Fails()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+
+        // _staffId is the cashier (role CASHIER), not a manager.
+        var r = await CancelTicketCall(ticket, _staffId, _reasonActiveId, null);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be("Ticket.InvalidManager");
+    }
+
+    [Fact]
+    public async Task CancelTicket_InactiveReason_Fails()
+    {
+        await AcquireLock();
+        var ticket = await OpenTicket();
+
+        var r = await CancelTicketCall(ticket, _managerId, _reasonInactiveId, null);
+        r.IsFailure.Should().BeTrue();
+        r.Error.Code.Should().Be("Ticket.InvalidCancellationReason");
+    }
+
+    private Task<Result<CancelTicket.Response>> CancelTicketCall(long ticketId, int managerId, int reasonId, string? note)
+    {
+        return new CancelTicket.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+            .Handle(new CancelTicket.Command(ticketId, managerId, reasonId, note), CancellationToken.None);
+    }
+
+    private async Task AddPayment(long ticketId, string status)
+    {
+        var pm = await _ctx.PaymentMethods.FirstOrDefaultAsync();
+        if (pm is null)
+        {
+            pm = new PaymentMethod { Code = "CASH", Name = "Tien mat", DisplayOrder = 1, IsActive = true, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow };
+            _ctx.PaymentMethods.Add(pm);
+            await _ctx.SaveChangesAsync();
+        }
+        _ctx.TicketPaymentDetails.Add(new TicketPaymentDetail
+        {
+            TicketId = ticketId, PaymentMethodId = pm.Id, Amount = 10_000m, Status = status,
+            ProcessedByStaffId = _staffId, CreatedAt = DateTime.UtcNow, UpdatedAt = DateTime.UtcNow
+        });
+        await _ctx.SaveChangesAsync();
+    }
+
     // ─── Helpers ────────────────────────────────────────────────────────────
 
     private async Task AcquireLock()
@@ -305,6 +446,10 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         var now = DateTime.UtcNow;
         var role = new Role { Code = "CASHIER", Name = "Cashier", IsSystemRole = true, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var staff = new StaffAccount { Username = "c", PasswordHash = "x", FullName = "Thu ngan", Role = role, IsActive = true, IsLocked = false, CreatedAt = now, UpdatedAt = now };
+        var mgrRole = new Role { Code = "MANAGER", Name = "Manager", IsSystemRole = true, IsActive = true, CreatedAt = now, UpdatedAt = now };
+        var manager = new StaffAccount { Username = "m", PasswordHash = "x", FullName = "Quan ly", Role = mgrRole, IsActive = true, IsLocked = false, CreatedAt = now, UpdatedAt = now };
+        var reasonActive = new CancellationReason { Code = "CUS_CHANGE_MIND", Name = "Khach doi y", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
+        var reasonInactive = new CancellationReason { Code = "OLD", Name = "Ly do cu", DisplayOrder = 2, IsActive = false, CreatedAt = now, UpdatedAt = now };
         var counter = new Counter { Name = "C", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var area = new Area { Counter = counter, Name = "A", DisplayOrder = 1, IsActive = true, ServiceChargePercent = 0m, ServiceChargeVatPercent = 0m, CreatedAt = now, UpdatedAt = now };
         var table = new Table { Area = area, Code = "T01", SeatCount = 4, Status = TableStatus.Available, IsActive = true, CreatedAt = now, UpdatedAt = now };
@@ -340,7 +485,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         var cat = new Category { Code = "HANG_BAN", Name = "Hang ban", Level = 0, Path = "1;", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
         var catSub = new Category { Code = "DOUONG", Name = "Do uong", Parent = cat, Level = 1, Path = "1;999;", DisplayOrder = 1, IsActive = true, CreatedAt = now, UpdatedAt = now };
 
-        _ctx.AddRange(role, staff, counter, area, table, shift,
+        _ctx.AddRange(role, staff, mgrRole, manager, reasonActive, reasonInactive, counter, area, table, shift,
             uomPhan, uomLon, uomLy, pho, bia, coca, traDa, caPhe,
             priceTable, variant, pePho, peBia, peCoca, peTraDa, peCaPhe, dp1, dp2);
         await _ctx.SaveChangesAsync();
@@ -361,6 +506,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         await _ctx.SaveChangesAsync();
 
         _staffId = staff.Id; _tableId = table.Id; _shiftId = shift.Id;
+        _managerId = manager.Id; _reasonActiveId = reasonActive.Id; _reasonInactiveId = reasonInactive.Id;
         _phoId = pho.Id; _biaId = bia.Id; _cocaId = coca.Id; _traDaId = traDa.Id; _caPheId = caPhe.Id;
     }
 }

@@ -235,3 +235,23 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 - **Config mới** `transfer.use_target_area_service_charge` (BOOL, default `true`): true = re-snapshot SC từ Area đích + `TicketRecompute`; false = giữ SC của phiếu.
 - **Errors mới**: `Ticket.TransferSameTable`, `Ticket.TransferCrossCounter`.
 - **Tests**: `tests/Rpom.Application.Tests/Cashier/TransferTableTests.cs` (8 cases: same-area, cross-area SC true/false, not-open, same-table, cross-counter, no-lock, target-not-found).
+
+---
+
+## 13. Order rollup fix (Cancel/MarkDone)
+
+- **Bug**: roll-up Order→DONE query item-status bằng projection **trước** `SaveChangesAsync` → item vừa đổi đọc ra state cũ → order kẹt SENT/PROCESSING. Thêm: check phạm vi cả ticket thay vì per-order.
+- **Fix**: `src/Rpom.Application/Cashier/OrderRollup.cs` (helper per-order). `CancelOrderItem` + `MarkDoneOrderItem` SaveChanges trước rồi mới roll-up.
+- **Tests**: +3 trong `PricingIntegrationTests.cs` (one-by-one cancel/markdone, multi-order batch).
+
+---
+
+## 14. Cancel Ticket (OPEN → CANCELLED)
+
+- **Use case**: `src/Rpom.Application/Cashier/CancelTicket/CancelTicket.cs`
+- **Endpoint**: `POST /api/cashier/tickets/{ticketId:long}/cancel` body `{ managerStaffId, cancellationReasonId, cancellationNote? }`, perm `ticket:cancel`.
+- Huỷ nguyên phiếu OPEN khi **bill rỗng** (mọi OrderItem đã CANCELLED) và **không có payment** PENDING/SUCCESS. Manager (Owner/Manager, active) bắt buộc duyệt qua `managerStaffId`.
+- Side effects: auto-drop DRAFT cart (order DRAFT → DELETED), set `CancelledAt`/`CancellationReasonId`/`CancellationNote`/`ManagerStaffId`, ghi AuditLog `CANCEL`, release table lock, bump `FLOOR_PLAN`. **Không** refund (đã chặn payment SUCCESS).
+- **Errors mới**: `Ticket.HasActiveItems`, `Ticket.HasPendingPayment`, `Ticket.HasSuccessfulPayment`, `Ticket.InvalidCancellationReason`, `Ticket.InvalidManager`.
+- **Permission**: grant `ticket:cancel` cho role **Cashier** (người giữ table lock gọi endpoint; manager duyệt trong body).
+- **Tests**: +8 trong `PricingIntegrationTests.cs` (empty cancel + lock release + audit, active item blocked, after-all-cancelled OK, pending/success payment blocked, draft cart dropped, non-manager blocked, inactive reason blocked).
