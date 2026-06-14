@@ -15,9 +15,10 @@ using Rpom.Domain.Sales;
 namespace Rpom.Application.Cashier.ApplyDiscountPolicy;
 
 /// <summary>
-/// Apply a discount policy to an open ticket. Evaluates conditions against the current
-/// ticket state, picks the best-matching condition, then applies PERCENT or distributes FIXED.
-/// Requires the table lock; recomputes the ticket.
+/// Apply a discount policy to an open ticket. Validates conditions against the current
+/// ticket state, attaches the policy ID, then delegates all discount math to
+/// TicketRecomputeService (which converts FIXED→% and distributes via DiscountResolver).
+/// Requires the table lock.
 /// </summary>
 public static class ApplyDiscountPolicy
 {
@@ -31,7 +32,6 @@ public static class ApplyDiscountPolicy
         IDateTimeProvider clock,
         ITableOperationGuard guard,
         ITicketRecomputeService ticketRecompute,
-        IRoundingConfig rc,
         IVersionService versionService) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
@@ -107,19 +107,10 @@ public static class ApplyDiscountPolicy
                 return Result.Failure<Response>(DiscountErrors.NotApplicable);
             }
 
-            // ---- Apply ----
+            // ---- Attach policy; TicketRecomputeService derives all discount math. ----
             var now = clock.UtcNow;
             currentTicket.DiscountPolicyId = policy.Id;
-
-            if (evalResult.ApplyType == DiscountApplyType.Percent)
-            {
-                ApplyPercent(policy.DiscountType, currentTicket, orderItems, evalResult.DiscountValue,
-                    evalResult.MatchedItemId);
-            }
-            else
-            {
-                DistributeFixed(policy.DiscountType, orderItems, evalResult, rc);
-            }
+            // Percents are derived by TicketRecomputeService from the attached policy.
 
             await ticketRecompute.RecomputeAsync(ticket.Id, ct);
 
@@ -142,84 +133,6 @@ public static class ApplyDiscountPolicy
                 .Select(t => new { t.DiscountAmount, t.TotalAmount }).FirstAsync(ct);
 
             return Result.Success(new Response(ticket.Id, final.DiscountAmount, final.TotalAmount));
-        }
-
-        private static void ApplyPercent(
-            string discountType, Ticket ticket, IReadOnlyList<OrderItem> orderItems,
-            decimal percent, int? matchedItemId)
-        {
-            if (discountType == DiscountType.TicketThreshold)
-            {
-                ticket.DiscountPercent = percent;
-            }
-            else
-            {
-                ticket.DiscountPercent = 0m;
-                foreach (var o in orderItems.Where(o => o.ItemId == matchedItemId))
-                {
-                    o.LineDiscountPercent = percent;
-                    o.TicketDiscountPercent = 0m;
-                }
-            }
-        }
-
-        private static void DistributeFixed(
-            string discountType, IReadOnlyList<OrderItem> orderItems,
-            DiscountEvaluator.Result evalResult, IRoundingConfig rc)
-        {
-            var affected = discountType == DiscountType.TicketThreshold
-                ? orderItems
-                : orderItems.Where(o => o.ItemId == evalResult.MatchedItemId).ToList();
-
-            if (affected.Count == 0)
-            {
-                return;
-            }
-
-            decimal totalSubtotal = affected.Sum(o => o.LineSubtotal);
-            if (totalSubtotal <= 0m)
-            {
-                return;
-            }
-
-            decimal remaining = evalResult.DiscountValue;
-            var ordered = affected.OrderBy(o => o.SentAt).ToList();
-
-            for (int i = 0; i < ordered.Count; i++)
-            {
-                var o = ordered[i];
-                if (i == ordered.Count - 1)
-                {
-                    // Last line absorbs rounding error — ensures exact sum.
-                    if (discountType == DiscountType.TicketThreshold)
-                    {
-                        o.TicketDiscountAmount = remaining;
-                    }
-                    else
-                    {
-                        o.LineDiscountAmount = remaining;
-                    }
-                }
-                else
-                {
-                    decimal share = Money.Round(
-                        evalResult.DiscountValue * o.LineSubtotal / totalSubtotal,
-                        rc, RoundingKeys.LineDiscount);
-                    if (discountType == DiscountType.TicketThreshold)
-                    {
-                        o.TicketDiscountAmount = share;
-                    }
-                    else
-                    {
-                        o.LineDiscountAmount = share;
-                    }
-
-                    remaining -= share;
-                }
-
-                o.LineDiscountPercent = 0m;
-                o.TicketDiscountPercent = 0m;
-            }
         }
     }
 }
