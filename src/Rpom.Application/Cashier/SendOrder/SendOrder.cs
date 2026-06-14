@@ -292,6 +292,19 @@ public static class SendOrder
 
             var ticketEntity = await db.Tickets.FirstAsync(t => t.Id == ticketId, ct);
             ticketEntity.DiscountPolicyId = bestPolicy.Id;
+
+            StaffAccount staff = await db.StaffAccounts.FirstAsync(s => s.Id == currentStaff.StaffAccountId, ct);
+            db.AuditLogs.Add(new AuditLog
+            {
+                EntityType = nameof(Ticket),
+                EntityId = ticketId,
+                Action = "APPLY_DISCOUNT",
+                ActorStaffAccountId = currentStaff.StaffAccountId,
+                ActorFullName = staff.FullName,
+                Timestamp = clock.UtcNow,
+                Summary = $"Auto discount \"{bestPolicy.Code}\" applied: {bestEval.ApplyType} {bestEval.DiscountValue}"
+            });
+
             // Percents derived by TicketRecomputeService; caller recomputes after this returns.
             return true;
         }
