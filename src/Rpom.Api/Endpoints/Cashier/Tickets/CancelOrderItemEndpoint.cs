@@ -14,8 +14,11 @@ internal sealed class CancelOrderItemEndpoint : IEndpoint
         app.MapPost("api/cashier/tickets/{ticketId:long}/order-items/cancel",
                 async (long ticketId, [FromBody] Request request, ISender sender, CancellationToken ct) =>
                 {
+                    var lines = request.Lines
+                        .Select(l => new CancelOrderItem.CancelLine(l.OrderItemId, l.Quantity))
+                        .ToList();
                     Result<CancelOrderItem.Response> result =
-                        await sender.Send(new CancelOrderItem.Command(ticketId, request.OrderItemIds), ct);
+                        await sender.Send(new CancelOrderItem.Command(ticketId, lines), ct);
                     return result.MatchOk();
                 })
             .RequireAuthorization(Permissions.OrderItemCancelPending)
@@ -25,8 +28,15 @@ internal sealed class CancelOrderItemEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status404NotFound)
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Cancel one or more pending order items (PENDING → CANCELLED).")
-            .WithDescription("Request: route ticketId + JSON body { orderItemIds: long[] }. Only from PENDING. Auto-closes Order if all terminal.");
+            .WithDescription(
+                "Request: route ticketId + JSON body { lines: [{ orderItemId, quantity? }, ...] }. "
+                + "Only from PENDING. Omit quantity (or set to 0) to cancel the entire line; "
+                + "a quantity less than the line's qty performs a partial cancel (reduces the "
+                + "original line and creates a CANCELLED shadow row for the cancelled portion). "
+                + "Auto-closes Order if all items terminal.");
     }
 
-    internal sealed record Request(IReadOnlyList<long> OrderItemIds);
+    internal sealed record LineRequest(long OrderItemId, decimal? Quantity = null);
+
+    internal sealed record Request(IReadOnlyList<LineRequest> Lines);
 }

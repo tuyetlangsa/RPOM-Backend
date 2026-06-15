@@ -15,11 +15,17 @@ namespace Rpom.Application.Cashier.CancelOrderItem;
 /// <summary>
 ///     Order staff cancels one or more pending order items. PENDING → CANCELLED.
 ///     Only cancellable from PENDING — once kitchen has started, use Refund instead.
+///     Each line may optionally specify a Quantity to cancel only a portion of the
+///     item's ordered quantity (partial cancel). When Quantity is null or covers the full
+///     remaining qty, the entire line is cancelled. For partial cancel a shadow row with
+///     status CANCELLED records the cancelled portion and the original line is reduced.
 ///     If all items are terminal, parent orders → DONE.
 /// </summary>
 public static class CancelOrderItem
 {
-    public sealed record Command(long TicketId, IReadOnlyList<long> OrderItemIds) : ICommand<Response>;
+    public sealed record CancelLine(long OrderItemId, decimal? Quantity = null);
+
+    public sealed record Command(long TicketId, IReadOnlyList<CancelLine> Lines) : ICommand<Response>;
     public sealed record Response(int UpdatedCount, string NewStatus);
 
     internal sealed class Validator : AbstractValidator<Command>
@@ -27,7 +33,7 @@ public static class CancelOrderItem
         public Validator()
         {
             RuleFor(x => x.TicketId).GreaterThan(0);
-            RuleFor(x => x.OrderItemIds).NotEmpty();
+            RuleFor(x => x.Lines).NotEmpty();
         }
     }
 
@@ -51,7 +57,7 @@ public static class CancelOrderItem
             Result held = await guard.EnsureHeldAsync(ticket.TableId, currentStaff.StaffAccountId, ct);
             if (held.IsFailure) return Result.Failure<Response>(held.Error);
 
-            var ids = request.OrderItemIds.Distinct().ToList();
+            var ids = request.Lines.Select(l => l.OrderItemId).Distinct().ToList();
             var items = await db.OrderItems
                 .Where(oi => ids.Contains(oi.Id) && oi.TicketId == request.TicketId)
                 .ToListAsync(ct);
@@ -60,11 +66,53 @@ public static class CancelOrderItem
             if (items.Any(oi => oi.Status != OrderItemStatus.Pending))
                 return Result.Failure<Response>(OrderItemErrors.NotPending);
 
+            var qtyByItem = request.Lines.DistinctBy(l => l.OrderItemId)
+                .ToDictionary(l => l.OrderItemId, l => l.Quantity);
+
             DateTime now = clock.UtcNow;
+            int updatedCount = 0;
+
             foreach (var oi in items)
             {
-                oi.Status = OrderItemStatus.Cancelled;
-                oi.UpdatedAt = now;
+                decimal cancelQty = qtyByItem.GetValueOrDefault(oi.Id) ?? 0m;
+                if (cancelQty <= 0m || cancelQty >= oi.Quantity)
+                {
+                    // Full-line cancel: mark the whole row CANCELLED.
+                    oi.Status = OrderItemStatus.Cancelled;
+                    oi.UpdatedAt = now;
+                    updatedCount++;
+                }
+                else
+                {
+                    // Partial cancel: reduce the original and create a shadow CANCELLED row.
+                    oi.Quantity -= cancelQty;
+                    oi.UpdatedAt = now;
+                    db.OrderItems.Add(new OrderItem
+                    {
+                        OrderId = oi.OrderId,
+                        TicketId = oi.TicketId,
+                        ItemId = oi.ItemId,
+                        ItemCode = oi.ItemCode,
+                        ItemName = oi.ItemName,
+                        UomId = oi.UomId,
+                        UomCode = oi.UomCode,
+                        UomName = oi.UomName,
+                        Quantity = cancelQty,
+                        UnitPrice = oi.UnitPrice,
+                        ChoicePricePerUnit = oi.ChoicePricePerUnit,
+                        VatPercent = oi.VatPercent,
+                        ServiceChargePercent = oi.ServiceChargePercent,
+                        ServiceChargeVatPercent = oi.ServiceChargeVatPercent,
+                        KitchenStationId = oi.KitchenStationId,
+                        Status = OrderItemStatus.Cancelled,
+                        OriginalOrderItemId = oi.Id,
+                        SentAt = oi.SentAt,
+                        Notes = oi.Notes,
+                        CreatedAt = now,
+                        UpdatedAt = now
+                    });
+                    updatedCount++;
+                }
             }
 
             // Persist cancellations FIRST: the rollup below reads order-item status via a
@@ -81,7 +129,7 @@ public static class CancelOrderItem
             await versionService.BumpAsync(VersionScopes.Kitchen, $"CancelItem(ticketId={ticket.Id})", ct);
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"CancelItem(ticketId={ticket.Id})", ct);
 
-            return Result.Success(new Response(items.Count, OrderItemStatus.Cancelled));
+            return Result.Success(new Response(updatedCount, OrderItemStatus.Cancelled));
         }
     }
 }
