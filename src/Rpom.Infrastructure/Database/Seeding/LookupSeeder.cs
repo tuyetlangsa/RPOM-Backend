@@ -262,7 +262,8 @@ public sealed class LookupSeeder(
             ("WRONG_DISH", "Lên sai món", 3),
             ("FOREIGN_OBJECT", "Có dị vật", 4),
             ("QUALITY", "Chất lượng không đạt", 5),
-            ("OTHER", "Lý do khác", 6)
+            ("OTHER", "Lý do khác", 6),
+            ("MERGE", "Gộp hoá đơn", 7)
         };
         var existing = (await db.CancellationReasons.Select(x => x.Code).ToListAsync(ct)).ToHashSet();
         foreach ((string Code, string Name, short Order) r in reasons)
