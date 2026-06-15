@@ -28,6 +28,27 @@ public static class TicketErrors
         "Ticket.TransferCrossCounter",
         "Không thể chuyển phiếu sang bàn thuộc quầy khác.");
 
+
+    public static readonly Error HasActiveItems = Error.Conflict(
+        "Ticket.HasActiveItems",
+        "Phiếu còn món chưa huỷ. Hãy huỷ hết món trước khi huỷ phiếu.");
+
+    public static readonly Error HasPendingPayment = Error.Conflict(
+        "Ticket.HasPendingPayment",
+        "Phiếu còn thanh toán đang chờ. Hãy xử lý thanh toán trước khi huỷ phiếu.");
+
+    public static readonly Error HasSuccessfulPayment = Error.Conflict(
+        "Ticket.HasSuccessfulPayment",
+        "Phiếu đã có thanh toán thành công nên không thể huỷ.");
+
+    public static readonly Error InvalidCancellationReason = Error.BadRequest(
+        "Ticket.InvalidCancellationReason",
+        "Lý do huỷ không hợp lệ hoặc đã ngừng sử dụng.");
+
+    public static readonly Error InvalidManager = Error.BadRequest(
+        "Ticket.InvalidManager",
+        "Người duyệt huỷ phải là Quản lý hoặc Chủ nhà hàng đang hoạt động.");
+
     public static readonly Error NotFullyPaid = Error.Conflict(
         "Ticket.NotFullyPaid",
         "Hoá đơn chưa thanh toán đủ — không thể đóng.");
@@ -35,4 +56,5 @@ public static class TicketErrors
     public static readonly Error HasProcessingOrder = Error.Conflict(
         "Ticket.HasProcessingOrder",
         "Hoá đơn còn item đợt gọi món đang chế biến (PROCESSING). Hãy hoàn tất (DONE) hoặc huỷ các món/đợt đó trước khi đóng.");
+
 }

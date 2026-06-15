@@ -56,7 +56,7 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
         var ticketId = await OpenAndSendAsync();
 
         var apply = await new ApplyDiscountPolicy.Handler(
-            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new ApplyDiscountPolicy.Command(ticketId, _policyId), CancellationToken.None);
         apply.IsSuccess.Should().BeTrue();
         apply.Value.DiscountAmount.Should().BeGreaterThan(0);
@@ -87,7 +87,7 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
         await _ctx.SaveChangesAsync();
 
         var apply = await new ApplyDiscountPolicy.Handler(
-            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new ApplyDiscountPolicy.Command(ticketId, policy.Id), CancellationToken.None);
         apply.IsFailure.Should().BeTrue();
         apply.Error.Code.Should().Be("Discount.PolicyNotFound");
@@ -99,11 +99,11 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
         var ticketId = await OpenAndSendAsync();
 
         await new ApplyDiscountPolicy.Handler(
-            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new ApplyDiscountPolicy.Command(ticketId, _policyId), CancellationToken.None);
 
         var apply2 = await new ApplyDiscountPolicy.Handler(
-            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new ApplyDiscountPolicy.Command(ticketId, _policyId), CancellationToken.None);
         apply2.IsFailure.Should().BeTrue();
         apply2.Error.Code.Should().Be("Discount.AlreadyApplied");
@@ -115,7 +115,7 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
         var ticketId = await OpenAndSendAsync();
 
         await new ApplyDiscountPolicy.Handler(
-            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new ApplyDiscountPolicy.Command(ticketId, _policyId), CancellationToken.None);
 
         var rem = await new RemoveDiscount.Handler(
@@ -146,7 +146,7 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
         var ticketId = await OpenAndSendAsync(quantity1: 2m, quantity2: 1m); // 2 Phở + 1 Bún
 
         var apply = await new ApplyDiscountPolicy.Handler(
-            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+            _ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new ApplyDiscountPolicy.Command(ticketId, _fixedPolicyId), CancellationToken.None);
         apply.IsSuccess.Should().BeTrue();
         apply.Value.DiscountAmount.Should().Be(5_000m);
@@ -175,7 +175,7 @@ public sealed class DiscountIntegrationTests : IAsyncLifetime
                 .Handle(new AddCartItem.Command(ticketId, _item2Id, quantity2, null, []), CancellationToken.None);
         }
 
-        await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+        await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
 
         return ticketId;

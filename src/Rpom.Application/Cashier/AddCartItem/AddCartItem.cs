@@ -254,7 +254,8 @@ public static class AddCartItem
             long orderId, int itemId, bool isSetMenu, IReadOnlyList<DetailRow> incoming, CancellationToken ct)
         {
             List<CartItem> candidates = await db.CartItems
-                .Where(c => c.OrderId == orderId && c.ItemId == itemId && c.Notes == null)
+                .Where(c => c.OrderId == orderId && c.ItemId == itemId && c.Notes == null
+                    && c.OriginalOrderItemId == null)
                 .ToListAsync(ct);
             if (candidates.Count == 0)
             {

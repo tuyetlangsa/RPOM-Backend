@@ -139,7 +139,7 @@ internal sealed class GetTicketDetailsEndpoint : IEndpoint
 - Timestamp: suffix `*At` (`CreatedAt`, `UpdatedAt`, `ClosedAt`). Type `datetime2(3)` (Postgres `timestamp(3)`).
 - Bool: prefix `Is*` / `Has*` (`IsActive`, `HasRecipe`).
 - Money: `decimal(18,2)` cho final, `decimal(18,5)` cho intermediate compute.
-- Percent: `decimal(5,2)` (cho phép tối đa 999.99%).
+- Percent: `decimal(5,2)` (cho phép tối đa 999.99%). **Ngoại lệ — discount percent** (`Ticket.DiscountPercent`, `OrderItem.LineDiscountPercent`/`TicketDiscountPercent`): `decimal(9,6)` vì là giá trị **dẫn xuất** từ FIXED amount (`fixedValue / subtotal`), cần precision cao để không khuếch đại sai số vào tiền. VAT% / ServiceCharge% giữ `decimal(5,2)`.
 
 ### Audit columns
 - Master: `CreatedAt`, `UpdatedAt`, `IsActive`.
@@ -259,7 +259,9 @@ Snapshot field **KHÔNG đổi** khi master Item rename/reprice. Bill cũ luôn 
 - **Normalize tại GetMenu API**: BE compute `BasePrice` (pre-VAT) + `DisplayPrice` (all-in) trả về FE. FE submit `BasePrice` khi add cart.
 - **Rounding precision** qua `RoundingConfig` table + `IRoundingConfig.GetDigits(keyCode)` helper. KHÔNG hardcode `Math.Round(value, N)` — luôn `Money.Round(value, rc, "I_ROUNDXXX")`.
 - **Rounding mode hardcode**: `MidpointRounding.AwayFromZero`. KHÔNG configurable v1.
-- **Discount 1 cấp**: Line + Ticket cùng compute, cái lớn thắng, cái thua zero.
+- **Discount 1 cấp**: Line + Ticket cùng compute, cái lớn thắng, cái thua zero (so trên **%**).
+- **Discount engine = percent-based (F2-style), re-derive mỗi recompute** (spec `2026-06-14-discount-percent-engine-design.md`). Nguồn sự thật = `Ticket.DiscountPolicyId`; `TicketRecomputeService` re-derive % của **policy đang gắn** mỗi lần recompute. FIXED → `% = fixedValue / currentSubtotal` (tự co giãn theo bill, luôn ra đúng số tiền fix). Re-check điều kiện mỗi recompute: tụt dưới ngưỡng → **gỡ discount** (`DiscountPolicyId = null`). **Attached-policy only, KHÔNG re-select** policy khác trong recompute (việc chọn policy là của SendOrder auto-apply + ApplyDiscountPolicy). Cap % ≤ 100. Dòng net-âm (refund) → discount %=0.
+- **KHÔNG còn frozen FIXED-amount distribution** (bỏ "distributed proportionally, last line absorbs rounding, Σ = exact policy value"). % tính full-precision in-memory, **round muộn 1 lần** ở line/ticket total qua `Money.Round` → sai số ≤ 1 đơn vị làm tròn.
 - **SC tính trên LineSubtotal GỐC** (trước Discount). VAT items tính trên `LineSubtotal − Discount`. VAT của SC riêng (`Area.ServiceChargeVatPercent`).
 - **`Ticket.RoundingAdjustment`** lưu sai số làm tròn = `TotalAmount − (Subtotal − Discount + SC + VAT)`.
 
