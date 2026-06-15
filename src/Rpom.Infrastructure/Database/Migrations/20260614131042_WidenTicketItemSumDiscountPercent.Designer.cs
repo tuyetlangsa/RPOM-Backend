@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Rpom.Infrastructure.Database;
 namespace Rpom.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260614131042_WidenTicketItemSumDiscountPercent")]
+    partial class WidenTicketItemSumDiscountPercent
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2671,15 +2674,6 @@ namespace Rpom.Infrastructure.Database.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
 
-                    b.Property<string>("CancellationNote")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)")
-                        .HasColumnName("cancellation_note");
-
-                    b.Property<int?>("CancellationReasonId")
-                        .HasColumnType("integer")
-                        .HasColumnName("cancellation_reason_id");
-
                     b.Property<decimal>("ChoicePricePerUnit")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
@@ -2731,10 +2725,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Property<long>("OrderId")
                         .HasColumnType("bigint")
                         .HasColumnName("order_id");
-
-                    b.Property<long?>("OriginalOrderItemId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("original_order_item_id");
 
                     b.Property<decimal>("Quantity")
                         .ValueGeneratedOnAdd()

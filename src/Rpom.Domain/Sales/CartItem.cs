@@ -68,6 +68,15 @@ public class CartItem : Entity
     public decimal LineTotal { get; set; }
 
     public string? Notes { get; set; }
+
+    /// <summary>Self-ref to the original OrderItem this draft line refunds. NULL for normal lines.</summary>
+    public long? OriginalOrderItemId { get; set; }
+
+    /// <summary>Required when this is a refund line — why the item is being returned.</summary>
+    public int? CancellationReasonId { get; set; }
+
+    public string? CancellationNote { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
     /// <summary>Poll cursor — QR shared cart sync across devices on same ticket.</summary>

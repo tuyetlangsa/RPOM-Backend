@@ -2,6 +2,8 @@ using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Pricing;
+using Rpom.Application.Cashier.Pricing;
+using Rpom.Application.DiscountPolicies;
 using Rpom.Domain.Sales;
 
 namespace Rpom.Infrastructure.Pricing;
@@ -22,25 +24,80 @@ internal sealed class TicketRecomputeService(
             .ToListAsync(ct);
 
         DateTime now = clock.UtcNow;
+
+        // ---- Re-derive the attached discount policy (attached-policy only, no re-selection) ----
+        decimal ticketDiscountPercent = 0m;
+        var lineDiscountPercentByItem = new Dictionary<int, decimal>();
+        if (ticket.DiscountPolicyId is { } policyId)
+        {
+            var policy = await dbContext.DiscountPolicies
+                .Where(p => p.Id == policyId && p.IsActive)
+                .Include(p => p.Conditions)
+                .FirstOrDefaultAsync(ct);
+
+            if (policy is null)
+            {
+                ticket.DiscountPolicyId = null;   // policy deleted/deactivated
+            }
+            else
+            {
+                // Provisional subtotal from current non-cancelled, non-zero lines.
+                decimal subtotalNow = orderItems.Sum(o =>
+                    Money.Round(o.Quantity * (o.UnitPrice + o.ChoicePricePerUnit), rc, RoundingKeys.LineSubtotal));
+
+                var buckets = orderItems
+                    .GroupBy(o => o.ItemId)
+                    .Select(g => new DiscountEvaluator.ItemBucket(
+                        g.Key, g.Sum(o => o.Quantity),
+                        g.Sum(o => Money.Round(o.Quantity * (o.UnitPrice + o.ChoicePricePerUnit), rc, RoundingKeys.LineSubtotal))))
+                    .ToList();
+
+                int today = ((int)clock.UtcNow.DayOfWeek + 6) % 7 + 1; // Mon=1..Sun=7
+
+                var spec = new DiscountResolver.PolicySpec(
+                    policy.DiscountType, policy.DaysOfWeek,
+                    policy.Conditions.Select(c => new DiscountEvaluator.ConditionSpec(
+                        c.ThresholdAmount, c.ItemId, c.QuantityThreshold,
+                        c.AreaId, c.ApplyType, c.DiscountValue)).ToList());
+
+                DiscountResolver.Result res = DiscountResolver.Resolve(
+                    spec, today, subtotalNow, ticket.AreaId, buckets);
+
+                if (!res.Applies)
+                {
+                    ticket.DiscountPolicyId = null;   // no longer qualifies → remove
+                }
+                else if (res.MatchedItemId is { } matchedId)
+                {
+                    lineDiscountPercentByItem[matchedId] = res.LineDiscountPercent;
+                }
+                else
+                {
+                    ticketDiscountPercent = res.TicketDiscountPercent;
+                }
+            }
+        }
+
+        ticket.DiscountPercent = ticketDiscountPercent;
+
         var lineResults = new List<LinePricingResult>(orderItems.Count);
 
         foreach (OrderItem o in orderItems)
         {
-            // Step 0 — re-snapshot from ticket header (cashier may have just changed these)
-            o.TicketDiscountPercent = ticket.DiscountPercent;
+            // Net-negative item cleanup: if this item's net qty (incl. refund rows) <= 0, no discount.
+            decimal netQty = orderItems.Where(x => x.ItemId == o.ItemId).Sum(x => x.Quantity);
+
             o.ServiceChargePercent = ticket.ServiceChargePercent;
             o.ServiceChargeVatPercent = ticket.ServiceChargeVatPercent;
-
-            // Detect FIXED-amount distribution: percent=0 but amount>0 was pre-set by handler.
-            bool isFixedAmount = o.LineDiscountPercent == 0m && o.TicketDiscountPercent == 0m
-                && (o.LineDiscountAmount > 0m || o.TicketDiscountAmount > 0m);
+            o.TicketDiscountPercent = netQty <= 0m ? 0m : ticketDiscountPercent;
+            o.LineDiscountPercent = netQty <= 0m
+                ? 0m
+                : lineDiscountPercentByItem.GetValueOrDefault(o.ItemId, 0m);
 
             var input = new LinePricingInput(
                 o.Quantity, o.UnitPrice, o.ChoicePricePerUnit,
                 o.VatPercent, o.ServiceChargePercent, o.ServiceChargeVatPercent,
-                o.LineDiscountPercent, o.TicketDiscountPercent,
-                ForcedLineDiscountAmount: isFixedAmount ? o.LineDiscountAmount : null,
-                ForcedTicketDiscountAmount: isFixedAmount ? o.TicketDiscountAmount : null);
+                o.LineDiscountPercent, o.TicketDiscountPercent);
 
             LinePricingResult r = PricingCalculator.ComputeLine(input, rc);
 

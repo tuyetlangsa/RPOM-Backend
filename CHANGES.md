@@ -235,3 +235,53 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 - **Config mới** `transfer.use_target_area_service_charge` (BOOL, default `true`): true = re-snapshot SC từ Area đích + `TicketRecompute`; false = giữ SC của phiếu.
 - **Errors mới**: `Ticket.TransferSameTable`, `Ticket.TransferCrossCounter`.
 - **Tests**: `tests/Rpom.Application.Tests/Cashier/TransferTableTests.cs` (8 cases: same-area, cross-area SC true/false, not-open, same-table, cross-counter, no-lock, target-not-found).
+
+---
+
+## 13. Order rollup fix (Cancel/MarkDone)
+
+- **Bug**: roll-up Order→DONE query item-status bằng projection **trước** `SaveChangesAsync` → item vừa đổi đọc ra state cũ → order kẹt SENT/PROCESSING. Thêm: check phạm vi cả ticket thay vì per-order.
+- **Fix**: `src/Rpom.Application/Cashier/OrderRollup.cs` (helper per-order). `CancelOrderItem` + `MarkDoneOrderItem` SaveChanges trước rồi mới roll-up.
+- **Tests**: +3 trong `PricingIntegrationTests.cs` (one-by-one cancel/markdone, multi-order batch).
+
+---
+
+## 14. Cancel Ticket (OPEN → CANCELLED)
+
+- **Use case**: `src/Rpom.Application/Cashier/CancelTicket/CancelTicket.cs`
+- **Endpoint**: `POST /api/cashier/tickets/{ticketId:long}/cancel` body `{ managerStaffId, cancellationReasonId, cancellationNote? }`, perm `ticket:cancel`.
+- Huỷ nguyên phiếu OPEN khi **bill rỗng** (mọi OrderItem đã CANCELLED) và **không có payment** PENDING/SUCCESS. Manager (Owner/Manager, active) bắt buộc duyệt qua `managerStaffId`.
+- Side effects: auto-drop DRAFT cart (order DRAFT → DELETED), set `CancelledAt`/`CancellationReasonId`/`CancellationNote`/`ManagerStaffId`, ghi AuditLog `CANCEL`, release table lock, bump `FLOOR_PLAN`. **Không** refund (đã chặn payment SUCCESS).
+- **Errors mới**: `Ticket.HasActiveItems`, `Ticket.HasPendingPayment`, `Ticket.HasSuccessfulPayment`, `Ticket.InvalidCancellationReason`, `Ticket.InvalidManager`.
+- **Permission**: grant `ticket:cancel` cho role **Cashier** (người giữ table lock gọi endpoint; manager duyệt trong body).
+- **Tests**: +8 trong `PricingIntegrationTests.cs` (empty cancel + lock release + audit, active item blocked, after-all-cancelled OK, pending/success payment blocked, draft cart dropped, non-manager blocked, inactive reason blocked).
+
+---
+
+## 15. Discount Engine → Percent-Based (F2-style)
+
+- **Spec**: `~/CapstoneProject/docs/superpowers/specs/2026-06-14-discount-percent-engine-design.md`
+- Chuyển discount engine từ **frozen per-line amount** sang **percent-based**, re-derive mỗi recompute. Nguồn sự thật = `Ticket.DiscountPolicyId`.
+- **`DiscountResolver`** (`src/Rpom.Application/Cashier/Pricing/DiscountResolver.cs`): pure, fixed→% (`fixedValue/currentSubtotal`), re-check điều kiện, cap ≤100.
+- **`TicketRecomputeService`**: mỗi recompute re-derive % của policy đang gắn (attached-policy only, **không** re-select); tụt dưới ngưỡng → gỡ `DiscountPolicyId`; dòng net-âm → discount 0. **`PricingCalculator`** percent-only (bỏ `ForcedLineDiscountAmount`/`ForcedTicketDiscountAmount`).
+- **`ApplyDiscountPolicy`** + **`SendOrder` auto-apply**: chỉ **chọn + gắn** policy; recompute lo toàn bộ math. Auto-apply vẫn ghi AuditLog `APPLY_DISCOUNT`.
+- **Schema**: discount-percent cột nới `decimal(5,2)` → `decimal(9,6)` (migration `WidenDiscountPercentPrecision`). VAT%/SC% giữ `(5,2)`.
+- **Behavior change**: refund/cancel làm subtotal tụt dưới ngưỡng → discount **tự gỡ** (trước đây giữ nguyên). FIXED discount giữ đúng số tiền khi bill đổi (vd order thêm → % co lại, tiền giảm vẫn ~100k).
+- **Docs**: CLAUDE.md §12 (bỏ exact-amount guarantee) + §5 (precision discount %).
+- **Tests**: +5 unit `DiscountResolverTests.cs`, +2 integration (re-derive giữ amount, gỡ khi dưới ngưỡng). Full suite 169 pass; assertion exact cũ (291,600 / 972,000) không đổi.
+
+---
+
+## 16. Refund Line (trả hàng)
+
+- **Spec**: `~/CapstoneProject/docs/superpowers/specs/2026-06-14-discount-percent-engine-design.md` §10.
+- Trả món đã/đang nấu = **dòng OrderItem qty ÂM** trỏ về dòng gốc qua `OriginalOrderItemId`. Cơ chế: `AddRefundLine` tạo CartItem DRAFT âm → **SendOrder** (sẵn có) materialize thành OrderItem âm. KHÔNG có endpoint `/refund` gửi riêng.
+- **Use case**: `src/Rpom.Application/Cashier/AddRefundLine/AddRefundLine.cs`.
+- **Endpoint**: `POST /api/cashier/tickets/{ticketId:long}/order-items/{orderItemId:long}/refund-line` body `{ quantity, cancellationReasonId, cancellationNote? }` (`quantity` dương, server lưu âm), perm `order_item:refund_line`.
+- **Guards**: ticket OPEN + giữ lock; gốc thuộc ticket; gốc PROCESSING/READY/DONE (PENDING dùng Cancel) → `OrderItem.NotRefundable`; gốc là dòng dương non-refund → `OrderItem.CannotRefundRefund`; reason active → `Ticket.InvalidCancellationReason`; `quantity ≤ gốc − (đã refund committed + draft)` → `OrderItem.RefundQuantityExceeded`.
+- **Snapshot** từ OrderItem gốc (ItemCode/Name, Uom*, UnitPrice, ChoicePrice, VAT%, SC%). Dòng refund qua SendOrder → status **PENDING** (chạy lifecycle bếp), ghi AuditLog `REFUND` (EntityId = OrderItem gốc) lúc gửi.
+- **Schema**: thêm `OriginalOrderItemId`, `CancellationReasonId`, `CancellationNote` vào `CartItem` (migration `AddRefundFieldsToCartItem`).
+- **AddCartItem**: note-free merge loại dòng refund (`OriginalOrderItemId == null`) để add món thường không gộp nhầm vào dòng âm.
+- **Tiền/discount**: do percent-engine lo (dòng âm → tiền âm, net-negative cleanup). VD trả 1/3 phở → bill còn net 2 = 108,000.
+- **Permission**: grant `order_item:refund_line` cho role **Cashier**.
+- **Tests**: +6 integration (tạo dòng âm linked, PENDING-original/exceed/inactive-reason blocked, SendOrder materialize+audit+credit, không merge nhầm). Full suite 175 pass.

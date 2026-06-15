@@ -4,8 +4,9 @@ namespace Rpom.Application.DiscountPolicies;
 
 /// <summary>
 /// Pure (no DB) discount-policy condition evaluator. Given the ticket state and a policy,
-/// finds the best-matching condition. For FIXED-amount conditions, the handler converts
-/// the amount into per-line distributions — this evaluator only returns the winning condition.
+/// finds the best-matching condition. For FIXED-amount conditions, DiscountResolver (called from
+/// TicketRecomputeService) derives a percent from the amount — this evaluator only returns the
+/// winning condition.
 /// </summary>
 public static class DiscountEvaluator
 {

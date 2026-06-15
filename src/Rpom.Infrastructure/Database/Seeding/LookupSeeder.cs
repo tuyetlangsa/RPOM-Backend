@@ -38,6 +38,7 @@ public sealed class LookupSeeder(
         await SeedUomsAsync(db, now, ct);
         await SeedDenominationsAsync(db, now, ct);
         await SeedPaymentMethodsAsync(db, now, ct);
+        await SeedCancellationReasonsAsync(db, now, ct);
         await SeedCategoriesAsync(db, now, ct);
         await SeedItemsAsync(db, now, ct);
 
@@ -241,6 +242,41 @@ public sealed class LookupSeeder(
                 Code = u.Code,
                 Name = u.Name,
                 Description = u.Description,
+                IsActive = true,
+                CreatedAt = now,
+                UpdatedAt = now
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private static async Task SeedCancellationReasonsAsync(ApplicationDbContext db, DateTime now, CancellationToken ct)
+    {
+        // Shared by OrderItem cancel, OrderItem refund, and Ticket cancel. "OTHER" is the
+        // catch-all with an optional free-text note.
+        var reasons = new (string Code, string Name, short Order)[]
+        {
+            ("CUS_CHANGE_MIND", "Khách đổi ý", 1),
+            ("OUT_OF_STOCK", "Hết hàng", 2),
+            ("WRONG_DISH", "Lên sai món", 3),
+            ("FOREIGN_OBJECT", "Có dị vật", 4),
+            ("QUALITY", "Chất lượng không đạt", 5),
+            ("OTHER", "Lý do khác", 6)
+        };
+        var existing = (await db.CancellationReasons.Select(x => x.Code).ToListAsync(ct)).ToHashSet();
+        foreach ((string Code, string Name, short Order) r in reasons)
+        {
+            if (existing.Contains(r.Code))
+            {
+                continue;
+            }
+
+            db.CancellationReasons.Add(new CancellationReason
+            {
+                Code = r.Code,
+                Name = r.Name,
+                DisplayOrder = r.Order,
                 IsActive = true,
                 CreatedAt = now,
                 UpdatedAt = now

@@ -185,7 +185,7 @@ public sealed class TransferTableTests : IAsyncLifetime
     }
 
     private async Task Send(long ticketId) =>
-        await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Rc(), Version())
+        await new SendOrder.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
             .Handle(new SendOrder.Command(ticketId, null), CancellationToken.None);
 
     private AddCartItem.Handler Add() => new(
