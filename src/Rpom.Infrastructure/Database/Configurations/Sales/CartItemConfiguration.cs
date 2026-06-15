@@ -27,6 +27,9 @@ internal sealed class CartItemConfiguration : IEntityTypeConfiguration<CartItem>
         builder.Property(x => x.VatAmount).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.LineTotal).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.Notes).HasMaxLength(300);
+        builder.Property(x => x.OriginalOrderItemId);
+        builder.Property(x => x.CancellationReasonId);
+        builder.Property(x => x.CancellationNote).HasMaxLength(500);
         builder.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
         builder.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
 

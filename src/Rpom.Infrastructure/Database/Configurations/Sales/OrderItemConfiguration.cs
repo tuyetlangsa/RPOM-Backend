@@ -21,9 +21,9 @@ internal sealed class OrderItemConfiguration : IEntityTypeConfiguration<OrderIte
         builder.Property(x => x.ServiceChargePercent).HasPrecision(5, 2).HasDefaultValue(0m);
         builder.Property(x => x.ServiceChargeVatPercent).HasPrecision(5, 2).HasDefaultValue(0m);
         builder.Property(x => x.LineSubtotal).HasPrecision(18, 2).HasDefaultValue(0m);
-        builder.Property(x => x.LineDiscountPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.LineDiscountPercent).HasPrecision(9, 6).HasDefaultValue(0m);
         builder.Property(x => x.LineDiscountAmount).HasPrecision(18, 2).HasDefaultValue(0m);
-        builder.Property(x => x.TicketDiscountPercent).HasPrecision(5, 2).HasDefaultValue(0m);
+        builder.Property(x => x.TicketDiscountPercent).HasPrecision(9, 6).HasDefaultValue(0m);
         builder.Property(x => x.TicketDiscountAmount).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.TotalDiscountAmount).HasPrecision(18, 2).HasDefaultValue(0m);
         builder.Property(x => x.ServiceChargeAmount).HasPrecision(18, 2).HasDefaultValue(0m);

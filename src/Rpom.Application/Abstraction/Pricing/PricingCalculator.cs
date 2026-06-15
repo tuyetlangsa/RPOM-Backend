@@ -9,15 +9,7 @@ public readonly record struct LinePricingInput(
     decimal ServiceChargePercent,
     decimal ServiceChargeVatPercent,
     decimal LineDiscountPercent,
-    decimal TicketDiscountPercent,
-    /// <summary>
-    /// Pre-computed line discount amount (FIXED-amount policy distribution).
-    /// When set the percent-based discount calculation is skipped for the line
-    /// slot — the caller has already distributed the fixed amount across lines.
-    /// </summary>
-    decimal? ForcedLineDiscountAmount = null,
-    /// <summary>Same for ticket-level fixed amount.</summary>
-    decimal? ForcedTicketDiscountAmount = null);
+    decimal TicketDiscountPercent);
 
 /// <summary>All computed money fields for one line.</summary>
 public readonly record struct LinePricingResult(
@@ -54,41 +46,21 @@ public static class PricingCalculator
         decimal lineSubtotal = Money.Round(
             i.Quantity * (i.UnitPrice + i.ChoicePricePerUnit), rc, RoundingKeys.LineSubtotal);
 
-        // Step 2/3 — 1-cấp discount: bigger magnitude wins, loser zero.
-        // FIXED-amount path: the caller has pre-distributed a concrete amount.
-        // PERCENT path: compute from the percentage.
-        bool hasForced = i.ForcedLineDiscountAmount.HasValue || i.ForcedTicketDiscountAmount.HasValue;
+        // Step 2/3 — 1-cấp discount: bigger magnitude wins, loser zero. Percent-driven, so
+        // negative-quantity (refund) lines self-scale and carry their proportional discount.
+        decimal lineDiscRaw = lineSubtotal * i.LineDiscountPercent / 100m;
+        decimal ticketDiscRaw = lineSubtotal * i.TicketDiscountPercent / 100m;
+
         decimal lineDiscount, ticketDiscount;
-        if (hasForced)
+        if (Math.Abs(lineDiscRaw) >= Math.Abs(ticketDiscRaw))
         {
-            var forcedLine = i.ForcedLineDiscountAmount ?? 0m;
-            var forcedTicket = i.ForcedTicketDiscountAmount ?? 0m;
-            if (Math.Abs(forcedLine) >= Math.Abs(forcedTicket))
-            {
-                lineDiscount = forcedLine;
-                ticketDiscount = 0m;
-            }
-            else
-            {
-                lineDiscount = 0m;
-                ticketDiscount = forcedTicket;
-            }
+            lineDiscount = Money.Round(lineDiscRaw, rc, RoundingKeys.LineDiscount);
+            ticketDiscount = 0m;
         }
         else
         {
-            decimal lineDiscRaw = lineSubtotal * i.LineDiscountPercent / 100m;
-            decimal ticketDiscRaw = lineSubtotal * i.TicketDiscountPercent / 100m;
-
-            if (Math.Abs(lineDiscRaw) >= Math.Abs(ticketDiscRaw))
-            {
-                lineDiscount = Money.Round(lineDiscRaw, rc, RoundingKeys.LineDiscount);
-                ticketDiscount = 0m;
-            }
-            else
-            {
-                lineDiscount = 0m;
-                ticketDiscount = Money.Round(ticketDiscRaw, rc, RoundingKeys.LineDiscount);
-            }
+            lineDiscount = 0m;
+            ticketDiscount = Money.Round(ticketDiscRaw, rc, RoundingKeys.LineDiscount);
         }
 
         decimal totalDiscount = lineDiscount + ticketDiscount;
