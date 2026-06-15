@@ -113,6 +113,7 @@ public static class GetTicketDetails
         int? CancellationReasonId,
         string? CancellationReasonName,
         string? CancellationNote,
+        long? OriginalOrderItemId,
         string? Notes,
         IReadOnlyList<ItemComponent> Components);
 
@@ -134,6 +135,7 @@ public static class GetTicketDetails
         decimal VatAmount,
         decimal VatPercent,
         decimal LineTotal,
+        long? OriginalOrderItemId,
         string? Notes,
         DateTime CreatedAt,
         DateTime UpdatedAt,
@@ -309,6 +311,7 @@ public static class GetTicketDetails
                     oi.CancellationReasonId,
                     CancellationReasonName = oi.CancellationReason != null ? oi.CancellationReason.Name : null,
                     oi.CancellationNote,
+                    oi.OriginalOrderItemId,
                     oi.Notes
                 })
                 .ToListAsync(ct);
@@ -328,7 +331,7 @@ public static class GetTicketDetails
                         oi.Quantity, oi.UnitPrice, oi.ChoicePricePerUnit, oi.LineSubtotal, oi.LineTotal,
                         oi.Status, oi.KitchenStationId, oi.KitchenStationName,
                         oi.SentAt, oi.StartCookAt, oi.ReadyAt, oi.DoneAt,
-                        oi.CancellationReasonId, oi.CancellationReasonName, oi.CancellationNote, oi.Notes,
+                        oi.CancellationReasonId, oi.CancellationReasonName, oi.CancellationNote, oi.OriginalOrderItemId, oi.Notes,
                         (oiDetailsByItem.GetValueOrDefault(oi.Id) ?? new()).Select(d => new ItemComponent(
                             d.ItemId, d.ItemName, d.ComponentType, d.Quantity, d.ExtraPrice, d.Notes)).ToList()))
                     .ToList());
@@ -364,6 +367,7 @@ public static class GetTicketDetails
                     c.VatAmount,
                     c.VatPercent,
                     c.LineTotal,
+                    c.OriginalOrderItemId,
                     c.Notes,
                     c.CreatedAt,
                     c.UpdatedAt
@@ -383,7 +387,7 @@ public static class GetTicketDetails
                     c.Id, c.OrderId, c.ItemId, c.ItemCode, c.ItemName, c.UomCode, c.UomName,
                     c.Quantity, c.UnitPrice, c.ChoicePricePerUnit, c.LineSubtotal,
                     c.ServiceChargeAmount, c.VatItemAmount, c.VatScAmount, c.VatAmount, c.VatPercent, c.LineTotal,
-                    c.Notes, c.CreatedAt, c.UpdatedAt,
+                    c.OriginalOrderItemId, c.Notes, c.CreatedAt, c.UpdatedAt,
                     (ciDetailsByItem.GetValueOrDefault(c.Id) ?? new()).Select(d => new ItemComponent(
                         d.ItemId, d.ItemName, d.ComponentType, d.Quantity, d.ExtraPrice, d.Notes)).ToList()))
                 .ToList();

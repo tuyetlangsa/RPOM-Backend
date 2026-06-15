@@ -140,7 +140,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
 
         var item = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket && o.Status == OrderItemStatus.Pending);
         await new CancelOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
-            .Handle(new CancelOrderItem.Command(ticket, new List<long> { item.Id }), CancellationToken.None);
+            .Handle(new CancelOrderItem.Command(ticket, [new CancelOrderItem.CancelLine(item.Id)]), CancellationToken.None);
 
         var t = await _ctx.Tickets.AsNoTracking().FirstAsync(x => x.Id == ticket);
         t.DiscountAmount.Should().Be(0m);
@@ -169,7 +169,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
 
         // Cancel 1 item.
         var cancel = await new CancelOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
-            .Handle(new CancelOrderItem.Command(ticket, new List<long> { items[0].Id }), CancellationToken.None);
+            .Handle(new CancelOrderItem.Command(ticket, [new CancelOrderItem.CancelLine(items[0].Id)]), CancellationToken.None);
         cancel.IsSuccess.Should().BeTrue();
 
         // Remaining 2 items: 100000 + 8% VAT = 108000
@@ -197,7 +197,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         foreach (var it in items)
         {
             var c = await new CancelOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
-                .Handle(new CancelOrderItem.Command(ticket, new List<long> { it.Id }), CancellationToken.None);
+                .Handle(new CancelOrderItem.Command(ticket, [new CancelOrderItem.CancelLine(it.Id)]), CancellationToken.None);
             c.IsSuccess.Should().BeTrue();
         }
 
@@ -231,7 +231,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
 
         // One batch: cancel all of A + only the first item of B.
         var c = await new CancelOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
-            .Handle(new CancelOrderItem.Command(ticket, new List<long> { itemA.Id, itemsB[0].Id }), CancellationToken.None);
+            .Handle(new CancelOrderItem.Command(ticket, [new CancelOrderItem.CancelLine(itemA.Id), new CancelOrderItem.CancelLine(itemsB[0].Id)]), CancellationToken.None);
         c.IsSuccess.Should().BeTrue();
 
         var a = await _ctx.Orders.AsNoTracking().FirstAsync(o => o.Id == orderA);
@@ -337,7 +337,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         await Send(ticket);
         var item = await _ctx.OrderItems.FirstAsync(oi => oi.TicketId == ticket);
         await new CancelOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), TicketRecompute(), Version())
-            .Handle(new CancelOrderItem.Command(ticket, new List<long> { item.Id }), CancellationToken.None);
+            .Handle(new CancelOrderItem.Command(ticket, [new CancelOrderItem.CancelLine(item.Id)]), CancellationToken.None);
 
         var r = await CancelTicketCall(ticket, _managerId, _reasonActiveId, null);
         r.IsSuccess.Should().BeTrue();
