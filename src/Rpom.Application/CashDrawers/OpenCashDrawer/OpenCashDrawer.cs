@@ -133,6 +133,17 @@ public static class OpenCashDrawer
             StaffAccount staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
             await dbContext.SaveChangesAsync(ct);
 
+            List<Ticket> orphanTickets = await dbContext.Tickets
+                .Where(t => t.CounterId == request.CounterId
+                            && t.Status == TicketStatus.Open
+                            && t.CashDrawerSessionId != entity.Id)
+                .ToListAsync(ct);
+            foreach (Ticket t in orphanTickets)
+            {
+                t.CashDrawerSessionId = entity.Id;
+                t.UpdatedAt = now;
+            }
+
             dbContext.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(CashDrawerSession),
@@ -142,6 +153,7 @@ public static class OpenCashDrawer
                 ActorFullName = staff.FullName,
                 Timestamp = now,
                 Summary = $"Cash drawer opened at counter={counter.Name} | opening={opening:N0}đ"
+                          + (orphanTickets.Count > 0 ? $" | carried over {orphanTickets.Count} open ticket(s)" : "")
             });
             await dbContext.SaveChangesAsync(ct);
 

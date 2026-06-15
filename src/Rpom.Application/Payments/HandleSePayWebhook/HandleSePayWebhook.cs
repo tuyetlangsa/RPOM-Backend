@@ -4,6 +4,7 @@ using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.Payments;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Sales;
@@ -37,7 +38,8 @@ public static class HandleSePayWebhook
     internal sealed class Handler(
         IDbContext dbContext,
         IQrPaymentGateway gateway,
-        IDateTimeProvider clock) : ICommandHandler<Command, Response>
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
@@ -159,6 +161,9 @@ public static class HandleSePayWebhook
             {
                 return Result.Failure<Response>(PaymentErrors.ConcurrencyConflict);
             }
+
+            await versionService.BumpAsync(VersionScopes.FloorPlan, $"Payment.HandleSePayWebhook(id={payment.Id})", ct);
+            await versionService.BumpAsync(VersionScopes.Pricing, $"Payment.HandleSePayWebhook(id={payment.Id})", ct);
 
             return Result.Success(new Response(true, txn.Status, payment.Id, ticket.Id));
         }

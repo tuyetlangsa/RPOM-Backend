@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Sales;
@@ -34,7 +35,8 @@ public static class DeleteCashPayment
         IDbContext dbContext,
         ICurrentStaff currentStaff,
         IRefreshPaymentTotalsService refreshService,
-        IDateTimeProvider clock) : ICommandHandler<Command, Response>
+        IDateTimeProvider clock,
+        IVersionService versionService) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
@@ -99,6 +101,9 @@ public static class DeleteCashPayment
             });
 
             await dbContext.SaveChangesAsync(ct);
+
+            await versionService.BumpAsync(VersionScopes.FloorPlan, $"Payment.DeleteCashPayment(id={payment.Id})", ct);
+            await versionService.BumpAsync(VersionScopes.Pricing, $"Payment.DeleteCashPayment(id={payment.Id})", ct);
 
             var remaining = ticket.TotalAmount - ticket.PaidAmount;
             return Result.Success(new Response(

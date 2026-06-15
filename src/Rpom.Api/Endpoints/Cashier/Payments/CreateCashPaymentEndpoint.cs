@@ -24,5 +24,5 @@ internal sealed class CreateCashPaymentEndpoint : IEndpoint
             .WithSummary("Record a cash payment (settled immediately).");
     }
 
-    internal sealed record Request(decimal Amount, decimal ReceivedAmount, string? Notes);
+    internal sealed record Request(long Amount, long ReceivedAmount, string? Notes);
 }
