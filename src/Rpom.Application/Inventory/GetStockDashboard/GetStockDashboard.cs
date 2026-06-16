@@ -25,37 +25,54 @@ public static class GetStockDashboard
     {
         public async Task<Result<IReadOnlyList<StockItem>>> Handle(Query request, CancellationToken ct)
         {
-            IQueryable<Domain.Inventory.ItemStock> q = dbContext.ItemStocks.AsQueryable();
+            // Drive from Items (LEFT JOIN ItemStock) so EVERY stockable item shows — including ones
+            // never stocked yet (CurrentQty = 0), which are exactly the ones needing a restock.
+            var q = dbContext.Items.Where(i => i.IsStockable && i.IsActive);
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 string s = request.Search.Trim().ToLower();
-                q = q.Where(x => x.Item.Code.ToLower().Contains(s)
-                              || x.Item.Name.ToLower().Contains(s));
+                q = q.Where(i => i.Code.ToLower().Contains(s) || i.Name.ToLower().Contains(s));
             }
+
+            var items = await q
+                .OrderBy(i => i.Name)
+                .Select(i => new
+                {
+                    i.Id,
+                    i.Code,
+                    i.Name,
+                    BaseUomCode = i.BaseUom.Code,
+                    BaseUomName = i.BaseUom.Name,
+                    i.LowStockThreshold
+                })
+                .ToListAsync(ct);
+
+            var ids = items.Select(i => i.Id).ToList();
+            var stockByItem = (await dbContext.ItemStocks
+                    .Where(s => ids.Contains(s.ItemId))
+                    .Select(s => new { s.ItemId, s.CurrentQty, s.ReservedQty, s.LastMovementAt, s.UpdatedAt })
+                    .ToListAsync(ct))
+                .ToDictionary(s => s.ItemId);
+
+            IEnumerable<StockItem> rows = items.Select(i =>
+            {
+                stockByItem.TryGetValue(i.Id, out var st);
+                return new StockItem(
+                    i.Id, i.Code, i.Name, i.BaseUomCode, i.BaseUomName,
+                    st?.CurrentQty ?? 0m,
+                    st?.ReservedQty ?? 0m,
+                    i.LowStockThreshold,
+                    st?.LastMovementAt,
+                    st?.UpdatedAt ?? default);
+            });
 
             if (request.LowStock == true)
             {
-                q = q.Where(x => x.Item.LowStockThreshold != null
-                              && x.CurrentQty <= x.Item.LowStockThreshold);
+                rows = rows.Where(x => x.LowStockThreshold != null && x.CurrentQty <= x.LowStockThreshold);
             }
 
-            var rows = await q
-                .OrderBy(x => x.Item.Name)
-                .Select(x => new StockItem(
-                    x.ItemId,
-                    x.Item.Code,
-                    x.Item.Name,
-                    x.Item.BaseUom.Code,
-                    x.Item.BaseUom.Name,
-                    x.CurrentQty,
-                    x.ReservedQty,
-                    x.Item.LowStockThreshold,
-                    x.LastMovementAt,
-                    x.UpdatedAt))
-                .ToListAsync(ct);
-
-            return Result.Success<IReadOnlyList<StockItem>>(rows);
+            return Result.Success<IReadOnlyList<StockItem>>(rows.ToList());
         }
     }
 }
