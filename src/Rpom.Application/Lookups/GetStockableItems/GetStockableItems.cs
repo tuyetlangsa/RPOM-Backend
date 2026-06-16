@@ -38,25 +38,41 @@ public static class GetStockableItems
                 q = q.Where(i => i.Code.ToLower().Contains(s) || i.Name.ToLower().Contains(s));
             }
 
-            // LEFT JOIN ItemStock via subquery (Item has no nav to ItemStock).
-            var projected = q.Select(i => new StockableItem(
-                i.Id,
-                i.Code,
-                i.Name,
-                i.BaseUomId,
-                i.BaseUom.Code,
-                i.BaseUom.Name,
-                dbContext.ItemStocks.Where(s => s.ItemId == i.Id).Select(s => (decimal?)s.CurrentQty).FirstOrDefault() ?? 0m,
-                i.LowStockThreshold,
-                dbContext.ItemStocks.Where(s => s.ItemId == i.Id).Select(s => s.LastMovementAt).FirstOrDefault()));
+            var items = await q
+                .OrderBy(i => i.Name)
+                .Select(i => new
+                {
+                    i.Id,
+                    i.Code,
+                    i.Name,
+                    i.BaseUomId,
+                    BaseUomCode = i.BaseUom.Code,
+                    BaseUomName = i.BaseUom.Name,
+                    i.LowStockThreshold
+                })
+                .ToListAsync(ct);
+
+            var ids = items.Select(i => i.Id).ToList();
+            var stockByItem = (await dbContext.ItemStocks
+                    .Where(s => ids.Contains(s.ItemId))
+                    .Select(s => new { s.ItemId, s.CurrentQty, s.LastMovementAt })
+                    .ToListAsync(ct))
+                .ToDictionary(s => s.ItemId);
+
+            IEnumerable<StockableItem> rows = items.Select(i =>
+            {
+                stockByItem.TryGetValue(i.Id, out var st);
+                return new StockableItem(
+                    i.Id, i.Code, i.Name, i.BaseUomId, i.BaseUomCode, i.BaseUomName,
+                    st?.CurrentQty ?? 0m, i.LowStockThreshold, st?.LastMovementAt);
+            });
 
             if (request.LowStock == true)
             {
-                projected = projected.Where(x => x.LowStockThreshold != null && x.CurrentQty <= x.LowStockThreshold);
+                rows = rows.Where(x => x.LowStockThreshold != null && x.CurrentQty <= x.LowStockThreshold);
             }
 
-            List<StockableItem> rows = await projected.OrderBy(x => x.Name).ToListAsync(ct);
-            return Result.Success<IReadOnlyList<StockableItem>>(rows);
+            return Result.Success<IReadOnlyList<StockableItem>>(rows.ToList());
         }
     }
 }
