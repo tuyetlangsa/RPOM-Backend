@@ -151,6 +151,7 @@ internal sealed class TicketRecomputeService(
                 o.ServiceChargePercent,
                 o.ServiceChargeVatPercent
             })
+            .Where(g => g.Sum(o => o.Quantity) != 0m)
             .OrderBy(g => g.Min(o => o.SentAt))
             .ToList();
 
