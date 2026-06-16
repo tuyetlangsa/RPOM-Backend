@@ -9,7 +9,8 @@ namespace Rpom.Infrastructure.Inventory;
 
 internal sealed class StockMovementService(
     IDbContext dbContext,
-    IDateTimeProvider clock) : IStockMovementService
+    IDateTimeProvider clock,
+    IUomConverter uomConverter) : IStockMovementService
 {
     public async Task<StockMovement> CreateManualAsync(
         int itemId, string movementType, decimal signedQty,
@@ -62,15 +63,24 @@ internal sealed class StockMovementService(
 
         if (item.HasRecipe)
         {
-            // Assumption: BomLine.Quantity is in MaterialItem.BaseUomId already.
-            // No ItemUomConversion needed for v1.
+            // BomLine.Quantity is expressed in BomLine.UomId; convert to the material's base UoM.
             var bomLines = await dbContext.BomLines
                 .Where(bl => bl.SellableItemId == item.Id && bl.IsActive)
+                .Select(bl => new
+                {
+                    bl.MaterialItemId,
+                    bl.Quantity,
+                    bl.UomId,
+                    MaterialBaseUomId = bl.MaterialItem.BaseUomId
+                })
                 .ToListAsync(ct);
 
             foreach (var bl in bomLines)
             {
-                decimal signedQty = -(bl.Quantity * orderItem.Quantity);
+                decimal perUnitBase = await uomConverter.ToBaseAsync(
+                    bl.MaterialItemId, bl.MaterialBaseUomId, bl.UomId, bl.Quantity, ct)
+                    ?? bl.Quantity; // fallback: treat as base if no conversion (BOM validator prevents this)
+                decimal signedQty = -(perUnitBase * orderItem.Quantity);
                 decimal lastBalance = await GetLastBalanceAsync(bl.MaterialItemId, ct);
                 decimal newBalance = lastBalance + signedQty;
 

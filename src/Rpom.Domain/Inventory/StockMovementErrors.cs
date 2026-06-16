@@ -12,4 +12,8 @@ public static class StockMovementErrors
 
     public static readonly Error QuantityNotPositive = Error.BadRequest(
         "StockMovement.QuantityNotPositive", "So luong phai lon hon 0.");
+
+    public static readonly Error InvalidUom = Error.BadRequest(
+        "StockMovement.InvalidUom",
+        "Don vi tinh khong hop le cho item nay (phai la don vi co ban hoac co quy doi).");
 }

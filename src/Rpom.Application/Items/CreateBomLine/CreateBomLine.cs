@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
+using Rpom.Application.Abstraction.Inventory;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
@@ -47,6 +48,7 @@ public static class CreateBomLine
         IDbContext dbContext,
         ICurrentStaff currentStaff,
         IDateTimeProvider clock,
+        IUomConverter uomConverter,
         IVersionService versionService) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
@@ -86,6 +88,13 @@ public static class CreateBomLine
             if (uom is null)
             {
                 return Result.Failure<Response>(UomErrors.NotFound);
+            }
+
+            // UomId must be the material's base UoM or a registered active conversion of it,
+            // so DeductAsync can convert BomLine.Quantity to base.
+            if (!await uomConverter.IsValidUomAsync(material.Id, material.BaseUomId, request.UomId, ct))
+            {
+                return Result.Failure<Response>(BomLineErrors.InvalidMaterialUom);
             }
 
             // Check no duplicate (SellableItemId, MaterialItemId).

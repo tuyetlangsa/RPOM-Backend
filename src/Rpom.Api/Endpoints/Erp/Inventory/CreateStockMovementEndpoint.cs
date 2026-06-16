@@ -16,7 +16,7 @@ internal sealed class CreateStockMovementEndpoint : IEndpoint
                 {
                     Result<CreateStockMovement.Response> result =
                         await sender.Send(new CreateStockMovement.Command(
-                            request.ItemId, request.MovementType, request.Quantity, request.Reason), ct);
+                            request.ItemId, request.MovementType, request.Quantity, request.UomId, request.Reason), ct);
                     return result.MatchCreated(m => $"/api/stock-movements/{m.Id}");
                 })
             .RequireAuthorization(Permissions.MasterDataManage)
@@ -28,11 +28,13 @@ internal sealed class CreateStockMovementEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithSummary("Create a manual stock movement (STOCK_IN / ADJUST_IN / ADJUST_OUT).")
             .WithDescription("""
-                Request: JSON body { itemId, movementType, quantity, reason? }.
-                Quantity must be > 0; movementType is converted to signed internally.
-                Response: 201 Created — Location header; JSON body with movement id.
+                Request: JSON body { itemId, movementType, quantity, uomId, reason? }.
+                Quantity must be > 0 and is expressed in uomId; the server converts to the item's
+                base UoM via ItemUomConversion (uomId may be the base UoM or a registered conversion).
+                movementType is converted to signed internally.
+                Response: 201 Created — Location header; JSON body with input qty/uom + qtyInBase.
             """);
     }
 
-    internal sealed record Request(int ItemId, string MovementType, decimal Quantity, string? Reason);
+    internal sealed record Request(int ItemId, string MovementType, decimal Quantity, int UomId, string? Reason);
 }

@@ -108,6 +108,7 @@ public static class DependencyInjection
         services.AddScoped<IRefreshPaymentTotalsService, RefreshPaymentTotalsService>();
         services.AddScoped<ITableOperationGuard, TableOperationGuard>();
         services.AddScoped<IStockMovementService, StockMovementService>();
+        services.AddScoped<IUomConverter, UomConverter>();
 
         services.AddQuartz(configurator =>
         {

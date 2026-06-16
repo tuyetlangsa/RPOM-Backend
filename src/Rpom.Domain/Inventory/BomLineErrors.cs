@@ -31,4 +31,8 @@ public static class BomLineErrors
     public static readonly Error MaterialAlreadyHasRecipe = Error.Conflict(
         "BomLine.MaterialAlreadyHasRecipe",
         "Nguyên liệu này đã là SellableItem của 1 BOM khác — không được dùng làm nguyên liệu.");
+
+    public static readonly Error InvalidMaterialUom = Error.BadRequest(
+        "BomLine.InvalidMaterialUom",
+        "Đơn vị tính phải là đơn vị cơ bản của nguyên liệu hoặc một quy đổi đã đăng ký.");
 }

@@ -19,12 +19,15 @@ public static class CreateStockMovement
         int ItemId,
         string MovementType,
         decimal Quantity,
+        int UomId,
         string? Reason) : ICommand<Response>;
 
     public sealed record Response(
         long Id,
         int ItemId,
         string MovementType,
+        decimal InputQty,
+        int UomId,
         decimal QtyInBase,
         decimal BalanceAfter,
         string? Reason,
@@ -42,6 +45,7 @@ public static class CreateStockMovement
                                 or StockMovementType.AdjustOut)
                 .WithMessage("MovementType phai la STOCK_IN, ADJUST_IN, hoac ADJUST_OUT.");
             RuleFor(x => x.Quantity).GreaterThan(0m);
+            RuleFor(x => x.UomId).GreaterThan(0);
             RuleFor(x => x.Reason).MaximumLength(500);
         }
     }
@@ -51,6 +55,7 @@ public static class CreateStockMovement
         ICurrentStaff currentStaff,
         IDateTimeProvider clock,
         IStockMovementService stockMovementService,
+        IUomConverter uomConverter,
         IVersionService versionService) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
@@ -58,25 +63,38 @@ public static class CreateStockMovement
             // Validate item exists + IsStockable
             var item = await dbContext.Items
                 .Where(x => x.Id == request.ItemId)
-                .Select(x => new { x.IsStockable, x.Code, x.Name })
+                .Select(x => new { x.IsStockable, x.Code, x.Name, x.BaseUomId })
                 .FirstOrDefaultAsync(ct);
             if (item is null) return Result.Failure<Response>(StockMovementErrors.ItemNotFound);
             if (!item.IsStockable) return Result.Failure<Response>(StockMovementErrors.ItemNotStockable);
 
-            // Convert positive input qty to signed qty
+            // Convert the input quantity (in UomId) to the item's base UoM.
+            decimal? qtyInBaseAbs = await uomConverter.ToBaseAsync(
+                request.ItemId, item.BaseUomId, request.UomId, request.Quantity, ct);
+            if (qtyInBaseAbs is null) return Result.Failure<Response>(StockMovementErrors.InvalidUom);
+
+            // Convert to signed base qty per movement type.
             decimal signedQty = request.MovementType switch
             {
-                StockMovementType.StockIn or StockMovementType.AdjustIn => request.Quantity,
-                StockMovementType.AdjustOut => -request.Quantity,
+                StockMovementType.StockIn or StockMovementType.AdjustIn => qtyInBaseAbs.Value,
+                StockMovementType.AdjustOut => -qtyInBaseAbs.Value,
                 _ => throw new InvalidOperationException($"Unexpected movement type: {request.MovementType}")
             };
+
+            // Preserve the "entered in unit X" trace in the reason when not entered in base.
+            string? reason = request.Reason;
+            if (request.UomId != item.BaseUomId)
+            {
+                string note = $"Nhập {request.Quantity} (uom #{request.UomId}) = {qtyInBaseAbs.Value} base";
+                reason = string.IsNullOrWhiteSpace(reason) ? note : $"{reason} [{note}]";
+            }
 
             int staffId = currentStaff.StaffAccountId;
             DateTime now = clock.UtcNow;
 
             // Delegate to service — creates StockMovement + ItemStock in one flush
             var movement = await stockMovementService.CreateManualAsync(
-                request.ItemId, request.MovementType, signedQty, request.Reason, staffId, now, ct);
+                request.ItemId, request.MovementType, signedQty, reason, staffId, now, ct);
 
             // Audit log
             var staff = await dbContext.StaffAccounts.FirstAsync(x => x.Id == staffId, ct);
@@ -88,7 +106,7 @@ public static class CreateStockMovement
                 ActorStaffAccountId = staffId,
                 ActorFullName = staff.FullName,
                 Timestamp = now,
-                Summary = $"{request.MovementType}: {item.Name} ({item.Code}), SL={request.Quantity}" +
+                Summary = $"{request.MovementType}: {item.Name} ({item.Code}), SL={request.Quantity} (uom #{request.UomId}) = {qtyInBaseAbs.Value} base" +
                           (string.IsNullOrEmpty(request.Reason) ? "" : $" — {request.Reason}")
             });
             await dbContext.SaveChangesAsync(ct);
@@ -98,8 +116,9 @@ public static class CreateStockMovement
 
             return Result.Success(new Response(
                 movement.Id, movement.ItemId, request.MovementType,
+                request.Quantity, request.UomId,
                 movement.QtyInBase, movement.BalanceAfter,
-                request.Reason, movement.CreatedAt));
+                movement.Reason, movement.CreatedAt));
         }
     }
 }
