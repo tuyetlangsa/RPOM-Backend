@@ -15,6 +15,7 @@ using Rpom.Application.Abstraction.Authorization;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Configuration;
 using Rpom.Application.Abstraction.Data;
+using Rpom.Application.Abstraction.Inventory;
 using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.Tables;
 using Rpom.Application.Abstraction.User;
@@ -30,6 +31,7 @@ using Rpom.Infrastructure.Outbox;
 using Rpom.Infrastructure.Pricing;
 using Rpom.Infrastructure.Tables;
 using Rpom.Infrastructure.Versioning;
+using Rpom.Infrastructure.Inventory;
 using CurrentStaffImpl = Rpom.Infrastructure.User.CurrentStaff;
 
 namespace Rpom.Infrastructure;
@@ -105,6 +107,7 @@ public static class DependencyInjection
         services.AddScoped<ITicketRecomputeService, TicketRecomputeService>();
         services.AddScoped<IRefreshPaymentTotalsService, RefreshPaymentTotalsService>();
         services.AddScoped<ITableOperationGuard, TableOperationGuard>();
+        services.AddScoped<IStockMovementService, StockMovementService>();
 
         services.AddQuartz(configurator =>
         {
