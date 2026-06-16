@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 using NSubstitute;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Configuration;
+using Rpom.Application.Abstraction.Inventory;
 using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.Tables;
 using Rpom.Application.Abstraction.User;
@@ -256,7 +257,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         long orderId = items[0].OrderId;
         var ids = items.Select(i => i.Id).ToList();
 
-        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version(), Stock())
             .Handle(new StartCookOrderItem.Command(ticket, ids), CancellationToken.None);
         await new MarkReadyOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
             .Handle(new MarkReadyOrderItem.Command(ticket, ids), CancellationToken.None);
@@ -436,7 +437,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         await AddItem(ticket, _phoId, 2);
         await Send(ticket);
         var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
-        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version(), Stock())
             .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
 
         // Refund 1 (negative draft line for pho, note-free).
@@ -492,7 +493,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         await AddItem(ticket, _phoId, 3);
         await Send(ticket);
         var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
-        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version(), Stock())
             .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
         await new MarkReadyOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
             .Handle(new MarkReadyOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
@@ -533,7 +534,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         await AddItem(ticket, _phoId, 2);
         await Send(ticket);
         var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
-        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version(), Stock())
             .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
 
         var r = await new AddRefundLine.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
@@ -550,7 +551,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         await AddItem(ticket, _phoId, 2);
         await Send(ticket);
         var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
-        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version(), Stock())
             .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
 
         var r = await new AddRefundLine.Handler(_ctx, Staff(), Clock(), Guard(), Cart(), Version())
@@ -567,7 +568,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
         await AddItem(ticket, _phoId, 3);            // 3 pho = 150,000
         await Send(ticket);
         var original = await _ctx.OrderItems.FirstAsync(o => o.TicketId == ticket);
-        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
+        await new StartCookOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version(), Stock())
             .Handle(new StartCookOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
         await new MarkReadyOrderItem.Handler(_ctx, Staff(), Clock(), Guard(), Version())
             .Handle(new MarkReadyOrderItem.Command(ticket, new List<long> { original.Id }), CancellationToken.None);
@@ -596,6 +597,7 @@ public sealed class PricingIntegrationTests : IAsyncLifetime
     private IDateTimeProvider Clock() => CreateStaff.Clock();
     private ITableOperationGuard Guard() => new TableOperationGuard(_ctx, Clock(), Config());
     private IVersionService Version() => Substitute.For<IVersionService>();
+    private IStockMovementService Stock() => Substitute.For<IStockMovementService>();
 
     // Null config → typed accessors fall back to defaults (TTL = 60s).
     private IConfigValueService Config()

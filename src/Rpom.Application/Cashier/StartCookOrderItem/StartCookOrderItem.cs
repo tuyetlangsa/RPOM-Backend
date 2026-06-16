@@ -2,6 +2,7 @@ using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Clock;
 using Rpom.Application.Abstraction.Data;
+using Rpom.Application.Abstraction.Inventory;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.Tables;
 using Rpom.Application.Abstraction.User;
@@ -34,7 +35,8 @@ public static class StartCookOrderItem
         ICurrentStaff currentStaff,
         IDateTimeProvider clock,
         ITableOperationGuard guard,
-        IVersionService versionService) : ICommandHandler<Command, Response>
+        IVersionService versionService,
+        IStockMovementService stockMovement) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
         {
@@ -75,6 +77,13 @@ public static class StartCookOrderItem
             }
 
             await db.SaveChangesAsync(ct);
+
+            // Auto-deduct stock for kitchen-started items.
+            foreach (var oi in items)
+            {
+                await stockMovement.DeductAsync(oi.Id, currentStaff.StaffAccountId, ct);
+            }
+
             await versionService.BumpAsync(VersionScopes.Kitchen, $"StartCook(ticketId={ticket.Id})", ct);
             await versionService.BumpAsync(VersionScopes.FloorPlan, $"StartCook(ticketId={ticket.Id})", ct);
 
