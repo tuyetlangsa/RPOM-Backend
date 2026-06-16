@@ -54,7 +54,9 @@ internal sealed class StockMovementService(
         if (orderItem.Quantity <= 0) return; // refund / zero-qty lines
 
         var item = orderItem.Item;
-        if (item is null || !item.IsStockable) return;
+        // A recipe dish is itself NOT stockable — it consumes stockable materials via BOM.
+        // Only skip when the item neither has a recipe nor is a directly-stockable item.
+        if (item is null || (!item.IsStockable && !item.HasRecipe)) return;
 
         DateTime now = clock.UtcNow;
 
