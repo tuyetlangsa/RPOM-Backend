@@ -64,4 +64,32 @@ public static class TicketErrors
     public static readonly Error MergeDifferentArea = Error.Conflict(
         "Ticket.MergeDifferentArea",
         "Hai hoá đơn không cùng khu vực — không thể gộp.");
+
+    public static readonly Error SplitDestinationInvalid = Error.BadRequest(
+        "Ticket.SplitDestinationInvalid",
+        "Phải chỉ định đúng một đích: hoặc ticket đích có sẵn, hoặc bàn để mở ticket đích mới.");
+
+    public static readonly Error SplitSameTicket = Error.BadRequest(
+        "Ticket.SplitSameTicket",
+        "Hoá đơn đích phải khác hoá đơn nguồn.");
+
+    public static readonly Error SplitDifferentArea = Error.Conflict(
+        "Ticket.SplitDifferentArea",
+        "Hoá đơn/bàn đích không cùng khu vực với hoá đơn nguồn — không thể tách.");
+
+    public static readonly Error SplitItemInvalid = Error.Conflict(
+        "Ticket.SplitItemInvalid",
+        "Có món không thuộc hoá đơn nguồn, đã huỷ, hoặc không hợp lệ để tách.");
+
+    public static readonly Error SplitQuantityExceeds = Error.Conflict(
+        "Ticket.SplitQuantityExceeds",
+        "Số lượng tách vượt quá số lượng hiện có của món ở hoá đơn nguồn.");
+
+    public static readonly Error SplitNoItems = Error.BadRequest(
+        "Ticket.SplitNoItems",
+        "Phải chọn ít nhất một món để tách.");
+
+    public static readonly Error SplitSourcePaid = Error.Conflict(
+        "Ticket.SplitSourcePaid",
+        "Hoá đơn nguồn đã có thanh toán — không thể tách. Hãy tách trước khi thanh toán.");
 }
