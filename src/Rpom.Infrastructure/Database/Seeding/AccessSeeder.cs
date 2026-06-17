@@ -98,6 +98,7 @@ public sealed class AccessSeeder(
             (Permissions.TicketViewDetail, "View ticket detail", PermissionGroups.Pos),
             (Permissions.TicketTransfer, "Transfer ticket between tables", PermissionGroups.Pos),
             (Permissions.TicketMerge, "Merge tickets", PermissionGroups.Pos),
+            (Permissions.TicketSplit, "Split ticket items to another ticket", PermissionGroups.Pos),
             (Permissions.TicketCancel, "Cancel ticket with reason", PermissionGroups.Pos),
             (Permissions.OrderAddItems, "Add items to cart", PermissionGroups.Pos),
             (Permissions.OrderSendKitchen, "Send order to kitchen", PermissionGroups.Pos),

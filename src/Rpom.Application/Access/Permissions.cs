@@ -26,6 +26,7 @@ public static class Permissions
     public const string TicketViewDetail = "ticket:view_detail";
     public const string TicketTransfer = "ticket:transfer";
     public const string TicketMerge = "ticket:merge";
+    public const string TicketSplit = "ticket:split";
     public const string TicketCancel = "ticket:cancel";
     public const string OrderAddItems = "order:add_items";
     public const string OrderSendKitchen = "order:send_kitchen";
