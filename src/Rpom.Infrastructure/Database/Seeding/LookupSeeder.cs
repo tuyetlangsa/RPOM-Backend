@@ -326,7 +326,9 @@ public sealed class LookupSeeder(
             (50_000m, "50.000đ"),
             (20_000m, "20.000đ"),
             (10_000m, "10.000đ"),
-            (5_000m, "5.000đ")
+            (5_000m, "5.000đ"),
+            (2_000m, "2.000đ"),
+            (1_000m, "1.000đ"),
         };
         var existing = (await db.Denominations.Select(x => x.FaceValue).ToListAsync(ct)).ToHashSet();
         short order = 0;
