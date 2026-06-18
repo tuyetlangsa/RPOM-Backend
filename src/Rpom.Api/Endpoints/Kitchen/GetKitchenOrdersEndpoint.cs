@@ -10,9 +10,9 @@ internal sealed class GetKitchenOrdersEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapGet("api/kitchen/orders",
-                async (int kitchenStationId, ISender sender, CancellationToken ct) =>
+                async (ISender sender, CancellationToken ct) =>
                 {
-                    var result = await sender.Send(new GetKitchenOrders.Query(kitchenStationId), ct);
+                    var result = await sender.Send(new GetKitchenOrders.Query(), ct);
                     return result.MatchOk();
                 })
             .RequireAuthorization(Permissions.KdsView)

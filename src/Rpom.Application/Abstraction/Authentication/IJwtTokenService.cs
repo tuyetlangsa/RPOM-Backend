@@ -9,5 +9,8 @@ public sealed record AccessTokenResult(string Token, DateTime ExpiresAt);
 /// </summary>
 public interface IJwtTokenService
 {
-    AccessTokenResult IssueAccessToken(int staffAccountId, string username);
+    /// <param name="kitchenStationId">
+    ///     Optional kitchen station baked into the token for KDS sessions. NULL for normal sessions.
+    /// </param>
+    AccessTokenResult IssueAccessToken(int staffAccountId, string username, int? kitchenStationId = null);
 }

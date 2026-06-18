@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
+using Rpom.Application.Abstraction.User;
 using Rpom.Domain.Common;
 using Rpom.Domain.Operations;
 using Rpom.Domain.Sales;
@@ -8,7 +9,7 @@ using Rpom.Domain.Sales;
 namespace Rpom.Application.Kitchen.GetKitchenOrders;
 public static class GetKitchenOrders
 {
-    public sealed record Query(int KitchenStationId) : IQuery<Response>;
+    public sealed record Query() : IQuery<Response>;
 
     public sealed record Response(
         int KitchenStationId,
@@ -43,13 +44,18 @@ public static class GetKitchenOrders
 
     public sealed record ModifierList(string ItemName, decimal Quantity, string ComponentType);
 
-    internal sealed class Handler(IDbContext dbContext) : IQueryHandler<Query, Response>
+    internal sealed class Handler(IDbContext dbContext, ICurrentStaff currentStaff)
+        : IQueryHandler<Query, Response>
     {
         public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
         {
+            int? stationId = currentStaff.KitchenStationId;
+            if (stationId is null)
+                return Result.Failure<Response>(KitchenStationErrors.NotSelected);
+
             var station = await dbContext.KitchenStations
                 .AsNoTracking()
-                .Where(s => s.Id == request.KitchenStationId && s.IsActive)
+                .Where(s => s.Id == stationId.Value && s.IsActive)
                 .Select(s => new { s.Id, s.Name })
                 .FirstOrDefaultAsync(ct);
             if (station is null)
@@ -57,7 +63,7 @@ public static class GetKitchenOrders
 
             var rows = await dbContext.OrderItems
                 .AsNoTracking()
-                .Where(oi => oi.KitchenStationId == request.KitchenStationId
+                .Where(oi => oi.KitchenStationId == stationId.Value
                              && (oi.Status == OrderItemStatus.Pending
                                  || oi.Status == OrderItemStatus.Processing
                                  || oi.Status == OrderItemStatus.Ready)

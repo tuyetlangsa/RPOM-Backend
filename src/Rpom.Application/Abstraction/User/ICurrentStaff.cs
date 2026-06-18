@@ -12,6 +12,9 @@ public interface ICurrentStaff
     /// <summary>Username snapshot from JWT claim (avoid extra DB query for display).</summary>
     string Username { get; }
 
+    /// <summary>Kitchen station chosen for the session (from JWT claim). NULL when not a kitchen session.</summary>
+    int? KitchenStationId { get; }
+
     /// <summary>Effective permission codes for the current request.</summary>
     HashSet<string> GetPermissions();
 }
