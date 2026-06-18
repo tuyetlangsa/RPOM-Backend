@@ -14,6 +14,9 @@ internal sealed class CurrentStaff(IHttpContextAccessor httpContextAccessor) : I
         httpContextAccessor.HttpContext?.User.GetUsername()
         ?? throw new ApplicationException("Staff context is unavailable");
 
+    public int? KitchenStationId =>
+        httpContextAccessor.HttpContext?.User.GetKitchenStationId();
+
     public HashSet<string> GetPermissions() =>
         httpContextAccessor.HttpContext?.User.GetPermissions()
         ?? throw new ApplicationException("Staff context is unavailable");

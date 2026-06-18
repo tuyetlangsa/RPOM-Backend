@@ -8,6 +8,10 @@ public static class KitchenStationErrors
         "KitchenStation.NotFound",
         "Không tìm thấy bếp.");
 
+    public static readonly Error NotSelected = Error.BadRequest(
+        "KitchenStation.NotSelected",
+        "Phiên đăng nhập chưa chọn khu bếp. Hãy chọn khu bếp trước khi vào màn hình bếp.");
+
     public static readonly Error CodeDuplicate = Error.Conflict(
         "KitchenStation.CodeDuplicate",
         "Mã bếp đã tồn tại.");

@@ -18,6 +18,12 @@ public static class ClaimsPrincipalExtensions
                ?? throw new ApplicationException("Username claim is missing");
     }
 
+    public static int? GetKitchenStationId(this ClaimsPrincipal? principal)
+    {
+        string? value = principal?.FindFirst(CustomClaims.KitchenStationId)?.Value;
+        return int.TryParse(value, out int id) ? id : null;
+    }
+
     public static HashSet<string> GetPermissions(this ClaimsPrincipal? principal)
     {
         IEnumerable<Claim> permissionClaims = principal?.FindAll(CustomClaims.Permission)
