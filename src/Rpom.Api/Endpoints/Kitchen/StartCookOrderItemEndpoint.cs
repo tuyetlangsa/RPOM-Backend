@@ -24,7 +24,7 @@ internal sealed class StartCookOrderItemEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithTags("Kitchen")
             .WithName("StartCookOrderItem")
-            .WithSummary("Bếp bắt đầu chế biến món (PENDING→PROCESSING) + trừ kho. Gate theo khu bếp của phiên.");
+            .WithSummary("Start cooking one or more order items (PENDING → PROCESSING)");
     }
 
     internal sealed record Request(IReadOnlyList<long>? OrderItemIds);

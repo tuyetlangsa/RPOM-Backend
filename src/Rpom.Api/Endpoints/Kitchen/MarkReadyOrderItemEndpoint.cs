@@ -24,7 +24,7 @@ internal sealed class MarkReadyOrderItemEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status409Conflict)
             .WithTags("Kitchen")
             .WithName("MarkReadyOrderItem")
-            .WithSummary("Bếp báo món đã xong (PROCESSING→READY). Gate theo khu bếp của phiên.");
+            .WithSummary("Mark one or more order items READY (PROCESSING → READY).");
     }
 
     internal sealed record Request(IReadOnlyList<long>? OrderItemIds);
