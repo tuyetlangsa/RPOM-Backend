@@ -41,6 +41,7 @@ public static class Permissions
     public const string OrderItemStartCooking = "order_item:start_cooking";
     public const string OrderItemMarkReady = "order_item:mark_ready";
     public const string OrderItemMarkDone = "order_item:mark_done";
+    public const string OrderItemProcessReturn = "order_item:process_return";
     public const string ItemToggleAvailability = "item:toggle_availability";
 
     // ============ Cashier — payment + cash drawer ============

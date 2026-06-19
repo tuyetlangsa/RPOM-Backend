@@ -20,4 +20,13 @@ public interface IStockMovementService
     ///     Non-stockable items are silently skipped.
     /// </summary>
     Task DeductAsync(long orderItemId, int staffId, CancellationToken ct);
+
+    /// <summary>
+    ///     Reverse a deduction back into stock for a kitchen-processed RETURN line
+    ///     (negative-quantity refund OrderItem). Mirrors <see cref="DeductAsync"/> but ADDS:
+    ///     HasRecipe → adds each BOM material back; IsStockable &amp;&amp; !HasRecipe → adds the
+    ///     item itself back. Amount = |refund OrderItem.Quantity|. Idempotent — a second call
+    ///     for the same refund line is a no-op (guarded by an existing ORDER_RETURN movement).
+    /// </summary>
+    Task RestockReturnAsync(long refundOrderItemId, int staffId, CancellationToken ct);
 }

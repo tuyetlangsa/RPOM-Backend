@@ -125,6 +125,89 @@ internal sealed class StockMovementService(
         await dbContext.SaveChangesAsync(ct);
     }
 
+    public async Task RestockReturnAsync(long refundOrderItemId, int staffId, CancellationToken ct)
+    {
+        // Idempotency: already restocked for this refund line → no-op.
+        bool already = await dbContext.StockMovements.AnyAsync(
+            sm => sm.ReferenceType == StockMovementReferenceType.OrderReturn
+                  && sm.ReferenceId == refundOrderItemId, ct);
+        if (already) return;
+
+        var refund = await dbContext.OrderItems
+            .Include(oi => oi.Item)
+            .FirstOrDefaultAsync(oi => oi.Id == refundOrderItemId, ct);
+        if (refund is null) return;
+        if (refund.Quantity >= 0) return; // chỉ dòng trả hàng (âm) mới hoàn kho
+
+        var item = refund.Item;
+        if (item is null || (!item.IsStockable && !item.HasRecipe)) return;
+
+        decimal returnedQty = -refund.Quantity; // dương
+        DateTime now = clock.UtcNow;
+
+        if (item.HasRecipe)
+        {
+            var bomLines = await dbContext.BomLines
+                .Where(bl => bl.SellableItemId == item.Id && bl.IsActive)
+                .Select(bl => new
+                {
+                    bl.MaterialItemId,
+                    bl.Quantity,
+                    bl.UomId,
+                    MaterialBaseUomId = bl.MaterialItem.BaseUomId
+                })
+                .ToListAsync(ct);
+
+            foreach (var bl in bomLines)
+            {
+                decimal perUnitBase = await uomConverter.ToBaseAsync(
+                    bl.MaterialItemId, bl.MaterialBaseUomId, bl.UomId, bl.Quantity, ct)
+                    ?? bl.Quantity;
+                decimal signedQty = perUnitBase * returnedQty; // dương = cộng lại
+                decimal lastBalance = await GetLastBalanceAsync(bl.MaterialItemId, ct);
+                decimal newBalance = lastBalance + signedQty;
+
+                dbContext.StockMovements.Add(new StockMovement
+                {
+                    ItemId = bl.MaterialItemId,
+                    MovementType = StockMovementType.ReturnIn,
+                    QtyInBase = signedQty,
+                    BalanceAfter = newBalance,
+                    ReferenceType = StockMovementReferenceType.OrderReturn,
+                    ReferenceId = refundOrderItemId,
+                    Reason = $"Hoàn kho trả hàng: {item.Code} x{returnedQty}",
+                    CreatedByStaffId = staffId,
+                    CreatedAt = now
+                });
+
+                await UpsertItemStockAsync(bl.MaterialItemId, newBalance, now, ct);
+            }
+        }
+        else
+        {
+            decimal signedQty = returnedQty; // dương
+            decimal lastBalance = await GetLastBalanceAsync(item.Id, ct);
+            decimal newBalance = lastBalance + signedQty;
+
+            dbContext.StockMovements.Add(new StockMovement
+            {
+                ItemId = item.Id,
+                MovementType = StockMovementType.AdjustIn,
+                QtyInBase = signedQty,
+                BalanceAfter = newBalance,
+                ReferenceType = StockMovementReferenceType.OrderReturn,
+                ReferenceId = refundOrderItemId,
+                Reason = $"Hoàn kho trả hàng: {item.Code} x{returnedQty}",
+                CreatedByStaffId = staffId,
+                CreatedAt = now
+            });
+
+            await UpsertItemStockAsync(item.Id, newBalance, now, ct);
+        }
+
+        await dbContext.SaveChangesAsync(ct);
+    }
+
     private async Task<decimal> GetLastBalanceAsync(int itemId, CancellationToken ct)
     {
         var last = await dbContext.StockMovements
