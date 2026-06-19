@@ -10,6 +10,7 @@ using Rpom.Application.DiscountPolicies;
 using Rpom.Domain.Access;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
+using Rpom.Domain.Menu;
 using Rpom.Domain.Operations;
 using Rpom.Domain.Sales;
 
@@ -45,7 +46,7 @@ public static class SendOrder
         {
             var ticket = await db.Tickets
                 .Where(t => t.Id == request.TicketId)
-                .Select(t => new { t.Id, t.TableId, t.Status })
+                .Select(t => new { t.Id, t.TableId, t.AreaId, t.Status })
                 .FirstOrDefaultAsync(ct);
             if (ticket is null)
             {
@@ -99,6 +100,20 @@ public static class SendOrder
             if (selected.Count == 0)
             {
                 return Result.Failure<Response>(OrderErrors.EmptyCart);
+            }
+
+            // Chặn gửi bếp món đang bị khoá out-of-stock tại area của phiếu — kể cả món đã
+            // được thêm vào cart TRƯỚC khi khoá. Dòng refund (Quantity < 0) là trả hàng, không chặn.
+            var lockCandidateItemIds = selected
+                .Where(c => c.Quantity > 0).Select(c => c.ItemId).Distinct().ToList();
+            if (lockCandidateItemIds.Count > 0)
+            {
+                bool anyLocked = await db.ItemAreaLocks.AnyAsync(
+                    l => l.AreaId == ticket.AreaId && lockCandidateItemIds.Contains(l.ItemId), ct);
+                if (anyLocked)
+                {
+                    return Result.Failure<Response>(ItemErrors.Locked);
+                }
             }
 
             DateTime now = clock.UtcNow;

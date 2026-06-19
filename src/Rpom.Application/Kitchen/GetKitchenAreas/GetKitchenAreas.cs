@@ -33,14 +33,19 @@ public static class GetKitchenAreas
         public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
         {
             int? stationId = currentStaff.KitchenStationId;
-            if (stationId is null) return Result.Failure<Response>(KitchenStationErrors.NotSelected);
+            if (stationId is null)
+            {
+                return Result.Failure<Response>(KitchenStationErrors.NotSelected);
+            }
 
             // Món thuộc khu bếp của phiên → category của chúng + tổ tiên → AreaMenuCategory → area.
             var stationItemIds = await db.Items
                 .Where(i => i.IsActive && i.KitchenStationId == stationId.Value)
                 .Select(i => i.Id).ToListAsync(ct);
             if (stationItemIds.Count == 0)
+            {
                 return Result.Success(new Response(stationId.Value, []));
+            }
 
             var catIds = await db.ItemCategories
                 .Where(ic => stationItemIds.Contains(ic.ItemId))

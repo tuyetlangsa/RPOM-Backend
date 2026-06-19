@@ -182,8 +182,8 @@ public static class SetItemAreaLock
             // Menu của các area liên quan đổi → POS/Cashier refetch.
             await versionService.BumpAsync(VersionScopes.Menu, $"ItemAreaLock(id={item.Id})", ct);
 
-            return Result.Success(
-                new Response(item.Id, request.Lock, affectedAreaIds, notifiedCounterIds));
+            return Result.Success(new Response(
+                item.Id, request.Lock, affectedAreaIds, notifiedCounterIds));
         }
     }
 }
