@@ -51,6 +51,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<KitchenStation> KitchenStations => Set<KitchenStation>();
     public DbSet<Printer> Printers => Set<Printer>();
     public DbSet<StaffNotification> StaffNotifications => Set<StaffNotification>();
+    public DbSet<NotificationReadState> NotificationReadStates => Set<NotificationReadState>();
     public DbSet<ItemAreaLock> ItemAreaLocks => Set<ItemAreaLock>();
     public DbSet<DiscountPolicy> DiscountPolicies => Set<DiscountPolicy>();
     public DbSet<DiscountPolicyCondition> DiscountPolicyConditions => Set<DiscountPolicyCondition>();

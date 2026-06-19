@@ -13,8 +13,13 @@ public class StaffNotification : Entity
 {
     public long Id { get; set; }
     /// <summary>Broadcast scope — every terminal on this counter sees it.</summary>
-
     public int CounterId { get; set; }
+
+    /// <summary>
+    ///     Area cụ thể mà cảnh báo áp dụng (vd món hết hàng ở area nào). NULL nếu không gắn area.
+    ///     Một counter có thể nhiều area → giúp FOH biết chính xác area thay vì cả quầy.
+    /// </summary>
+    public int? AreaId { get; set; }
 
     /// <summary>ITEM_OUT_OF_STOCK | ITEM_BACK_IN_STOCK (see <see cref="StaffNotificationType" />).</summary>
     public string Type { get; set; } = null!;
@@ -31,4 +36,5 @@ public class StaffNotification : Entity
     public DateTime CreatedAt { get; set; }
 
     public virtual Counter Counter { get; set; } = null!;
+    public virtual Area? Area { get; set; }
 }

@@ -23,6 +23,8 @@ public static class GetNotifications
         string Title,
         string Body,
         int? RefItemId,
+        int? AreaId,
+        string? AreaName,
         DateTime CreatedAt);
 
     internal sealed class Validator : AbstractValidator<Query>
@@ -48,7 +50,8 @@ public static class GetNotifications
                 .OrderByDescending(n => n.Id)
                 .Take(request.Limit)
                 .Select(n => new Notification(
-                    n.Id, n.Type, n.Title, n.Body, n.RefItemId, n.CreatedAt))
+                    n.Id, n.Type, n.Title, n.Body, n.RefItemId,
+                    n.AreaId, n.Area != null ? n.Area.Name : null, n.CreatedAt))
                 .ToListAsync(ct);
 
             long? latestId = rows.Count > 0 ? rows[0].Id : request.SinceId;

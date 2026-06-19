@@ -23,6 +23,6 @@ internal sealed class GetNotificationsEndpoint : IEndpoint
             .ProducesProblem(StatusCodes.Status400BadRequest)
             .WithTags("Notifications")
             .WithName("GetNotifications")
-            .WithSummary("Poll thông báo vận hành (out-of-stock...) theo quầy. Cashier + Order Staff dùng counterId + sinceId cursor.");
+            .WithSummary("Polls report out-of-stock situations at each counter. Cashiers and order staff use the counterId and sinceId cursors.");
     }
 }
