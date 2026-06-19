@@ -24,6 +24,10 @@ public static class OrderItemErrors
         "OrderItem.WrongTicket",
         "Một hoặc nhiều món không thuộc phiếu này.");
 
+    public static readonly Error WrongStation = Error.Conflict(
+        "OrderItem.WrongStation",
+        "Một hoặc nhiều món không thuộc khu bếp của bạn.");
+
     public static readonly Error NotRefundable = Error.Conflict(
         "OrderItem.NotRefundable",
         "Chỉ có thể trả món đã/đang nấu (PROCESSING/READY/DONE). Món chưa nấu hãy dùng Huỷ.");

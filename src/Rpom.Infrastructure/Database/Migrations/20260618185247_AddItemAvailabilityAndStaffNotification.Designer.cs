@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Rpom.Infrastructure.Database;
 namespace Rpom.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260618185247_AddItemAvailabilityAndStaffNotification")]
+    partial class AddItemAvailabilityAndStaffNotification
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1340,6 +1343,12 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue(true)
                         .HasColumnName("is_active");
 
+                    b.Property<bool>("IsAvailable")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("boolean")
+                        .HasDefaultValue(true)
+                        .HasColumnName("is_available");
+
                     b.Property<bool>("IsStockable")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")
@@ -2025,40 +2034,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         {
                             t.HasCheckConstraint("ck_discount_policy_condition_apply_type", "apply_type IN ('PERCENT', 'FIXED')");
                         });
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Operations.ItemAreaLock", b =>
-                {
-                    b.Property<int>("ItemId")
-                        .HasColumnType("integer")
-                        .HasColumnName("item_id");
-
-                    b.Property<int>("AreaId")
-                        .HasColumnType("integer")
-                        .HasColumnName("area_id");
-
-                    b.Property<DateTime>("LockedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("locked_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<int>("LockedByStaffId")
-                        .HasColumnType("integer")
-                        .HasColumnName("locked_by_staff_id");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)")
-                        .HasColumnName("note");
-
-                    b.HasKey("ItemId", "AreaId")
-                        .HasName("pk_item_area_locks");
-
-                    b.HasIndex("AreaId")
-                        .HasDatabaseName("ix_item_area_lock_area");
-
-                    b.ToTable("item_area_locks", "public");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Operations.KitchenStation", b =>
@@ -4855,27 +4830,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Area");
 
                     b.Navigation("DiscountPolicy");
-
-                    b.Navigation("Item");
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Operations.ItemAreaLock", b =>
-                {
-                    b.HasOne("Rpom.Domain.Restaurant.Area", "Area")
-                        .WithMany()
-                        .HasForeignKey("AreaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_item_area_locks_areas_area_id");
-
-                    b.HasOne("Rpom.Domain.Menu.Item", "Item")
-                        .WithMany()
-                        .HasForeignKey("ItemId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_item_area_locks_items_item_id");
-
-                    b.Navigation("Area");
 
                     b.Navigation("Item");
                 });

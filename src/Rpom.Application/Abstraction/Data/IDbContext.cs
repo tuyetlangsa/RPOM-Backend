@@ -53,6 +53,8 @@ public interface IDbContext
     DbSet<Shift> Shifts { get; }
     DbSet<KitchenStation> KitchenStations { get; }
     DbSet<Printer> Printers { get; }
+    DbSet<StaffNotification> StaffNotifications { get; }
+    DbSet<ItemAreaLock> ItemAreaLocks { get; }
     DbSet<DiscountPolicy> DiscountPolicies { get; }
     DbSet<DiscountPolicyCondition> DiscountPolicyConditions { get; }
 

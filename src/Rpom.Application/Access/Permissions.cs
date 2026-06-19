@@ -34,12 +34,14 @@ public static class Permissions
     public const string OrderItemRefundLine = "order_item:refund_line";
     public const string ReservationCreate = "reservation:create";
     public const string ReservationCancel = "reservation:cancel";
+    public const string NotificationView = "notification:view";
 
     // ============ KDS — Kitchen Staff ============
     public const string KdsView = "kds:view";
     public const string OrderItemStartCooking = "order_item:start_cooking";
     public const string OrderItemMarkReady = "order_item:mark_ready";
     public const string OrderItemMarkDone = "order_item:mark_done";
+    public const string ItemToggleAvailability = "item:toggle_availability";
 
     // ============ Cashier — payment + cash drawer ============
     /// <summary>Open a cash drawer at a counter (count opening cash).</summary>
