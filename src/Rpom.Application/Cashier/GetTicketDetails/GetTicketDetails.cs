@@ -139,6 +139,7 @@ public static class GetTicketDetails
         string? Notes,
         DateTime CreatedAt,
         DateTime UpdatedAt,
+        bool IsLocked,
         IReadOnlyList<ItemComponent> Components);
 
     public sealed record ItemComponent(
@@ -383,11 +384,19 @@ public static class GetTicketDetails
             var ciDetailsByItem = cartItemDetails.GroupBy(d => d.CartItemId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
+            var cartItemIdsForLock = cartItems.Select(c => c.ItemId).Distinct().ToList();
+            var lockedItemIds = (await db.ItemAreaLocks
+                    .Where(l => l.AreaId == t.AreaId && cartItemIdsForLock.Contains(l.ItemId))
+                    .Select(l => l.ItemId)
+                    .ToListAsync(ct))
+                .ToHashSet();
+
             var orderingItems = cartItems.Select(c => new OrderingItem(
                     c.Id, c.OrderId, c.ItemId, c.ItemCode, c.ItemName, c.UomCode, c.UomName,
                     c.Quantity, c.UnitPrice, c.ChoicePricePerUnit, c.LineSubtotal,
                     c.ServiceChargeAmount, c.VatItemAmount, c.VatScAmount, c.VatAmount, c.VatPercent, c.LineTotal,
                     c.OriginalOrderItemId, c.Notes, c.CreatedAt, c.UpdatedAt,
+                    c.Quantity > 0 && lockedItemIds.Contains(c.ItemId),
                     (ciDetailsByItem.GetValueOrDefault(c.Id) ?? new()).Select(d => new ItemComponent(
                         d.ItemId, d.ItemName, d.ComponentType, d.Quantity, d.ExtraPrice, d.Notes)).ToList()))
                 .ToList();
