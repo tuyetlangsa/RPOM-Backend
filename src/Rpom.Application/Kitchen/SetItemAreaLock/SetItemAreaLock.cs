@@ -129,25 +129,30 @@ public static class SetItemAreaLock
             if (affectedAreaIds.Count == 0)
                 return Result.Success(new Response(item.Id, request.Lock, [], []));
 
-            var notifiedCounterIds = await db.Areas
+            // Mỗi area bị tác động → 1 thông báo riêng (route tới counter của area đó),
+            // để FOH biết chính xác area thay vì chỉ "cả quầy".
+            var affectedAreas = await db.Areas
                 .Where(a => affectedAreaIds.Contains(a.Id))
-                .Select(a => a.CounterId).Distinct().ToListAsync(ct);
+                .Select(a => new { a.Id, a.Name, a.CounterId })
+                .ToListAsync(ct);
 
             string title = request.Lock ? "Hết hàng" : "Còn hàng trở lại";
-            string body = request.Lock
-                ? $"{item.Name} đã hết hàng — không nhận thêm vào đơn mới."
-                : $"{item.Name} đã có hàng trở lại.";
-            if (!string.IsNullOrWhiteSpace(request.Note))
-                body += $" ({request.Note.Trim()})";
             string type = request.Lock
                 ? StaffNotificationType.ItemOutOfStock
                 : StaffNotificationType.ItemBackInStock;
+            string noteSuffix = string.IsNullOrWhiteSpace(request.Note)
+                ? "" : $" ({request.Note.Trim()})";
 
-            foreach (int counterId in notifiedCounterIds)
+            foreach (var area in affectedAreas)
             {
+                string body = (request.Lock
+                    ? $"{item.Name} đã hết hàng tại {area.Name} — không nhận thêm vào đơn mới."
+                    : $"{item.Name} đã có hàng trở lại tại {area.Name}.") + noteSuffix;
+
                 db.StaffNotifications.Add(new StaffNotification
                 {
-                    CounterId = counterId,
+                    CounterId = area.CounterId,
+                    AreaId = area.Id,
                     Type = type,
                     Title = title,
                     Body = body,
@@ -156,6 +161,8 @@ public static class SetItemAreaLock
                     CreatedAt = now,
                 });
             }
+
+            var notifiedCounterIds = affectedAreas.Select(a => a.CounterId).Distinct().ToList();
 
             StaffAccount staff = await db.StaffAccounts.FirstAsync(s => s.Id == staffId, ct);
             db.AuditLogs.Add(new AuditLog

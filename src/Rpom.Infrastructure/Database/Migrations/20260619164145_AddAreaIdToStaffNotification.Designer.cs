@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Rpom.Infrastructure.Database;
 namespace Rpom.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260619164145_AddAreaIdToStaffNotification")]
+    partial class AddAreaIdToStaffNotification
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2119,35 +2122,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_kitchen_stations_code");
 
                     b.ToTable("kitchen_stations", "public");
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Operations.NotificationReadState", b =>
-                {
-                    b.Property<int>("StaffAccountId")
-                        .HasColumnType("integer")
-                        .HasColumnName("staff_account_id");
-
-                    b.Property<int>("CounterId")
-                        .HasColumnType("integer")
-                        .HasColumnName("counter_id");
-
-                    b.Property<long>("LastReadNotificationId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("last_read_notification_id");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.HasKey("StaffAccountId", "CounterId")
-                        .HasName("pk_notification_read_states");
-
-                    b.HasIndex("CounterId")
-                        .HasDatabaseName("ix_notification_read_states_counter_id");
-
-                    b.ToTable("notification_read_states", "public");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Operations.Printer", b =>
@@ -4914,27 +4888,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Area");
 
                     b.Navigation("Item");
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Operations.NotificationReadState", b =>
-                {
-                    b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
-                        .WithMany()
-                        .HasForeignKey("CounterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_notification_read_states_counters_counter_id");
-
-                    b.HasOne("Rpom.Domain.Access.StaffAccount", "StaffAccount")
-                        .WithMany()
-                        .HasForeignKey("StaffAccountId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_notification_read_states_staff_accounts_staff_account_id");
-
-                    b.Navigation("Counter");
-
-                    b.Navigation("StaffAccount");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Operations.Printer", b =>

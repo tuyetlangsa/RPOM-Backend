@@ -46,7 +46,7 @@ public static class ItemErrors
 
     public static readonly Error AreaNotServing = Error.BadRequest(
         "Item.AreaNotServing",
-        "Khu vực được chọn không phục vụ món này — không thể khoá/mở tại đây.");
+        "Khu vực được chọn không phục vụ món này — không thể khoá/mở tại đây. Hoặc tất cả AreaId phải > 0");
 
     public static readonly Error Locked = Error.Conflict(
         "Item.Locked",

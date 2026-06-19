@@ -23,5 +23,10 @@ internal sealed class StaffNotificationConfiguration : IEntityTypeConfiguration<
             .WithMany()
             .HasForeignKey(x => x.CounterId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        builder.HasOne(x => x.Area)
+            .WithMany()
+            .HasForeignKey(x => x.AreaId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
