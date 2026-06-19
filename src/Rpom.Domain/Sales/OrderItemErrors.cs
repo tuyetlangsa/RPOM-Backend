@@ -24,6 +24,10 @@ public static class OrderItemErrors
         "OrderItem.WrongTicket",
         "Một hoặc nhiều món không thuộc phiếu này.");
 
+    public static readonly Error WrongStation = Error.Conflict(
+        "OrderItem.WrongStation",
+        "Một hoặc nhiều món không thuộc khu bếp của bạn.");
+
     public static readonly Error NotRefundable = Error.Conflict(
         "OrderItem.NotRefundable",
         "Chỉ có thể trả món đã/đang nấu (PROCESSING/READY/DONE). Món chưa nấu hãy dùng Huỷ.");
@@ -35,4 +39,12 @@ public static class OrderItemErrors
     public static readonly Error RefundQuantityExceeded = Error.Conflict(
         "OrderItem.RefundQuantityExceeded",
         "Số lượng trả vượt quá số lượng còn lại của món.");
+
+    public static readonly Error NotReturnLine = Error.Conflict(
+        "OrderItem.NotReturnLine",
+        "Đây không phải dòng trả hàng (refund) — không thể xử lý trả hàng tại bếp.");
+
+    public static readonly Error ReturnNotActionable = Error.Conflict(
+        "OrderItem.ReturnNotActionable",
+        "Dòng trả hàng đã được xử lý hoặc không ở trạng thái có thể xử lý.");
 }

@@ -35,4 +35,20 @@ public static class ItemErrors
     public static readonly Error InUse = Error.Conflict(
         "Item.InUse",
         "Không xoá được — hàng hoá đang được sử dụng (đơn hàng, bảng giá, công thức, hoặc set menu). Hãy tắt kích hoạt thay vì xoá.");
+
+    public static readonly Error WrongStation = Error.Conflict(
+        "Item.WrongStation",
+        "Hàng hoá này không thuộc khu bếp của bạn — không thể bật/tắt hết hàng.");
+
+    public static readonly Error NotKitchenRouted = Error.Conflict(
+        "Item.NotKitchenRouted",
+        "Hàng hoá này không gắn khu bếp nào — không thể thao tác hết hàng tại bếp.");
+
+    public static readonly Error AreaNotServing = Error.BadRequest(
+        "Item.AreaNotServing",
+        "Khu vực được chọn không phục vụ món này — không thể khoá/mở tại đây.");
+
+    public static readonly Error Locked = Error.Conflict(
+        "Item.Locked",
+        "Món này đang được bếp đánh hết hàng tại khu vực này — không thể thêm vào đơn.");
 }

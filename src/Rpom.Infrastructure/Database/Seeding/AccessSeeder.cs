@@ -110,6 +110,9 @@ public sealed class AccessSeeder(
             (Permissions.KdsView, "View kitchen display", PermissionGroups.Kds),
             (Permissions.OrderItemStartCooking, "Mark dish PROCESSING", PermissionGroups.Kds),
             (Permissions.OrderItemMarkReady, "Mark dish READY", PermissionGroups.Kds),
+            (Permissions.OrderItemProcessReturn, "Process a return line + optional restock", PermissionGroups.Kds),
+            (Permissions.ItemToggleAvailability, "Toggle item out-of-stock availability", PermissionGroups.Kds),
+            (Permissions.NotificationView, "View operational notifications", PermissionGroups.Pos),
             (Permissions.OrderItemMarkDone, "Mark dish DONE (served)", PermissionGroups.Pos),
 
             (Permissions.CashDrawerOpen, "Open cash drawer at counter", PermissionGroups.Cashier),

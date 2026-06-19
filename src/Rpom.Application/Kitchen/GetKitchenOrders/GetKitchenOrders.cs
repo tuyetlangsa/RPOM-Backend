@@ -40,6 +40,7 @@ public static class GetKitchenOrders
         DateTime? StartCookAt,
         DateTime? ReadyAt,
         string? Notes,
+        long? OriginalOrderItemId,
         IReadOnlyList<ModifierList> Modifiers);
 
     public sealed record ModifierList(string ItemName, decimal Quantity, string ComponentType);
@@ -84,7 +85,7 @@ public static class GetKitchenOrders
                     Item = new
                     {
                         oi.Id, oi.ItemId, oi.ItemCode, oi.ItemName, oi.Quantity, oi.UomCode,
-                        oi.Status, oi.SentAt, oi.StartCookAt, oi.ReadyAt, oi.Notes
+                        oi.Status, oi.SentAt, oi.StartCookAt, oi.ReadyAt, oi.Notes, oi.OriginalOrderItemId
                     },
                     Modifiers = oi.Details
                         .Select(d => new { d.ItemName, d.Quantity, d.ComponentType })
@@ -115,6 +116,7 @@ public static class GetKitchenOrders
                             x.Item.Id, x.Item.ItemId, x.Item.ItemCode, x.Item.ItemName,
                             x.Item.Quantity, x.Item.UomCode, x.Item.Status,
                             x.Item.SentAt, x.Item.StartCookAt, x.Item.ReadyAt, x.Item.Notes,
+                            x.Item.OriginalOrderItemId,
                             x.Modifiers.Select(m => new ModifierList(m.ItemName, m.Quantity, m.ComponentType)).ToList()))
                         .ToList()))
                 .ToList();
