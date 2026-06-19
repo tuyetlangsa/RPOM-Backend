@@ -121,6 +121,14 @@ public static class AddCartItem
                 return Result.Failure<Response>(OrderErrors.ItemNotFound);
             }
 
+            // Check Item is Locked by kitchen
+            bool locked = await db.ItemAreaLocks
+                .AnyAsync(l => l.ItemId == item.Id && l.AreaId == ticket.AreaId, ct);
+            if (locked)
+            {
+                return Result.Failure<Response>(ItemErrors.Locked);
+            }
+
             DateTime now = clock.UtcNow;
             MenuPriceResolution resolution =
                 await priceResolver.ResolveAsync(ticket.AreaId, now, new[] { item.Id }, ct);

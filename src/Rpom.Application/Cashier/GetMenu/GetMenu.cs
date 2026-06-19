@@ -49,6 +49,7 @@ public static class GetMenu
         bool IsSetMenu,
         bool IsStockable,
         bool IsAvailable,
+        bool IsLocked,
         decimal? RawPrice,
         bool IsVatIncluded,
         decimal VatPercent,
@@ -197,6 +198,12 @@ public static class GetMenu
                 .ToListAsync(ct);
             var stockAvail = stockByItem.ToDictionary(s => s.ItemId, s => s.Available);
 
+            // out-of-stock lock for THIS area (per (Item, Area) grain).
+            var lockedItemIds = (await db.ItemAreaLocks
+                .Where(l => l.AreaId == table.AreaId && pricedIds.Contains(l.ItemId))
+                .Select(l => l.ItemId)
+                .ToListAsync(ct)).ToHashSet();
+
             // Set-menu specs for set items.
             var setItemIds = pricedItems.Where(i => i.IsSetMenu).Select(i => i.Id).ToList();
             Dictionary<int, SetMenuSpec> setSpecs = await LoadSetMenuSpecsAsync(setItemIds, ct);
@@ -231,13 +238,14 @@ public static class GetMenu
                     MenuPricing.ComputePrices(w.Price, w.IsVatIncluded, i.VatPercent, rc);
 
                 bool available = !i.IsStockable || stockAvail.GetValueOrDefault(i.Id, true);
+                bool isLocked = lockedItemIds.Contains(i.Id);
 
                 return new MenuItem(
                     i.Id, i.Code, i.Name, i.Description, i.ImageUrl, i.BaseUomId,
                     i.UomCode, i.UomName,
                     categoryIdsByItem.GetValueOrDefault(i.Id) ?? new List<int>(),
                     i.KitchenStationId, i.KitchenStationName,
-                    i.IsSetMenu, i.IsStockable, available,
+                    i.IsSetMenu, i.IsStockable, available, isLocked,
                     w.Price, w.IsVatIncluded, i.VatPercent, basePrice, displayPrice,
                     i.IsSetMenu ? setSpecs.GetValueOrDefault(i.Id) : null);
             }).ToList();
