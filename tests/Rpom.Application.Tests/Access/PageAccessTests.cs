@@ -8,6 +8,7 @@ using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Access;
 using Rpom.Application.Access.GetMyMenu;
 using Rpom.Application.Access.GetStaffPageAccess;
+using Rpom.Application.Access.GetRolePageDefault;
 using Rpom.Application.Access.SetStaffPageAccess;
 using Rpom.Domain.Access;
 using Rpom.Infrastructure.Database;
@@ -183,6 +184,33 @@ public sealed class PageAccessTests : IAsyncLifetime
 
         await version.Received(1).BumpAsync(
             VersionScopes.Access, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetRolePageDefault_Cashier_ReturnsCashierTemplate()
+    {
+        var handler = new GetRolePageDefault.Handler();
+
+        var result = await handler.Handle(
+            new GetRolePageDefault.Query(Roles.Cashier), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.PageCodes.Should().BeEquivalentTo(new[]
+        {
+            Pages.CashierFloorPlan, Pages.CashierTickets, Pages.CashierPayment, Pages.CashierCashDrawer
+        });
+    }
+
+    [Fact]
+    public async Task GetRolePageDefault_UnknownRole_ReturnsEmpty()
+    {
+        var handler = new GetRolePageDefault.Handler();
+
+        var result = await handler.Handle(
+            new GetRolePageDefault.Query("NO_SUCH_ROLE"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.PageCodes.Should().BeEmpty();
     }
 
     private static ICurrentStaff Staff(int id)
