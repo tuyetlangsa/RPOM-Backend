@@ -90,6 +90,39 @@ public sealed class PageAccessTests : IAsyncLifetime
         result.Value.Modules.Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task GetStaffPageAccess_ReturnsFullCatalogWithGrantedFlags()
+    {
+        var handler = new GetStaffPageAccess.Handler(_ctx);
+
+        var result = await handler.Handle(
+            new GetStaffPageAccess.Query(_cashierStaffId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+
+        // Full catalog: both modules present, all pages listed.
+        result.Value.Modules.Should().HaveCount(2);
+        var allPages = result.Value.Modules.SelectMany(m => m.Pages).ToList();
+        allPages.Should().HaveCount(3);
+
+        // Granted flags reflect the cashier's two grants only.
+        allPages.Single(p => p.Code == Pages.CashierTickets).Granted.Should().BeTrue();
+        allPages.Single(p => p.Code == Pages.CashierPayment).Granted.Should().BeTrue();
+        allPages.Single(p => p.Code == Pages.KitchenKds).Granted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetStaffPageAccess_UnknownAccount_NotFound()
+    {
+        var handler = new GetStaffPageAccess.Handler(_ctx);
+
+        var result = await handler.Handle(
+            new GetStaffPageAccess.Query(999999), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.StaffNotFound");
+    }
+
     private static ICurrentStaff Staff(int id)
     {
         var s = Substitute.For<ICurrentStaff>();
