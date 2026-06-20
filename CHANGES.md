@@ -327,3 +327,21 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 - **IDbContext**: thêm `ChangeTracker` vào abstraction (phục vụ retry-safety của dry-run).
 - **GetTicketDetails**: thêm `TotalDiscountAmount` vào `OrderedItem` (cột "Giảm" của pane trái).
 - **Tests**: +2 integration `SplitTicketPreviewTests.cs` (preview không ghi DB + số khớp split thật; propagate lỗi `SplitSourcePaid`). Full suite **177 pass**.
+
+---
+
+## 20. Module/Page UI Authorization (2026-06-20)
+
+- **Spec**: `~/CapstoneProject/docs/superpowers/specs/2026-06-20-module-page-ui-authorization-design.md`. **Plan**: `docs/superpowers/plans/2026-06-20-module-page-ui-authorization.md`.
+- Tầng phân quyền **điều hướng** (Module → Page, per-account), **độc lập** với permission. Permission vẫn là cổng server cho mọi API; Module/Page chỉ phục vụ FE route-guard + sidebar. Server **không** hard-enforce page access trên data API (chủ ý — non-goal trong spec §1).
+- **Entities** (mirror bộ ba Permission): `Module` / `Page` / `StaffAccountPageAccess` ở `src/Rpom.Domain/Access/`. Grant ở mức Page (atomic); module "thấy được" khi có ≥1 page. Migration `AddModulePageAuthorization` (3 bảng).
+- **Catalog code**: `Modules.cs` (4 module), `Pages.cs` (25 page), `RolePageDefaults.cs` (template page mặc định theo role) ở `src/Rpom.Application/Access/`.
+- **Seeder**: `AccessSeeder` seed 4 module + 25 page + permission mới `page_access:assign`; bootstrap Owner nhận **toàn bộ page** (+ `SyncOwnerPageAccessAsync` lúc restart).
+- **Endpoints** (`.WithTags("Access")`):
+  - `GET /api/access/my-menu` — auth bất kỳ staff; trả cây module→page account hiện tại truy cập được (nguồn cho sidebar + route guard).
+  - `GET /api/access/staff-accounts/{id}/page-access` — perm `page_access:assign`; full catalog + cờ `granted` cho 1 account (lưới checkbox admin).
+  - `PUT /api/access/staff-accounts/{id}/page-access` — perm `page_access:assign`; **full-replace** tập page, ghi `AuditLog` (UPDATE/StaffAccount), bump `VersionScopes.Access`.
+  - `GET /api/access/role-page-defaults/{roleCode}` — perm `page_access:assign`; template page mặc định theo role (pre-fill grid, reset-to-default).
+- **Invalidate**: FE poll `GetVersions`; `ACCESS` đổi → fetch lại `my-menu`. Chỉ PUT page-access bump version.
+- **Integration point (chưa làm)**: `CreateStaffAccount` sau này gọi `RolePageDefaults.ForRole(...)` để seed page access khởi tạo.
+- **Tests**: +10 integration (`PageAccessTests`) — my-menu lọc theo grant, full grid + granted flags, full-replace add/remove + persist, unknown page/account, version bump, role default. Full suite **187 pass**.
