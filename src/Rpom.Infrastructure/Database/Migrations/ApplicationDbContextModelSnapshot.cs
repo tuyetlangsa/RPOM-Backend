@@ -2133,6 +2133,40 @@ namespace Rpom.Infrastructure.Database.Migrations
                         });
                 });
 
+            modelBuilder.Entity("Rpom.Domain.Operations.ItemAreaLock", b =>
+                {
+                    b.Property<int>("ItemId")
+                        .HasColumnType("integer")
+                        .HasColumnName("item_id");
+
+                    b.Property<int>("AreaId")
+                        .HasColumnType("integer")
+                        .HasColumnName("area_id");
+
+                    b.Property<DateTime>("LockedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("locked_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("LockedByStaffId")
+                        .HasColumnType("integer")
+                        .HasColumnName("locked_by_staff_id");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("note");
+
+                    b.HasKey("ItemId", "AreaId")
+                        .HasName("pk_item_area_locks");
+
+                    b.HasIndex("AreaId")
+                        .HasDatabaseName("ix_item_area_lock_area");
+
+                    b.ToTable("item_area_locks", "public");
+                });
+
             modelBuilder.Entity("Rpom.Domain.Operations.KitchenStation", b =>
                 {
                     b.Property<int>("Id")
@@ -2191,6 +2225,35 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_kitchen_stations_code");
 
                     b.ToTable("kitchen_stations", "public");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Operations.NotificationReadState", b =>
+                {
+                    b.Property<int>("StaffAccountId")
+                        .HasColumnType("integer")
+                        .HasColumnName("staff_account_id");
+
+                    b.Property<int>("CounterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("counter_id");
+
+                    b.Property<long>("LastReadNotificationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("last_read_notification_id");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("StaffAccountId", "CounterId")
+                        .HasName("pk_notification_read_states");
+
+                    b.HasIndex("CounterId")
+                        .HasDatabaseName("ix_notification_read_states_counter_id");
+
+                    b.ToTable("notification_read_states", "public");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Operations.Printer", b =>
@@ -2350,6 +2413,67 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_shifts_code");
 
                     b.ToTable("shifts", "public");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Operations.StaffNotification", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int?>("AreaId")
+                        .HasColumnType("integer")
+                        .HasColumnName("area_id");
+
+                    b.Property<string>("Body")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)")
+                        .HasColumnName("body");
+
+                    b.Property<int>("CounterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("counter_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("CreatedByStaffId")
+                        .HasColumnType("integer")
+                        .HasColumnName("created_by_staff_id");
+
+                    b.Property<int?>("RefItemId")
+                        .HasColumnType("integer")
+                        .HasColumnName("ref_item_id");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("title");
+
+                    b.Property<string>("Type")
+                        .IsRequired()
+                        .HasMaxLength(40)
+                        .HasColumnType("character varying(40)")
+                        .HasColumnName("type");
+
+                    b.HasKey("Id")
+                        .HasName("pk_staff_notifications");
+
+                    b.HasIndex("AreaId")
+                        .HasDatabaseName("ix_staff_notifications_area_id");
+
+                    b.HasIndex("CounterId", "CreatedAt")
+                        .HasDatabaseName("ix_staff_notification_counter_created");
+
+                    b.ToTable("staff_notifications", "public");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Reservation.Reservation", b =>
@@ -4910,6 +5034,48 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Item");
                 });
 
+            modelBuilder.Entity("Rpom.Domain.Operations.ItemAreaLock", b =>
+                {
+                    b.HasOne("Rpom.Domain.Restaurant.Area", "Area")
+                        .WithMany()
+                        .HasForeignKey("AreaId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_area_locks_areas_area_id");
+
+                    b.HasOne("Rpom.Domain.Menu.Item", "Item")
+                        .WithMany()
+                        .HasForeignKey("ItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_item_area_locks_items_item_id");
+
+                    b.Navigation("Area");
+
+                    b.Navigation("Item");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Operations.NotificationReadState", b =>
+                {
+                    b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
+                        .WithMany()
+                        .HasForeignKey("CounterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notification_read_states_counters_counter_id");
+
+                    b.HasOne("Rpom.Domain.Access.StaffAccount", "StaffAccount")
+                        .WithMany()
+                        .HasForeignKey("StaffAccountId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_notification_read_states_staff_accounts_staff_account_id");
+
+                    b.Navigation("Counter");
+
+                    b.Navigation("StaffAccount");
+                });
+
             modelBuilder.Entity("Rpom.Domain.Operations.Printer", b =>
                 {
                     b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
@@ -4927,6 +5093,26 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Counter");
 
                     b.Navigation("KitchenStation");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Operations.StaffNotification", b =>
+                {
+                    b.HasOne("Rpom.Domain.Restaurant.Area", "Area")
+                        .WithMany()
+                        .HasForeignKey("AreaId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_staff_notifications_areas_area_id");
+
+                    b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
+                        .WithMany()
+                        .HasForeignKey("CounterId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_staff_notifications_counters_counter_id");
+
+                    b.Navigation("Area");
+
+                    b.Navigation("Counter");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Reservation.Reservation", b =>
