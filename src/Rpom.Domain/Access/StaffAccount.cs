@@ -39,4 +39,7 @@ public class StaffAccount : Entity
 
     public virtual ICollection<StaffAccountPermission> StaffAccountPermissions { get; set; } =
         new List<StaffAccountPermission>();
+
+    public virtual ICollection<StaffAccountPageAccess> StaffAccountPageAccesses { get; set; } =
+        new List<StaffAccountPageAccess>();
 }
