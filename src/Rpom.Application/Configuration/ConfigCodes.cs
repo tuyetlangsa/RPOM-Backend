@@ -23,6 +23,9 @@ public static class ConfigCodes
     public const string KitchenLateThresholdMinutes = "kitchen.late_threshold_minutes";
 
     // ============ Customer display + QR ============
+    /// <summary>TEXT — URL ảnh/video idle global cho màn hình khách (fallback khi display chưa set riêng).</summary>
+    public const string CustomerDisplayIdleMediaUrl = "customer_display.idle_media_url";
+    /// <summary>NUMBER — TTL (giây) của QR PENDING; quá hạn màn khách ngừng hiển thị + tự huỷ. 0 = không hết hạn.</summary>
     public const string PaymentQrTtlSeconds = "payment.qr_ttl_seconds";
 
     // ============ Printing ============

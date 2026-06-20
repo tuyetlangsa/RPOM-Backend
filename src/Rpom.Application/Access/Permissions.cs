@@ -66,6 +66,7 @@ public static class Permissions
     public const string CashierFloorPlan = "floor_plan:view_cashier";
     public const string CashierViewTicket = "ticket:view_cashier";
     public const string CashierViewMenu = "menu:view_cashier";
+    public const string CustomerDisplayPair = "customer_display:pair";
 
     // ============ Reporting — Manager/Owner ============
     public const string ReportRevenue = "report:revenue";

@@ -40,6 +40,12 @@ public sealed class ConfigValueSeeder(
             (ConfigCodes.KitchenLateThresholdMinutes, "15", ConfigValueType.Number,
                 "Ngưỡng (phút) mà PROCESSING dish được hiển thị LATE trên KDS"),
 
+            // ----- Customer display + QR -----
+            (ConfigCodes.CustomerDisplayIdleMediaUrl, "", ConfigValueType.Text,
+                "URL ảnh/video idle global cho màn hình khách (fallback khi display chưa set riêng)."),
+            (ConfigCodes.PaymentQrTtlSeconds, "300", ConfigValueType.Number,
+                "TTL (giây) của QR PENDING; quá hạn màn khách ngừng hiển thị + tự huỷ. 0 = không hết hạn."),
+
             // ----- Printing -----
             (ConfigCodes.KdsPrintCopiesDefault, "1", ConfigValueType.Number, "Số bản in mặc định cho printer"),
 
