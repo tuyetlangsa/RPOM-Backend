@@ -28,6 +28,9 @@ public interface IDbContext
     DbSet<Role> Roles { get; }
     DbSet<StaffAccount> StaffAccounts { get; }
     DbSet<StaffAccountPermission> StaffAccountPermissions { get; }
+    DbSet<Module> Modules { get; }
+    DbSet<Page> Pages { get; }
+    DbSet<StaffAccountPageAccess> StaffAccountPageAccesses { get; }
 
     // --- Area B: Restaurant ---
     DbSet<Counter> Counters { get; }

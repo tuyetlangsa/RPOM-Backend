@@ -24,6 +24,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<StaffAccount> StaffAccounts => Set<StaffAccount>();
     public DbSet<StaffAccountPermission> StaffAccountPermissions => Set<StaffAccountPermission>();
+    public DbSet<Module> Modules => Set<Module>();
+    public DbSet<Page> Pages => Set<Page>();
+    public DbSet<StaffAccountPageAccess> StaffAccountPageAccesses => Set<StaffAccountPageAccess>();
 
     // --- Area B: Restaurant ---
     public DbSet<Counter> Counters => Set<Counter>();
