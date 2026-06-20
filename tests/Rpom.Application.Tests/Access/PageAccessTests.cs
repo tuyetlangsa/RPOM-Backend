@@ -123,6 +123,68 @@ public sealed class PageAccessTests : IAsyncLifetime
         result.Error.Code.Should().Be("Access.StaffNotFound");
     }
 
+    [Fact]
+    public async Task SetStaffPageAccess_FullReplace_AddsAndRemoves()
+    {
+        var handler = new SetStaffPageAccess.Handler(_ctx, Staff(_cashierStaffId), Clock(), Version());
+
+        // Cashier currently has {tickets, payment}. Replace with {payment, kds}.
+        var result = await handler.Handle(
+            new SetStaffPageAccess.Command(
+                _cashierStaffId,
+                new[] { Pages.CashierPayment, Pages.KitchenKds }),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.GrantedPageCodes.Should().BeEquivalentTo(new[] { Pages.CashierPayment, Pages.KitchenKds });
+
+        var persisted = await _ctx.StaffAccountPageAccesses
+            .Where(x => x.StaffAccountId == _cashierStaffId)
+            .Select(x => x.Page.Code)
+            .ToListAsync();
+        persisted.Should().BeEquivalentTo(new[] { Pages.CashierPayment, Pages.KitchenKds });
+    }
+
+    [Fact]
+    public async Task SetStaffPageAccess_UnknownPageCode_Fails()
+    {
+        var handler = new SetStaffPageAccess.Handler(_ctx, Staff(_cashierStaffId), Clock(), Version());
+
+        var result = await handler.Handle(
+            new SetStaffPageAccess.Command(_cashierStaffId, new[] { "does.not.exist" }),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.UnknownPageCode");
+    }
+
+    [Fact]
+    public async Task SetStaffPageAccess_UnknownAccount_NotFound()
+    {
+        var handler = new SetStaffPageAccess.Handler(_ctx, Staff(_cashierStaffId), Clock(), Version());
+
+        var result = await handler.Handle(
+            new SetStaffPageAccess.Command(999999, new[] { Pages.CashierPayment }),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.StaffNotFound");
+    }
+
+    [Fact]
+    public async Task SetStaffPageAccess_BumpsAccessVersion()
+    {
+        var version = Version();
+        var handler = new SetStaffPageAccess.Handler(_ctx, Staff(_cashierStaffId), Clock(), version);
+
+        await handler.Handle(
+            new SetStaffPageAccess.Command(_cashierStaffId, new[] { Pages.CashierPayment }),
+            CancellationToken.None);
+
+        await version.Received(1).BumpAsync(
+            VersionScopes.Access, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
     private static ICurrentStaff Staff(int id)
     {
         var s = Substitute.For<ICurrentStaff>();

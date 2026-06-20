@@ -21,4 +21,8 @@ public static class AccessErrors
     public static readonly Error StaffNotFound = Error.NotFound(
         "Access.StaffNotFound",
         "Không tìm thấy tài khoản nhân viên.");
+
+    public static readonly Error UnknownPageCode = Error.BadRequest(
+        "Access.UnknownPageCode",
+        "Mã trang không hợp lệ.");
 }
