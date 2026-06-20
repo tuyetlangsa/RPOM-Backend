@@ -218,7 +218,7 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 |---|---|
 | `MENU` | Item, Category, Price thay đổi |
 | `PRICING` | Discount apply/remove |
-| `FLOOR_PLAN` | Ticket open/send/cancel/transfer, Table lock/unlock, OrderItem lifecycle |
+| `FLOOR_PLAN` | Ticket open/send/cancel/transfer/merge/split, Table lock/unlock, OrderItem lifecycle |
 | `KITCHEN` | StartCook, MarkReady, MarkDone, CancelOrderItem |
 | `ACCESS` | Staff/Permission changes |
 | `CONFIG` | System config changes |
@@ -285,3 +285,45 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 - **Tiền/discount**: do percent-engine lo (dòng âm → tiền âm, net-negative cleanup). VD trả 1/3 phở → bill còn net 2 = 108,000.
 - **Permission**: grant `order_item:refund_line` cho role **Cashier**.
 - **Tests**: +6 integration (tạo dòng âm linked, PENDING-original/exceed/inactive-reason blocked, SendOrder materialize+audit+credit, không merge nhầm). Full suite 175 pass.
+
+---
+
+## 17. Merge Ticket (E3 — Gộp hoá đơn)
+
+- **Use case**: `src/Rpom.Application/Cashier/MergeTicket/MergeTicket.cs`
+- **Endpoint**: `POST /api/cashier/tickets/merge` body `{ sourceTicketId, destinationTicketId }`, perm `ticket:merge`.
+- Chuyển toàn bộ Orders (SENT/PROCESSING/DONE) + Payments (non-Deleted) từ source → dest. Cả 2 OPEN, cùng Area, CashDrawer OPEN, không PENDING payment.
+- Sau khi move: tạo bản copy CANCELLED của mọi Orders/Items/Payments trên source (audit trail). Source → CANCELLED với reason `MERGE`. Guest count source cộng vào dest. Nếu source table không còn OPEN ticket nào → table → Available. Giải phóng table lock source.
+- Audit: `MERGE` trên source + `MERGE_RECEIVE` trên dest. Bump `FLOOR_PLAN`, `KITCHEN`, `PRICING`.
+- **Errors**: `MergeSameTicket`, `MergeDifferentArea`.
+- **Permission**: grant `ticket:merge` cho role **Cashier**, **Order Staff**.
+
+---
+
+## 18. Split Ticket (E4 — Tách hoá đơn)
+
+- **Use case**: `src/Rpom.Application/Cashier/SplitTicket/SplitTicket.cs`
+- **Endpoint**: `POST /api/cashier/tickets/split` body `{ sourceTicketId, destinationTicketId?, destinationTableId?, guestCount?, items: [{ orderItemId, quantity }] }`, perm `ticket:split`.
+- Chuyển selected OrderItems từ source → dest. 2 mode dest: ticket có sẵn (OPEN, cùng Area, không PENDING payment, không bị staff khác giữ) hoặc mở ticket mới trên bàn (cùng Area, snapshot SC% từ Area).
+- Full qty → re-parent dòng; partial → giảm source, tạo dòng copy ở dest (copy toàn bộ snapshot: giá, bếp status, modifier details). Món giữ nguyên trạng thái bếp.
+- Tạo Order mới trên dest với notes `"Tách từ hoá đơn {code}"`. Source Orders: hết active item → DELETED; còn item → roll up.
+- **Payment không di chuyển** — chỉ chuyển món. Source phải `PaidAmount = 0` và không PENDING payment.
+- Recomputed cả 2 ticket. Audit `SPLIT` trên source. Bump `FLOOR_PLAN`, `KITCHEN`, `PRICING`.
+- **Errors**: `SplitDestinationInvalid` (cần đúng 1 trong 2 mode), `SplitSameTicket`, `SplitDifferentArea`, `SplitItemInvalid` (món không thuộc ticket/đã huỷ/trùng id), `SplitQuantityExceeds`, `SplitNoItems`, `SplitSourcePaid`.
+- **Permission**: grant `ticket:split` cho role **Cashier** (seed: `AccessSeeder`).
+
+---
+
+## 19. Split Ticket Preview (dry-run, không ghi DB)
+
+- **Spec**: `~/CapstoneProject/docs/superpowers/specs/2026-06-20-split-ticket-cashier-spec.md`.
+- **Mục đích**: FE màn tách (2-pane) chỉ quản số lượng, **không tính tiền ở client** (CLAUDE.md §12). Tổng tiền 2 phiếu "sau khi tách" lấy từ endpoint preview real-time khi cashier chỉnh số lượng.
+- **Use case**: `src/Rpom.Application/Cashier/SplitTicketPreview/SplitTicketPreview.cs` (**Query**, không qua TransactionPipeline auto-commit).
+- **Endpoint**: `POST /api/cashier/tickets/split/preview` body y hệt `/split`, trả `{ sourceTotalAmount, destinationTotalAmount, movedItemCount }`, perm `ticket:split`.
+- **Cơ chế dry-run**: tái dùng **handler `SplitTicket` thật** (gọi trực tiếp qua `IRequestHandler<...>`, không qua MediatR pipeline) trong 1 transaction rồi **ROLLBACK** → số preview == số commit tuyệt đối, không công thức song song, không temp table.
+  - Bọc trong `IExecutionStrategy.ExecuteAsync` (Npgsql retry yêu cầu); `ChangeTracker.Clear()` đầu mỗi lần retry (rollback không revert change tracker).
+  - **Không** side-effect: AuditLog / version bump / outbox đều nằm trong transaction → rollback xoá sạch.
+  - Lưu ý: mode "mở phiếu mới" tiêu hao sequence `Ticket.Id` (Postgres sequence không rollback) — chỉ tạo lỗ hổng id.
+- **IDbContext**: thêm `ChangeTracker` vào abstraction (phục vụ retry-safety của dry-run).
+- **GetTicketDetails**: thêm `TotalDiscountAmount` vào `OrderedItem` (cột "Giảm" của pane trái).
+- **Tests**: +2 integration `SplitTicketPreviewTests.cs` (preview không ghi DB + số khớp split thật; propagate lỗi `SplitSourcePaid`). Full suite **177 pass**.
