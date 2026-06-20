@@ -34,6 +34,8 @@ public sealed class AccessSeeder(
 
         await SeedPermissionGroupsAsync(db, cancellationToken);
         await SeedPermissionsAsync(db, cancellationToken);
+        await SeedModulesAsync(db, cancellationToken);
+        await SeedPagesAsync(db, cancellationToken);
         await SeedRolesAsync(db, clock, cancellationToken);
         await SeedBootstrapOwnerAsync(db, passwordHasher, clock, cancellationToken);
 
@@ -139,6 +141,7 @@ public sealed class AccessSeeder(
             (Permissions.StaffAccountManage, "Manage staff accounts", PermissionGroups.Access),
             (Permissions.RoleManage, "Manage roles", PermissionGroups.Access),
             (Permissions.PermissionAssign, "Assign permissions to accounts", PermissionGroups.Access),
+            (Permissions.PageAccessAssign, "Assign page access to accounts", PermissionGroups.Access),
 
             (Permissions.ConfigView, "View configuration values", PermissionGroups.Access),
             (Permissions.ConfigManage, "Update configuration values", PermissionGroups.Access),
@@ -162,6 +165,95 @@ public sealed class AccessSeeder(
                 Code = p.Code,
                 Name = p.Name,
                 PermissionGroupId = groupIdByCode[p.Group],
+                DisplayOrder = order++
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    // ----- Step 2b: Modules ---------------------------------------------------
+
+    private static async Task SeedModulesAsync(ApplicationDbContext db, CancellationToken ct)
+    {
+        var modules = new (string Code, string Name, short Order)[]
+        {
+            (Modules.NextErp, "NextERP", 10),
+            (Modules.Cashier, "Cashier", 20),
+            (Modules.Order, "Order", 30),
+            (Modules.Kitchen, "Kitchen", 40)
+        };
+
+        var existing = (await db.Modules.Select(x => x.Code).ToListAsync(ct)).ToHashSet();
+
+        foreach ((string Code, string Name, short Order) m in modules)
+        {
+            if (existing.Contains(m.Code))
+            {
+                continue;
+            }
+
+            db.Modules.Add(new Module { Code = m.Code, Name = m.Name, DisplayOrder = m.Order });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    // ----- Step 2c: Pages -----------------------------------------------------
+
+    private static async Task SeedPagesAsync(ApplicationDbContext db, CancellationToken ct)
+    {
+        Dictionary<string, int> moduleIdByCode =
+            await db.Modules.ToDictionaryAsync(x => x.Code, x => x.Id, ct);
+
+        var catalog = new (string Code, string Name, string Module)[]
+        {
+            (Pages.NextErpDashboard, "Dashboard", Modules.NextErp),
+            (Pages.NextErpItems, "Items", Modules.NextErp),
+            (Pages.NextErpCategories, "Categories", Modules.NextErp),
+            (Pages.NextErpMenu, "Menu", Modules.NextErp),
+            (Pages.NextErpPriceTables, "Price Tables", Modules.NextErp),
+            (Pages.NextErpDiscountPolicies, "Discount Policies", Modules.NextErp),
+            (Pages.NextErpAreasTables, "Areas & Tables", Modules.NextErp),
+            (Pages.NextErpCounters, "Counters", Modules.NextErp),
+            (Pages.NextErpShifts, "Shifts", Modules.NextErp),
+            (Pages.NextErpKitchenStations, "Kitchen Stations", Modules.NextErp),
+            (Pages.NextErpInventory, "Inventory", Modules.NextErp),
+            (Pages.NextErpStaffAccounts, "Staff Accounts", Modules.NextErp),
+            (Pages.NextErpRolesPermissions, "Roles & Permissions", Modules.NextErp),
+            (Pages.NextErpConfig, "Configuration", Modules.NextErp),
+            (Pages.NextErpReports, "Reports", Modules.NextErp),
+
+            (Pages.CashierFloorPlan, "Floor Plan", Modules.Cashier),
+            (Pages.CashierTickets, "Tickets", Modules.Cashier),
+            (Pages.CashierPayment, "Payment", Modules.Cashier),
+            (Pages.CashierCashDrawer, "Cash Drawer", Modules.Cashier),
+
+            (Pages.OrderFloorPlan, "Floor Plan", Modules.Order),
+            (Pages.OrderTickets, "Tickets", Modules.Order),
+            (Pages.OrderMenu, "Menu", Modules.Order),
+
+            (Pages.KitchenKds, "Kitchen Display", Modules.Kitchen),
+            (Pages.KitchenStations, "Stations", Modules.Kitchen),
+            (Pages.KitchenIngredients, "Ingredients", Modules.Kitchen)
+        };
+
+        var existing = (await db.Pages.Select(x => x.Code).ToListAsync(ct)).ToHashSet();
+
+        short order = 0;
+        foreach ((string Code, string Name, string Module) p in catalog)
+        {
+            if (existing.Contains(p.Code))
+            {
+                order++;
+                continue;
+            }
+
+            db.Pages.Add(new Page
+            {
+                Code = p.Code,
+                Name = p.Name,
+                ModuleId = moduleIdByCode[p.Module],
                 DisplayOrder = order++
             });
         }
@@ -232,6 +324,7 @@ public sealed class AccessSeeder(
             // Sync: ensure existing bootstrap Owner has every permission newly added
             // to the catalog (e.g. when devs add a new permission code between releases).
             await SyncOwnerPermissionsAsync(db, owner.Id, clock.UtcNow, ct);
+            await SyncOwnerPageAccessAsync(db, owner.Id, clock.UtcNow, ct);
             return;
         }
 
@@ -271,6 +364,20 @@ public sealed class AccessSeeder(
 
         await db.SaveChangesAsync(ct);
 
+        // Grant every page to bootstrap Owner (full navigation access).
+        List<int> allPageIds = await db.Pages.Select(x => x.Id).ToListAsync(ct);
+        foreach (int pageId in allPageIds)
+        {
+            db.StaffAccountPageAccesses.Add(new StaffAccountPageAccess
+            {
+                StaffAccountId = owner.Id,
+                PageId = pageId,
+                CreatedAt = now
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+
         logger.LogInformation(
             "Bootstrap Owner created: username='{Username}', granted {Count} permissions. "
             + "→ Login with provided password, then change it ASAP.",
@@ -302,6 +409,37 @@ public sealed class AccessSeeder(
             {
                 StaffAccountId = ownerId,
                 PermissionId = pid,
+                CreatedAt = now
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    /// <summary>
+    ///     Idempotent page-access sync — grants every Page row that the bootstrap
+    ///     Owner doesn't already have. Used on app restart to pick up newly added pages.
+    /// </summary>
+    private static async Task SyncOwnerPageAccessAsync(
+        ApplicationDbContext db, int ownerId, DateTime now, CancellationToken ct)
+    {
+        List<int> allPageIds = await db.Pages.Select(x => x.Id).ToListAsync(ct);
+        var grantedIds = (await db.StaffAccountPageAccesses
+            .Where(x => x.StaffAccountId == ownerId)
+            .Select(x => x.PageId)
+            .ToListAsync(ct)).ToHashSet();
+
+        foreach (int pageId in allPageIds)
+        {
+            if (grantedIds.Contains(pageId))
+            {
+                continue;
+            }
+
+            db.StaffAccountPageAccesses.Add(new StaffAccountPageAccess
+            {
+                StaffAccountId = ownerId,
+                PageId = pageId,
                 CreatedAt = now
             });
         }
