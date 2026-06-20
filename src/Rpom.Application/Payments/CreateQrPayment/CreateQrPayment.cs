@@ -1,12 +1,14 @@
 using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Rpom.Application.Abstraction.Clock;
+using Rpom.Application.Abstraction.Configuration;
 using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.Payments;
 using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
+using Rpom.Application.Configuration;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
 using Rpom.Domain.Sales;
@@ -59,6 +61,7 @@ public static class CreateQrPayment
         IQrPaymentGateway gateway,
         IRefreshPaymentTotalsService refreshService,
         IDateTimeProvider clock,
+        IConfigValueService config,
         IVersionService versionService) : ICommandHandler<Command, Response>
     {
         public async Task<Result<Response>> Handle(Command request, CancellationToken ct)
@@ -114,6 +117,9 @@ public static class CreateQrPayment
             var staffId = currentStaff.StaffAccountId;
             var now = clock.UtcNow;
 
+            int ttlSeconds = await config.GetIntAsync(ConfigCodes.PaymentQrTtlSeconds, 300, ct);
+            DateTime? expiresAt = ttlSeconds > 0 ? now.AddSeconds(ttlSeconds) : null;
+
             var payment = new TicketPaymentDetail
             {
                 TicketId = ticket.Id,
@@ -121,6 +127,7 @@ public static class CreateQrPayment
                 Amount = request.Amount,
                 Status = TicketPaymentStatus.Pending,
                 ProcessedByStaffId = staffId,
+                ExpiresAt = expiresAt,
                 Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
                 CreatedAt = now,
                 UpdatedAt = now,

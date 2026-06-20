@@ -22,6 +22,9 @@ public static class ConfigCodes
     // ============ Kitchen ============
     public const string KitchenLateThresholdMinutes = "kitchen.late_threshold_minutes";
 
+    // ============ Customer display + QR ============
+    public const string PaymentQrTtlSeconds = "payment.qr_ttl_seconds";
+
     // ============ Printing ============
     public const string KdsPrintCopiesDefault = "printer.copies_default";
 
