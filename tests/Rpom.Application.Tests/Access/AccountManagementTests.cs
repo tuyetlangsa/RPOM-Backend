@@ -8,6 +8,7 @@ using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Access;
 using Rpom.Application.Access.ListRoles;
+using Rpom.Application.Access.GetStaffAccount;
 using Rpom.Application.Access.ListStaffAccounts;
 using Rpom.Domain.Access;
 using Rpom.Infrastructure.Database;
@@ -110,6 +111,31 @@ public sealed class AccountManagementTests : IAsyncLifetime
             new ListStaffAccounts.Query(null, null, 1, 50), CancellationToken.None);
 
         result.Value.TotalCount.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task GetStaffAccount_ReturnsDetail()
+    {
+        var handler = new GetStaffAccount.Handler(_ctx);
+
+        var result = await handler.Handle(
+            new GetStaffAccount.Query(_cashierStaffId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Username.Should().Be("cashier01");
+        result.Value.RoleCode.Should().Be(Roles.Cashier);
+    }
+
+    [Fact]
+    public async Task GetStaffAccount_UnknownId_NotFound()
+    {
+        var handler = new GetStaffAccount.Handler(_ctx);
+
+        var result = await handler.Handle(
+            new GetStaffAccount.Query(999999), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.StaffNotFound");
     }
 
     // ---- shared test helpers (used by later tasks) ----
