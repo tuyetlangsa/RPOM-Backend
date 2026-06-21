@@ -208,21 +208,40 @@ public sealed class AccessSeeder(
 
         var catalog = new (string Code, string Name, string Module)[]
         {
-            (Pages.NextErpDashboard, "Dashboard", Modules.NextErp),
-            (Pages.NextErpItems, "Items", Modules.NextErp),
-            (Pages.NextErpCategories, "Categories", Modules.NextErp),
-            (Pages.NextErpMenu, "Menu", Modules.NextErp),
-            (Pages.NextErpPriceTables, "Price Tables", Modules.NextErp),
-            (Pages.NextErpDiscountPolicies, "Discount Policies", Modules.NextErp),
-            (Pages.NextErpAreasTables, "Areas & Tables", Modules.NextErp),
-            (Pages.NextErpCounters, "Counters", Modules.NextErp),
-            (Pages.NextErpShifts, "Shifts", Modules.NextErp),
-            (Pages.NextErpKitchenStations, "Kitchen Stations", Modules.NextErp),
-            (Pages.NextErpInventory, "Inventory", Modules.NextErp),
-            (Pages.NextErpStaffAccounts, "Staff Accounts", Modules.NextErp),
-            (Pages.NextErpRolesPermissions, "Roles & Permissions", Modules.NextErp),
-            (Pages.NextErpConfig, "Configuration", Modules.NextErp),
-            (Pages.NextErpReports, "Reports", Modules.NextErp),
+            // NextERP — Mặt bằng
+            (Pages.NextErpCounters, "Quầy", Modules.NextErp),
+            (Pages.NextErpAreas, "Khu vực", Modules.NextErp),
+            (Pages.NextErpAreaMenuCategory, "Menu theo khu", Modules.NextErp),
+            (Pages.NextErpTables, "Bàn / Phòng / Máy", Modules.NextErp),
+
+            // NextERP — Thực đơn
+            (Pages.NextErpItems, "Hàng hóa / Dịch vụ", Modules.NextErp),
+            (Pages.NextErpUom, "Đơn vị tính", Modules.NextErp),
+            (Pages.NextErpUomConversion, "Quy đổi ĐVT", Modules.NextErp),
+            (Pages.NextErpChoiceCategories, "Loại lựa chọn", Modules.NextErp),
+            (Pages.NextErpSetMenu, "Set Menu", Modules.NextErp),
+            (Pages.NextErpKitchenStations, "Bếp con", Modules.NextErp),
+
+            // NextERP — Kho
+            (Pages.NextErpStock, "Tồn kho", Modules.NextErp),
+            (Pages.NextErpStockMovement, "Nhập/Xuất kho", Modules.NextErp),
+
+            // NextERP — Giá & Khuyến mãi
+            (Pages.NextErpPricing, "Bảng giá bán", Modules.NextErp),
+            (Pages.NextErpDiscountPolicies, "Chính sách giảm giá", Modules.NextErp),
+
+            // NextERP — Hệ thống
+            (Pages.NextErpStaffAccounts, "Quản lý tài khoản & phân quyền", Modules.NextErp),
+            (Pages.NextErpShifts, "Danh sách ca", Modules.NextErp),
+            (Pages.NextErpCancellationReasons, "Lý do huỷ/trả", Modules.NextErp),
+
+            // NextERP — Future (uncomment khi window được build):
+            // (Pages.NextErpFloorPlan, "Sơ đồ bàn", Modules.NextErp),
+            // (Pages.NextErpServiceCharge, "Phí phục vụ", Modules.NextErp),
+            // (Pages.NextErpSchedule, "Lịch làm việc", Modules.NextErp),
+            // (Pages.NextErpConfig, "Cấu hình nhà hàng", Modules.NextErp),
+            // (Pages.NextErpReports, "Báo cáo & Phân tích", Modules.NextErp),
+            // (Pages.NextErpAi, "AI Conversational", Modules.NextErp),
 
             (Pages.CashierFloorPlan, "Floor Plan", Modules.Cashier),
             (Pages.CashierTickets, "Tickets", Modules.Cashier),

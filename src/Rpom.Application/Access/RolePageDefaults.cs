@@ -13,11 +13,14 @@ public static class RolePageDefaults
         {
             [Roles.Manager] = new[]
             {
-                Pages.NextErpDashboard, Pages.NextErpItems, Pages.NextErpCategories,
-                Pages.NextErpMenu, Pages.NextErpPriceTables, Pages.NextErpDiscountPolicies,
-                Pages.NextErpAreasTables, Pages.NextErpCounters, Pages.NextErpShifts,
-                Pages.NextErpKitchenStations, Pages.NextErpInventory, Pages.NextErpStaffAccounts,
-                Pages.NextErpRolesPermissions, Pages.NextErpConfig, Pages.NextErpReports,
+                // NextERP — all 17 implemented pages
+                Pages.NextErpCounters, Pages.NextErpAreas, Pages.NextErpAreaMenuCategory,
+                Pages.NextErpTables, Pages.NextErpItems, Pages.NextErpUom,
+                Pages.NextErpUomConversion, Pages.NextErpChoiceCategories, Pages.NextErpSetMenu,
+                Pages.NextErpKitchenStations, Pages.NextErpStock, Pages.NextErpStockMovement,
+                Pages.NextErpPricing, Pages.NextErpDiscountPolicies, Pages.NextErpStaffAccounts,
+                Pages.NextErpShifts, Pages.NextErpCancellationReasons,
+                // Operations — Cashier
                 Pages.CashierFloorPlan, Pages.CashierTickets, Pages.CashierPayment,
                 Pages.CashierCashDrawer
             },
