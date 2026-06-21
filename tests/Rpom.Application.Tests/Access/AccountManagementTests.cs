@@ -11,6 +11,7 @@ using Rpom.Application.Access.ListRoles;
 using Rpom.Application.Access.CreateStaffAccount;
 using Rpom.Application.Access.GetStaffAccount;
 using Rpom.Application.Access.ListStaffAccounts;
+using Rpom.Application.Access.UpdateStaffAccount;
 using Rpom.Domain.Access;
 using Rpom.Infrastructure.Database;
 using Testcontainers.PostgreSql;
@@ -175,6 +176,47 @@ public sealed class AccountManagementTests : IAsyncLifetime
 
         var result = await handler.Handle(
             new CreateStaffAccount.Command("u2", "secret1", "U2", null, null, 999999),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.RoleNotFound");
+    }
+
+    [Fact]
+    public async Task UpdateStaffAccount_UpdatesFieldsAndRole()
+    {
+        var handler = new UpdateStaffAccount.Handler(_ctx, Staff(), Clock(), Version());
+
+        var result = await handler.Handle(
+            new UpdateStaffAccount.Command(_cashierStaffId, "Nguyen Van A2", "0999", "a2@x.vn", _cashierRoleId, true, true),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var reloaded = await _ctx.StaffAccounts.FirstAsync(x => x.Id == _cashierStaffId);
+        reloaded.FullName.Should().Be("Nguyen Van A2");
+        reloaded.IsLocked.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpdateStaffAccount_UnknownId_NotFound()
+    {
+        var handler = new UpdateStaffAccount.Handler(_ctx, Staff(), Clock(), Version());
+
+        var result = await handler.Handle(
+            new UpdateStaffAccount.Command(999999, "X", null, null, _cashierRoleId, true, false),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.StaffNotFound");
+    }
+
+    [Fact]
+    public async Task UpdateStaffAccount_UnknownRole_Fails()
+    {
+        var handler = new UpdateStaffAccount.Handler(_ctx, Staff(), Clock(), Version());
+
+        var result = await handler.Handle(
+            new UpdateStaffAccount.Command(_cashierStaffId, "X", null, null, 999999, true, false),
             CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
