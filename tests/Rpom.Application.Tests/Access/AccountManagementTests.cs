@@ -12,6 +12,7 @@ using Rpom.Application.Access.CreateStaffAccount;
 using Rpom.Application.Access.GetStaffAccount;
 using Rpom.Application.Access.ListStaffAccounts;
 using Rpom.Application.Access.UpdateStaffAccount;
+using Rpom.Application.Access.ResetPassword;
 using Rpom.Domain.Access;
 using Rpom.Infrastructure.Database;
 using Testcontainers.PostgreSql;
@@ -221,6 +222,31 @@ public sealed class AccountManagementTests : IAsyncLifetime
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Access.RoleNotFound");
+    }
+
+    [Fact]
+    public async Task ResetPassword_RehashesPassword()
+    {
+        var handler = new ResetPassword.Handler(_ctx, Staff(), Clock(), Hasher());
+
+        var result = await handler.Handle(
+            new ResetPassword.Command(_cashierStaffId, "newpass1"), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var reloaded = await _ctx.StaffAccounts.FirstAsync(x => x.Id == _cashierStaffId);
+        reloaded.PasswordHash.Should().Be("HASH:newpass1");
+    }
+
+    [Fact]
+    public async Task ResetPassword_UnknownId_NotFound()
+    {
+        var handler = new ResetPassword.Handler(_ctx, Staff(), Clock(), Hasher());
+
+        var result = await handler.Handle(
+            new ResetPassword.Command(999999, "newpass1"), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.StaffNotFound");
     }
 
     // ---- shared test helpers (used by later tasks) ----
