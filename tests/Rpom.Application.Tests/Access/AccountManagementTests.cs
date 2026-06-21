@@ -14,6 +14,8 @@ using Rpom.Application.Access.ListStaffAccounts;
 using Rpom.Application.Access.UpdateStaffAccount;
 using Rpom.Application.Access.ResetPassword;
 using Rpom.Application.Access.GetStaffPermissions;
+using Rpom.Application.Access.SetStaffPermissions;
+using Rpom.Application.Access.GetRolePermissionDefault;
 using Rpom.Domain.Access;
 using Rpom.Infrastructure.Database;
 using Testcontainers.PostgreSql;
@@ -275,6 +277,67 @@ public sealed class AccountManagementTests : IAsyncLifetime
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Access.StaffNotFound");
+    }
+
+    [Fact]
+    public async Task SetStaffPermissions_FullReplace_AddsAndRemoves()
+    {
+        int closeId = await _ctx.Permissions.Where(p => p.Code == Permissions.TicketClose).Select(p => p.Id).FirstAsync();
+        _ctx.StaffAccountPermissions.Add(new StaffAccountPermission { StaffAccountId = _cashierStaffId, PermissionId = closeId, CreatedAt = DateTime.UtcNow });
+        await _ctx.SaveChangesAsync();
+
+        var handler = new SetStaffPermissions.Handler(_ctx, Staff(), Clock(), Version());
+        var result = await handler.Handle(
+            new SetStaffPermissions.Command(_cashierStaffId, new[] { Permissions.TicketOpen }),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var persisted = await _ctx.StaffAccountPermissions
+            .Where(x => x.StaffAccountId == _cashierStaffId).Select(x => x.Permission.Code).ToListAsync();
+        persisted.Should().BeEquivalentTo(new[] { Permissions.TicketOpen });
+    }
+
+    [Fact]
+    public async Task SetStaffPermissions_UnknownCode_Fails()
+    {
+        var handler = new SetStaffPermissions.Handler(_ctx, Staff(), Clock(), Version());
+        var result = await handler.Handle(
+            new SetStaffPermissions.Command(_cashierStaffId, new[] { "does:not_exist" }),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.UnknownPermissionCode");
+    }
+
+    [Fact]
+    public async Task SetStaffPermissions_BumpsAccessVersion()
+    {
+        var version = Version();
+        var handler = new SetStaffPermissions.Handler(_ctx, Staff(), Clock(), version);
+        await handler.Handle(
+            new SetStaffPermissions.Command(_cashierStaffId, new[] { Permissions.TicketOpen }),
+            CancellationToken.None);
+
+        await version.Received(1).BumpAsync(VersionScopes.Access, Arg.Any<string>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task GetRolePermissionDefault_Cashier_ReturnsTemplate()
+    {
+        var handler = new GetRolePermissionDefault.Handler();
+        var result = await handler.Handle(new GetRolePermissionDefault.Query(Roles.Cashier), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.PermissionCodes.Should().Contain(Permissions.PaymentCash);
+    }
+
+    [Fact]
+    public async Task GetRolePermissionDefault_UnknownRole_ReturnsEmpty()
+    {
+        var handler = new GetRolePermissionDefault.Handler();
+        var result = await handler.Handle(new GetRolePermissionDefault.Query("NOPE"), CancellationToken.None);
+
+        result.Value.PermissionCodes.Should().BeEmpty();
     }
 
     // ---- shared test helpers (used by later tasks) ----
