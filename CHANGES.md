@@ -345,3 +345,23 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 - **Invalidate**: FE poll `GetVersions`; `ACCESS` đổi → fetch lại `my-menu`. Chỉ PUT page-access bump version.
 - **Integration point (chưa làm)**: `CreateStaffAccount` sau này gọi `RolePageDefaults.ForRole(...)` để seed page access khởi tạo.
 - **Tests**: +10 integration (`PageAccessTests`) — my-menu lọc theo grant, full grid + granted flags, full-replace add/remove + persist, unknown page/account, version bump, role default. Full suite **187 pass**.
+
+---
+
+## 21. Account Management & Authorization Admin — Backend (2026-06-21)
+
+- **Spec**: `~/CapstoneProject/docs/superpowers/specs/2026-06-20-account-management-authorization-admin-design.md`. **Plan**: `docs/superpowers/plans/2026-06-20-account-management-authorization-admin.md`.
+- API backend cho màn ERP quản lý account + cấp quyền (Role-filtered navigation + permission). **Không thêm entity/migration** — tái dùng `StaffAccount`/`Role`/`Permission`/`Module`/`Page` + bộ ba page-access. FE (NextERP) ở phase riêng.
+- **Use cases mới** (`src/Rpom.Application/Access/`), endpoint `.WithTags("Access")`:
+  - `GET /api/access/roles` — list role + số account mỗi role (cây trái + selector). Perm `staff_account:manage`.
+  - `GET /api/access/staff-accounts?roleId=&search=&pageNumber=&pageSize=` — grid account (paged). Perm `staff_account:manage`.
+  - `GET /api/access/staff-accounts/{id}` — chi tiết account. Perm `staff_account:manage`.
+  - `POST /api/access/staff-accounts` — tạo account (BCrypt hash, AuditLog CREATE, bump ACCESS). Perm `staff_account:manage`.
+  - `PUT /api/access/staff-accounts/{id}` — sửa fullname/phone/email/role/isActive/isLocked (username immutable; AuditLog UPDATE, bump ACCESS). Perm `staff_account:manage`.
+  - `PUT /api/access/staff-accounts/{id}/password` — reset mật khẩu (BCrypt, AuditLog RESET_PASSWORD, KHÔNG bump). Perm `staff_account:manage`.
+  - `GET /api/access/staff-accounts/{id}/permissions` — full permission catalog + cờ granted (mirror page-access). Perm `permission:assign`.
+  - `PUT /api/access/staff-accounts/{id}/permissions` — full-replace permission grants (AuditLog UPDATE, bump ACCESS). Perm `permission:assign`.
+  - `GET /api/access/role-permission-defaults/{roleCode}` — template permission mặc định theo role. Perm `permission:assign`.
+- **Catalog/Errors mới**: `RolePermissionDefaults.cs` (template permission theo role); `AccessErrors.UsernameDuplicate` / `RoleNotFound` / `UnknownPermissionCode`.
+- **AuditLog append-only**: `CreateStaffAccount` save account trước (lấy id) rồi mới insert AuditLog (không UPDATE), 2 save trong cùng transaction.
+- **Tests**: +21 integration (`AccountManagementTests`). Full suite **208 pass** (Application). Route smoke: 3 endpoint mới trả 401 (đã register + auth).
