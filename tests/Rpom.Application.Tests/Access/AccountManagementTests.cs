@@ -8,6 +8,7 @@ using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Access;
 using Rpom.Application.Access.ListRoles;
+using Rpom.Application.Access.ListStaffAccounts;
 using Rpom.Domain.Access;
 using Rpom.Infrastructure.Database;
 using Testcontainers.PostgreSql;
@@ -71,6 +72,44 @@ public sealed class AccountManagementTests : IAsyncLifetime
         result.Value.Roles.Should().HaveCount(2);
         result.Value.Roles.Single(r => r.Code == Roles.Cashier).AccountCount.Should().Be(1);
         result.Value.Roles.Single(r => r.Code == Roles.Owner).AccountCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ListStaffAccounts_FilterByRole_ReturnsOnlyThatRole()
+    {
+        var handler = new ListStaffAccounts.Handler(_ctx);
+
+        var result = await handler.Handle(
+            new ListStaffAccounts.Query(_cashierRoleId, null, 1, 50), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().ContainSingle()
+            .Which.Username.Should().Be("cashier01");
+        result.Value.TotalCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ListStaffAccounts_Search_MatchesUsernameOrFullName()
+    {
+        var handler = new ListStaffAccounts.Handler(_ctx);
+
+        var result = await handler.Handle(
+            new ListStaffAccounts.Query(null, "nguyen", 1, 50), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Items.Should().ContainSingle()
+            .Which.Username.Should().Be("cashier01");
+    }
+
+    [Fact]
+    public async Task ListStaffAccounts_NoFilter_ReturnsAll()
+    {
+        var handler = new ListStaffAccounts.Handler(_ctx);
+
+        var result = await handler.Handle(
+            new ListStaffAccounts.Query(null, null, 1, 50), CancellationToken.None);
+
+        result.Value.TotalCount.Should().Be(2);
     }
 
     // ---- shared test helpers (used by later tasks) ----
