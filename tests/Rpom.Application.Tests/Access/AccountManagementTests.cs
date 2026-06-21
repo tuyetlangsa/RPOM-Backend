@@ -8,6 +8,7 @@ using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Access;
 using Rpom.Application.Access.ListRoles;
+using Rpom.Application.Access.CreateStaffAccount;
 using Rpom.Application.Access.GetStaffAccount;
 using Rpom.Application.Access.ListStaffAccounts;
 using Rpom.Domain.Access;
@@ -136,6 +137,48 @@ public sealed class AccountManagementTests : IAsyncLifetime
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Access.StaffNotFound");
+    }
+
+    [Fact]
+    public async Task CreateStaffAccount_Succeeds_HashesPassword()
+    {
+        var handler = new CreateStaffAccount.Handler(_ctx, Staff(), Clock(), Version(), Hasher());
+
+        var result = await handler.Handle(
+            new CreateStaffAccount.Command("newuser", "secret1", "New User", "0911", "n@x.vn", _cashierRoleId),
+            CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var created = await _ctx.StaffAccounts.FirstAsync(x => x.Username == "newuser");
+        created.PasswordHash.Should().Be("HASH:secret1");
+        created.RoleId.Should().Be(_cashierRoleId);
+        created.IsActive.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task CreateStaffAccount_DuplicateUsername_Fails()
+    {
+        var handler = new CreateStaffAccount.Handler(_ctx, Staff(), Clock(), Version(), Hasher());
+
+        var result = await handler.Handle(
+            new CreateStaffAccount.Command("cashier01", "secret1", "Dup", null, null, _cashierRoleId),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.UsernameDuplicate");
+    }
+
+    [Fact]
+    public async Task CreateStaffAccount_UnknownRole_Fails()
+    {
+        var handler = new CreateStaffAccount.Handler(_ctx, Staff(), Clock(), Version(), Hasher());
+
+        var result = await handler.Handle(
+            new CreateStaffAccount.Command("u2", "secret1", "U2", null, null, 999999),
+            CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.RoleNotFound");
     }
 
     // ---- shared test helpers (used by later tasks) ----
