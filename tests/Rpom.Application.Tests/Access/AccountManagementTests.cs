@@ -1,0 +1,108 @@
+using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Migrations;
+using NSubstitute;
+using Rpom.Application.Abstraction.Authentication;
+using Rpom.Application.Abstraction.Clock;
+using Rpom.Application.Abstraction.User;
+using Rpom.Application.Abstraction.Versioning;
+using Rpom.Application.Access;
+using Rpom.Application.Access.ListRoles;
+using Rpom.Domain.Access;
+using Rpom.Infrastructure.Database;
+using Testcontainers.PostgreSql;
+
+namespace Rpom.Application.Tests.Access;
+
+public sealed class AccountManagementTests : IAsyncLifetime
+{
+    private readonly PostgreSqlContainer _db =
+        new PostgreSqlBuilder().WithImage("pgvector/pgvector:pg17").Build();
+    private ApplicationDbContext _ctx = null!;
+    private int _cashierRoleId;
+    private int _ownerStaffId;
+    private int _cashierStaffId;
+
+    public async Task InitializeAsync()
+    {
+        await _db.StartAsync();
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseNpgsql(
+                _db.GetConnectionString(),
+                o => o.MigrationsHistoryTable(HistoryRepository.DefaultTableName, Schemas.Default).UseVector())
+            .UseSnakeCaseNamingConvention()
+            .Options;
+        _ctx = new ApplicationDbContext(options);
+        await _ctx.Database.MigrateAsync();
+
+        DateTime now = DateTime.UtcNow;
+        var ownerRole = new Role { Code = Roles.Owner, Name = "Owner", IsSystemRole = true, IsActive = true, CreatedAt = now, UpdatedAt = now };
+        var cashierRole = new Role { Code = Roles.Cashier, Name = "Cashier", IsSystemRole = true, IsActive = true, CreatedAt = now, UpdatedAt = now };
+
+        var owner = new StaffAccount { Username = "owner", PasswordHash = "x", FullName = "Owner", Role = ownerRole, IsActive = true, IsLocked = false, CreatedAt = now, UpdatedAt = now };
+        var cashier = new StaffAccount { Username = "cashier01", PasswordHash = "x", FullName = "Nguyen Van A", Phone = "0901", Role = cashierRole, IsActive = true, IsLocked = false, CreatedAt = now, UpdatedAt = now };
+
+        var grp = new PermissionGroup { Code = "pos", Name = "POS", DisplayOrder = 1 };
+        var permOpen = new Permission { Code = Permissions.TicketOpen, Name = "Open ticket", PermissionGroup = grp, DisplayOrder = 1 };
+        var permClose = new Permission { Code = Permissions.TicketClose, Name = "Close ticket", PermissionGroup = grp, DisplayOrder = 2 };
+
+        _ctx.AddRange(ownerRole, cashierRole, owner, cashier, grp, permOpen, permClose);
+        await _ctx.SaveChangesAsync();
+
+        _cashierRoleId = cashierRole.Id;
+        _ownerStaffId = owner.Id;
+        _cashierStaffId = cashier.Id;
+    }
+
+    public async Task DisposeAsync()
+    {
+        await _ctx.DisposeAsync();
+        await _db.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task ListRoles_ReturnsRolesWithAccountCounts()
+    {
+        var handler = new ListRoles.Handler(_ctx);
+
+        var result = await handler.Handle(new ListRoles.Query(), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Roles.Should().HaveCount(2);
+        result.Value.Roles.Single(r => r.Code == Roles.Cashier).AccountCount.Should().Be(1);
+        result.Value.Roles.Single(r => r.Code == Roles.Owner).AccountCount.Should().Be(1);
+    }
+
+    // ---- shared test helpers (used by later tasks) ----
+
+    private ICurrentStaff Staff() => Staff(_ownerStaffId);
+
+    private static ICurrentStaff Staff(int id)
+    {
+        var s = Substitute.For<ICurrentStaff>();
+        s.StaffAccountId.Returns(id);
+        return s;
+    }
+
+    private static IDateTimeProvider Clock()
+    {
+        var c = Substitute.For<IDateTimeProvider>();
+        c.UtcNow.Returns(_ => DateTime.UtcNow);
+        return c;
+    }
+
+    private static IVersionService Version()
+    {
+        var v = Substitute.For<IVersionService>();
+        v.BumpAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        return v;
+    }
+
+    private static IPasswordHasher Hasher()
+    {
+        var h = Substitute.For<IPasswordHasher>();
+        h.Hash(Arg.Any<string>()).Returns(ci => "HASH:" + ci.Arg<string>());
+        return h;
+    }
+}
