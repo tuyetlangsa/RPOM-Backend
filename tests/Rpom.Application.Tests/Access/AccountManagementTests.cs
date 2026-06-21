@@ -13,6 +13,7 @@ using Rpom.Application.Access.GetStaffAccount;
 using Rpom.Application.Access.ListStaffAccounts;
 using Rpom.Application.Access.UpdateStaffAccount;
 using Rpom.Application.Access.ResetPassword;
+using Rpom.Application.Access.GetStaffPermissions;
 using Rpom.Domain.Access;
 using Rpom.Infrastructure.Database;
 using Testcontainers.PostgreSql;
@@ -244,6 +245,33 @@ public sealed class AccountManagementTests : IAsyncLifetime
 
         var result = await handler.Handle(
             new ResetPassword.Command(999999, "newpass1"), CancellationToken.None);
+
+        result.IsFailure.Should().BeTrue();
+        result.Error.Code.Should().Be("Access.StaffNotFound");
+    }
+
+    [Fact]
+    public async Task GetStaffPermissions_ReturnsCatalogWithGrantedFlags()
+    {
+        // grant TicketOpen to cashier
+        int permOpenId = await _ctx.Permissions.Where(p => p.Code == Permissions.TicketOpen).Select(p => p.Id).FirstAsync();
+        _ctx.StaffAccountPermissions.Add(new StaffAccountPermission { StaffAccountId = _cashierStaffId, PermissionId = permOpenId, CreatedAt = DateTime.UtcNow });
+        await _ctx.SaveChangesAsync();
+
+        var handler = new GetStaffPermissions.Handler(_ctx);
+        var result = await handler.Handle(new GetStaffPermissions.Query(_cashierStaffId), CancellationToken.None);
+
+        result.IsSuccess.Should().BeTrue();
+        var allPerms = result.Value.Groups.SelectMany(g => g.Permissions).ToList();
+        allPerms.Single(p => p.Code == Permissions.TicketOpen).Granted.Should().BeTrue();
+        allPerms.Single(p => p.Code == Permissions.TicketClose).Granted.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task GetStaffPermissions_UnknownAccount_NotFound()
+    {
+        var handler = new GetStaffPermissions.Handler(_ctx);
+        var result = await handler.Handle(new GetStaffPermissions.Query(999999), CancellationToken.None);
 
         result.IsFailure.Should().BeTrue();
         result.Error.Code.Should().Be("Access.StaffNotFound");
