@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using Pgvector;
@@ -12,9 +13,11 @@ using Rpom.Infrastructure.Database;
 namespace Rpom.Infrastructure.Database.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260620091718_AddCustomerDisplayAndQrExpiry")]
+    partial class AddCustomerDisplayAndQrExpiry
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1884,14 +1887,9 @@ namespace Rpom.Infrastructure.Database.Migrations
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
 
-                    b.Property<DateTime?>("ActivatedAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("activated_at");
-
-                    b.Property<string>("ActivatedClientId")
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("activated_client_id");
+                    b.Property<int>("CounterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("counter_id");
 
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
@@ -1926,9 +1924,19 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(100)")
                         .HasColumnName("name");
 
-                    b.Property<int>("PosTerminalId")
+                    b.Property<DateTime?>("PairedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("paired_at");
+
+                    b.Property<int?>("PairedStaffAccountId")
                         .HasColumnType("integer")
-                        .HasColumnName("pos_terminal_id");
+                        .HasColumnName("paired_staff_account_id");
+
+                    b.Property<string>("PairingCode")
+                        .IsRequired()
+                        .HasMaxLength(12)
+                        .HasColumnType("character varying(12)")
+                        .HasColumnName("pairing_code");
 
                     b.Property<DateTime>("UpdatedAt")
                         .ValueGeneratedOnAdd()
@@ -1939,13 +1947,19 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.HasKey("Id")
                         .HasName("pk_customer_displays");
 
+                    b.HasIndex("CounterId")
+                        .HasDatabaseName("ix_customer_display_counter");
+
                     b.HasIndex("DeviceToken")
                         .IsUnique()
                         .HasDatabaseName("ix_customer_displays_device_token");
 
-                    b.HasIndex("PosTerminalId")
+                    b.HasIndex("PairedStaffAccountId")
+                        .HasDatabaseName("ix_customer_displays_paired_staff_account_id");
+
+                    b.HasIndex("PairingCode")
                         .IsUnique()
-                        .HasDatabaseName("ix_customer_displays_pos_terminal_id");
+                        .HasDatabaseName("ix_customer_displays_pairing_code");
 
                     b.ToTable("customer_displays", "public");
                 });
@@ -2223,66 +2237,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDatabaseName("ix_notification_read_states_counter_id");
 
                     b.ToTable("notification_read_states", "public");
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Operations.PosTerminal", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer")
-                        .HasColumnName("id");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<int>("CounterId")
-                        .HasColumnType("integer")
-                        .HasColumnName("counter_id");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("created_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.Property<string>("DeviceToken")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("character varying(64)")
-                        .HasColumnName("device_token");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("boolean")
-                        .HasDefaultValue(true)
-                        .HasColumnName("is_active");
-
-                    b.Property<DateTime?>("LastSeenAt")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("last_seen_at");
-
-                    b.Property<string>("Name")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)")
-                        .HasColumnName("name");
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("updated_at")
-                        .HasDefaultValueSql("now()");
-
-                    b.HasKey("Id")
-                        .HasName("pk_pos_terminals");
-
-                    b.HasIndex("CounterId")
-                        .HasDatabaseName("ix_pos_terminal_counter");
-
-                    b.HasIndex("DeviceToken")
-                        .IsUnique()
-                        .HasDatabaseName("ix_pos_terminals_device_token");
-
-                    b.ToTable("pos_terminals", "public");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Operations.Printer", b =>
@@ -4578,10 +4532,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("integer")
                         .HasColumnName("payment_method_id");
 
-                    b.Property<int?>("PosTerminalId")
-                        .HasColumnType("integer")
-                        .HasColumnName("pos_terminal_id");
-
                     b.Property<DateTime?>("ProcessedAt")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("processed_at");
@@ -4621,9 +4571,6 @@ namespace Rpom.Infrastructure.Database.Migrations
 
                     b.HasIndex("PaymentMethodId")
                         .HasDatabaseName("ix_ticket_payment_details_payment_method_id");
-
-                    b.HasIndex("PosTerminalId")
-                        .HasDatabaseName("ix_ticket_payment_details_pos_terminal_id");
 
                     b.HasIndex("ProcessedByStaffId")
                         .HasDatabaseName("ix_ticket_payment_details_processed_by_staff_id");
@@ -5015,14 +4962,22 @@ namespace Rpom.Infrastructure.Database.Migrations
 
             modelBuilder.Entity("Rpom.Domain.Operations.CustomerDisplay", b =>
                 {
-                    b.HasOne("Rpom.Domain.Operations.PosTerminal", "PosTerminal")
+                    b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
                         .WithMany()
-                        .HasForeignKey("PosTerminalId")
+                        .HasForeignKey("CounterId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired()
-                        .HasConstraintName("fk_customer_displays_pos_terminals_pos_terminal_id");
+                        .HasConstraintName("fk_customer_displays_counters_counter_id");
 
-                    b.Navigation("PosTerminal");
+                    b.HasOne("Rpom.Domain.Access.StaffAccount", "PairedStaff")
+                        .WithMany()
+                        .HasForeignKey("PairedStaffAccountId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_customer_displays_staff_accounts_paired_staff_account_id");
+
+                    b.Navigation("Counter");
+
+                    b.Navigation("PairedStaff");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Operations.DiscountPolicyCondition", b =>
@@ -5093,18 +5048,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Counter");
 
                     b.Navigation("StaffAccount");
-                });
-
-            modelBuilder.Entity("Rpom.Domain.Operations.PosTerminal", b =>
-                {
-                    b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
-                        .WithMany()
-                        .HasForeignKey("CounterId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired()
-                        .HasConstraintName("fk_pos_terminals_counters_counter_id");
-
-                    b.Navigation("Counter");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Operations.Printer", b =>
@@ -5604,12 +5547,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
                         .HasConstraintName("fk_ticket_payment_details_payment_methods_payment_method_id");
-
-                    b.HasOne("Rpom.Domain.Operations.PosTerminal", null)
-                        .WithMany()
-                        .HasForeignKey("PosTerminalId")
-                        .OnDelete(DeleteBehavior.SetNull)
-                        .HasConstraintName("fk_ticket_payment_details_pos_terminals_pos_terminal_id");
 
                     b.HasOne("Rpom.Domain.Access.StaffAccount", "ProcessedByStaff")
                         .WithMany()

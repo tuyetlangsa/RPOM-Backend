@@ -29,6 +29,15 @@ public class TicketPaymentDetail : Entity
     /// <summary>Vendor transaction id for QR/Card; NULL for Cash.</summary>
     public string? TransactionRef { get; set; }
 
+    /// <summary>
+    ///     Expiration threshold (TTL) for pending QR codes. Upon expiration, the customer display hides the QR 
+    ///     and the polling loop automatically terminates/cancels the pending transaction.
+    ///     Set to null for cash or non-expiring payments.
+    /// </summary>
+    public DateTime? ExpiresAt { get; set; }
+
+    public int? PosTerminalId { get; set; }
+
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
 

@@ -96,6 +96,7 @@ public static class DependencyInjection
 
         services.TryAddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<ICurrentStaff, CurrentStaffImpl>();
+        services.AddScoped<ICurrentTerminal, User.CurrentTerminal>();
         services.AddScoped<IConfigValueService, ConfigValueService>();
         services.AddScoped<IVersionService, VersionService>();
         services.AddMemoryCache();
