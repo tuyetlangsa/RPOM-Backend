@@ -90,9 +90,12 @@ public sealed class CashierDemoSeeder(
 
         await db.SaveChangesAsync(ct);
 
-        // Grant relevant permissions to each staff account.
+        // Grant permissions + page-access to EVERY roster account (not just the
+        // ones inserted this run) so re-runs backfill grants on accounts that
+        // already existed. The per-grant existence checks keep this idempotent.
+        var rosterUsernames = accounts.Select(a => a.Username).ToList();
         var staffAccounts = await db.StaffAccounts
-            .Where(x => existingUsernames.Contains(x.Username) == false)
+            .Where(x => rosterUsernames.Contains(x.Username))
             .Include(x => x.Role)
             .ToListAsync(ct);
 
@@ -194,6 +197,37 @@ public sealed class CashierDemoSeeder(
                 {
                     StaffAccountId = staff.Id,
                     PermissionId = perm.Id,
+                    CreatedAt = now,
+                });
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        // Grant page-access (navigation) per role so demo accounts open straight
+        // into the screens they should see. Owner = every page; other roles use
+        // the same RolePageDefaults template the admin "apply role default" uses.
+        var allPages = await db.Pages.ToListAsync(ct);
+        var pageByCode = allPages.ToDictionary(p => p.Code);
+
+        foreach (StaffAccount staff in staffAccounts)
+        {
+            IReadOnlyList<string> pageCodes = staff.Role.Code == Roles.Owner
+                ? allPages.Select(p => p.Code).ToList()
+                : RolePageDefaults.ForRole(staff.Role.Code);
+
+            foreach (string code in pageCodes)
+            {
+                if (!pageByCode.TryGetValue(code, out Page? page)) continue;
+
+                bool alreadyGranted = await db.StaffAccountPageAccesses
+                    .AnyAsync(x => x.StaffAccountId == staff.Id && x.PageId == page.Id, ct);
+                if (alreadyGranted) continue;
+
+                db.StaffAccountPageAccesses.Add(new StaffAccountPageAccess
+                {
+                    StaffAccountId = staff.Id,
+                    PageId = page.Id,
                     CreatedAt = now,
                 });
             }
