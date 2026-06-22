@@ -245,6 +245,7 @@ public sealed class AccessSeeder(
 
             (Pages.CashierFloorPlan, "Floor Plan", Modules.Cashier),
             (Pages.CashierTickets, "Tickets", Modules.Cashier),
+            (Pages.CashierMenu, "Menu", Modules.Cashier),
             (Pages.CashierPayment, "Payment", Modules.Cashier),
             (Pages.CashierCashDrawer, "Cash Drawer", Modules.Cashier),
 

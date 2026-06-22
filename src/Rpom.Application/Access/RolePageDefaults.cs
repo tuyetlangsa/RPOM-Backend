@@ -21,13 +21,13 @@ public static class RolePageDefaults
                 Pages.NextErpPricing, Pages.NextErpDiscountPolicies, Pages.NextErpStaffAccounts,
                 Pages.NextErpShifts, Pages.NextErpCancellationReasons,
                 // Operations — Cashier
-                Pages.CashierFloorPlan, Pages.CashierTickets, Pages.CashierPayment,
-                Pages.CashierCashDrawer
+                Pages.CashierFloorPlan, Pages.CashierTickets, Pages.CashierMenu,
+                Pages.CashierPayment, Pages.CashierCashDrawer
             },
             [Roles.Cashier] = new[]
             {
-                Pages.CashierFloorPlan, Pages.CashierTickets, Pages.CashierPayment,
-                Pages.CashierCashDrawer
+                Pages.CashierFloorPlan, Pages.CashierTickets, Pages.CashierMenu,
+                Pages.CashierPayment, Pages.CashierCashDrawer
             },
             [Roles.OrderStaff] = new[]
             {

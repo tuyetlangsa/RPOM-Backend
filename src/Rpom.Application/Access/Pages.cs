@@ -49,6 +49,7 @@ public static class Pages
     // ============ Cashier ============
     public const string CashierFloorPlan = "cashier.floor_plan";
     public const string CashierTickets = "cashier.tickets";
+    public const string CashierMenu = "cashier.menu";
     public const string CashierPayment = "cashier.payment";
     public const string CashierCashDrawer = "cashier.cash_drawer";
 
