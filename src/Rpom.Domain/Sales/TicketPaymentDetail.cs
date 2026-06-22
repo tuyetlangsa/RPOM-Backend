@@ -36,6 +36,8 @@ public class TicketPaymentDetail : Entity
     /// </summary>
     public DateTime? ExpiresAt { get; set; }
 
+    public int? PosTerminalId { get; set; }
+
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
 

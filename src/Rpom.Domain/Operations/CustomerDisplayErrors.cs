@@ -12,15 +12,15 @@ public static class CustomerDisplayErrors
         "CustomerDisplay.InvalidToken",
         "Thiết bị màn hình khách không hợp lệ.");
 
-    public static readonly Error PairingCodeInvalid = Error.NotFound(
-        "CustomerDisplay.PairingCodeInvalid",
-        "Mã ghép không đúng hoặc màn hình không khả dụng.");
+    public static readonly Error TerminalAlreadyLinked = Error.Conflict(
+        "CustomerDisplay.TerminalAlreadyLinked",
+        "Máy POS này đã được gắn với một màn hình khách khác. Hãy inactivate màn cũ rồi đăng ký lại.");
 
-    public static readonly Error CounterNotOpen = Error.Conflict(
-        "CustomerDisplay.CounterNotOpen",
-        "Quầy của màn hình này chưa mở ca — không thể ghép.");
+    public static readonly Error AlreadyActivated = Error.Conflict(
+        "CustomerDisplay.AlreadyActivated",
+        "Token này đã được kích hoạt trên một máy khách khác — không dùng được trên máy này.");
 
-    public static readonly Error NotPaired = Error.NotFound(
-        "CustomerDisplay.NotPaired",
-        "Bạn chưa ghép với màn hình khách nào.");
+    public static readonly Error NotActivated = Error.Conflict(
+        "CustomerDisplay.NotActivated",
+        "Thiết bị chưa được kích hoạt hoặc không khớp máy đã kích hoạt.");
 }

@@ -11,6 +11,7 @@ using Rpom.Application.Abstraction.Versioning;
 using Rpom.Application.Configuration;
 using Rpom.Domain.Audit;
 using Rpom.Domain.Common;
+using Rpom.Domain.Operations;
 using Rpom.Domain.Sales;
 using Rpom.Domain.Sales.CashDrawer;
 using Swashbuckle.AspNetCore.Annotations;
@@ -58,6 +59,7 @@ public static class CreateQrPayment
     internal sealed class Handler(
         IDbContext dbContext,
         ICurrentStaff currentStaff,
+        ICurrentTerminal currentTerminal,
         IQrPaymentGateway gateway,
         IRefreshPaymentTotalsService refreshService,
         IDateTimeProvider clock,
@@ -100,12 +102,27 @@ public static class CreateQrPayment
                 return Result.Failure<Response>(PaymentErrors.CashDrawerSessionsNotOpen);
             }
 
+            var now = clock.UtcNow;
             var remainingAmount = ticket.TotalAmount - ticket.PaidAmount;
 
             if (remainingAmount <= 0)
                 return Result.Failure<Response>(PaymentErrors.NothingToPay);
-            if (ticket.Payments.Any(p => p.Status == TicketPaymentStatus.Pending))
-                return Result.Failure<Response>(PaymentErrors.PendingPaymentExists);
+
+            var existingPending = ticket.Payments.FirstOrDefault(p => p.Status == TicketPaymentStatus.Pending);
+            if (existingPending is not null)
+            {
+                if (existingPending.ExpiresAt is { } exp && exp < now)
+                {
+                    existingPending.Status = TicketPaymentStatus.Cancelled;
+                    existingPending.ProcessedAt = now;
+                    existingPending.UpdatedAt = now;
+                }
+                else
+                {
+                    return Result.Failure<Response>(PaymentErrors.PendingPaymentExists);
+                }
+            }
+
             if (request.Amount > remainingAmount)
                 return Result.Failure<Response>(PaymentErrors.AmountExceedsRemaining);
 
@@ -114,8 +131,18 @@ public static class CreateQrPayment
             if (method is null)
                 return Result.Failure<Response>(PaymentErrors.PaymentMethodMissing);
 
+            // From header X-Terminal-Token. Not send token → null (sync cash); wrong token → error
+            int? posTerminalId = null;
+            if (currentTerminal.TerminalToken is { } termToken)
+            {
+                posTerminalId = await dbContext.PosTerminals
+                    .Where(t => t.DeviceToken == termToken && t.IsActive)
+                    .Select(t => (int?)t.Id).FirstOrDefaultAsync(ct);
+                if (posTerminalId is null)
+                    return Result.Failure<Response>(PosTerminalErrors.InvalidToken);
+            }
+
             var staffId = currentStaff.StaffAccountId;
-            var now = clock.UtcNow;
 
             int ttlSeconds = await config.GetIntAsync(ConfigCodes.PaymentQrTtlSeconds, 300, ct);
             DateTime? expiresAt = ttlSeconds > 0 ? now.AddSeconds(ttlSeconds) : null;
@@ -128,6 +155,7 @@ public static class CreateQrPayment
                 Status = TicketPaymentStatus.Pending,
                 ProcessedByStaffId = staffId,
                 ExpiresAt = expiresAt,
+                PosTerminalId = posTerminalId,
                 Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim(),
                 CreatedAt = now,
                 UpdatedAt = now,

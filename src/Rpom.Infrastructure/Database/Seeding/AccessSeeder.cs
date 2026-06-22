@@ -127,8 +127,6 @@ public sealed class AccessSeeder(
             (Permissions.CashierFloorPlan, "View cashier floor plan", PermissionGroups.Cashier),
             (Permissions.CashierViewTicket, "View ticket (cashier)", PermissionGroups.Cashier),
             (Permissions.CashierViewMenu, "View cashier menu", PermissionGroups.Cashier),
-            (Permissions.CustomerDisplayPair, "Pair/unpair customer display", PermissionGroups.Cashier),
-            (Permissions.CustomerDisplayManage, "Manage customer display devices", PermissionGroups.MasterData),
 
             (Permissions.ReportRevenue, "View revenue reports", PermissionGroups.Reporting),
             (Permissions.ReportShift, "View shift reports", PermissionGroups.Reporting),

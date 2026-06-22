@@ -56,6 +56,7 @@ public interface IDbContext
     DbSet<StaffNotification> StaffNotifications { get; }
     DbSet<NotificationReadState> NotificationReadStates { get; }
     DbSet<ItemAreaLock> ItemAreaLocks { get; }
+    DbSet<PosTerminal> PosTerminals { get; }
     DbSet<CustomerDisplay> CustomerDisplays { get; }
     DbSet<DiscountPolicy> DiscountPolicies { get; }
     DbSet<DiscountPolicyCondition> DiscountPolicyConditions { get; }
