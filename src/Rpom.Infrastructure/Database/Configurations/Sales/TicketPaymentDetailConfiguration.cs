@@ -52,5 +52,10 @@ internal sealed class TicketPaymentDetailConfiguration : IEntityTypeConfiguratio
             .WithMany()
             .HasForeignKey(x => x.ProcessedByStaffId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne<Rpom.Domain.Operations.PosTerminal>()
+            .WithMany()
+            .HasForeignKey(x => x.PosTerminalId)
+            .OnDelete(DeleteBehavior.SetNull);
     }
 }
