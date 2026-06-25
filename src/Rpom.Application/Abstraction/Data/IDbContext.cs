@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Rpom.Domain.Access;
 using Rpom.Domain.Ai;
@@ -27,6 +28,9 @@ public interface IDbContext
     DbSet<Role> Roles { get; }
     DbSet<StaffAccount> StaffAccounts { get; }
     DbSet<StaffAccountPermission> StaffAccountPermissions { get; }
+    DbSet<Module> Modules { get; }
+    DbSet<Page> Pages { get; }
+    DbSet<StaffAccountPageAccess> StaffAccountPageAccesses { get; }
 
     // --- Area B: Restaurant ---
     DbSet<Counter> Counters { get; }
@@ -109,6 +113,12 @@ public interface IDbContext
     DbSet<OutboxMessageConsumer> OutboxMessageConsumers { get; }
 
     DatabaseFacade Database { get; }
+
+    /// <summary>
+    ///     Change tracker — chỉ dùng cho thao tác đặc thù như dry-run rollback (preview) cần
+    ///     reset tracked state giữa các lần retry của execution strategy.
+    /// </summary>
+    ChangeTracker ChangeTracker { get; }
 
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

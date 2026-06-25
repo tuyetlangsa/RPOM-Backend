@@ -102,6 +102,7 @@ public static class GetTicketDetails
         decimal UnitPrice,
         decimal ChoicePricePerUnit,
         decimal LineSubtotal,
+        decimal TotalDiscountAmount,
         decimal LineTotal,
         string Status,
         int? KitchenStationId,
@@ -301,6 +302,7 @@ public static class GetTicketDetails
                     oi.UnitPrice,
                     oi.ChoicePricePerUnit,
                     oi.LineSubtotal,
+                    oi.TotalDiscountAmount,
                     oi.LineTotal,
                     oi.Status,
                     oi.KitchenStationId,
@@ -329,7 +331,7 @@ public static class GetTicketDetails
             var orderedItemsByOrder = orderItems.GroupBy(x => x.OrderId)
                 .ToDictionary(g => g.Key, g => g.Select(oi => new OrderedItem(
                         oi.Id, oi.ItemId, oi.ItemCode, oi.ItemName, oi.UomCode, oi.UomName,
-                        oi.Quantity, oi.UnitPrice, oi.ChoicePricePerUnit, oi.LineSubtotal, oi.LineTotal,
+                        oi.Quantity, oi.UnitPrice, oi.ChoicePricePerUnit, oi.LineSubtotal, oi.TotalDiscountAmount, oi.LineTotal,
                         oi.Status, oi.KitchenStationId, oi.KitchenStationName,
                         oi.SentAt, oi.StartCookAt, oi.ReadyAt, oi.DoneAt,
                         oi.CancellationReasonId, oi.CancellationReasonName, oi.CancellationNote, oi.OriginalOrderItemId, oi.Notes,

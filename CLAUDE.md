@@ -270,7 +270,7 @@ Snapshot field **KHÔNG đổi** khi master Item rename/reprice. Bill cũ luôn 
 ## 13. Recompute Service (BLOCKING)
 
 - **Eager** — mọi mutation gọi `Recompute` trong cùng transaction handler.
-- `TicketRecomputeService.RecomputeAsync(ticketId)` cho mọi mutation cấp Ticket (OrderItem, Discount, Transfer, Merge, ...).
+- `TicketRecomputeService.RecomputeAsync(ticketId)` cho mọi mutation cấp Ticket (OrderItem, Discount, Transfer, Merge, Split, ...).
 - `CartRecomputeService.RecomputeAsync(orderId)` cho mọi mutation cấp Cart (CartItem, CartItemDetail).
 - `RefreshPaymentTotalsService.RefreshAsync(ticketId)` cho mutation Payment — KHÔNG full recompute.
 - Trigger matrix ở pricing-billing-spec §5. Mọi handler tương ứng PHẢI gọi service tương ứng.
