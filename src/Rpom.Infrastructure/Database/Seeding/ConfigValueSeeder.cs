@@ -43,8 +43,10 @@ public sealed class ConfigValueSeeder(
             // ----- Customer display + QR -----
             (ConfigCodes.CustomerDisplayIdleMediaUrl, "", ConfigValueType.Text,
                 "URL ảnh/video idle global cho màn hình khách (fallback khi display chưa set riêng)."),
-            (ConfigCodes.PaymentQrTtlSeconds, "300", ConfigValueType.Number,
+            (ConfigCodes.PaymentQrTtlSeconds, "900", ConfigValueType.Number,
                 "TTL (giây) của QR PENDING; quá hạn màn khách ngừng hiển thị + tự huỷ. 0 = không hết hạn."),
+            (ConfigCodes.CustomerDisplayPaidSplashSeconds, "10", ConfigValueType.Number,
+                "Số giây màn khách hiện 'Thanh toán thành công' sau khi QR SUCCESS. 0 = tắt splash."),
 
             // ----- Printing -----
             (ConfigCodes.KdsPrintCopiesDefault, "1", ConfigValueType.Number, "Số bản in mặc định cho printer"),

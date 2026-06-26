@@ -24,7 +24,8 @@ public static class PollCustomerDisplayState
         int PosTerminalId,
         string CounterName,
         string? IdleMediaUrl,
-        QrInfo? Qr);
+        QrInfo? Qr,
+        PaidInfo? Paid);
 
     public sealed record QrInfo(
         long PaymentId,
@@ -37,10 +38,13 @@ public static class PollCustomerDisplayState
         string TicketCode,
         DateTime? ExpiresAt);
 
+    public sealed record PaidInfo(long PaymentId, long Amount, string TicketCode, DateTime PaidAt);
+
     public static class Modes
     {
         public const string Idle = "IDLE";
         public const string Qr = "QR";
+        public const string Paid = "PAID";
     }
 
     internal sealed class Validator : AbstractValidator<Command>
@@ -84,7 +88,7 @@ public static class PollCustomerDisplayState
                     await versionService.BumpAsync(VersionScopes.FloorPlan, "CustomerDisplay.QrExpired", ct);
                 return Result.Success(new Response(
                     Modes.Idle, display.Id, display.Name, display.PosTerminalId, counterName,
-                    string.IsNullOrWhiteSpace(idle) ? null : idle, null));
+                    string.IsNullOrWhiteSpace(idle) ? null : idle, null, null));
             }
 
             TicketPaymentDetail? pending = await db.TicketPaymentDetails
@@ -113,7 +117,32 @@ public static class PollCustomerDisplayState
             }
 
             if (pending is null || !gateway.IsConfigured)
+            {
+                // Không còn QR chờ → kiểm tra QR vừa SUCCESS gần đây để hiện "Thanh toán thành công".
+                int splashSeconds = await config.GetIntAsync(ConfigCodes.CustomerDisplayPaidSplashSeconds, 5, ct);
+                if (splashSeconds > 0)
+                {
+                    var paid = await db.TicketPaymentDetails
+                        .Where(p => p.PosTerminalId == display.PosTerminalId
+                                    && p.Status == TicketPaymentStatus.Success
+                                    && p.PaymentMethod.Code == PaymentMethodCodes.Qr
+                                    && p.ProcessedAt != null)
+                        .OrderByDescending(p => p.ProcessedAt)
+                        .Select(p => new { p.Id, p.Amount, p.ProcessedAt, TicketCode = p.Ticket.Code })
+                        .FirstOrDefaultAsync(ct);
+
+                    if (paid?.ProcessedAt is { } paidAt && (now - paidAt).TotalSeconds <= splashSeconds)
+                    {
+                        await db.SaveChangesAsync(ct);
+                        return Result.Success(new Response(
+                            Modes.Paid, display.Id, display.Name, display.PosTerminalId, counterName,
+                            null, null,
+                            new PaidInfo(paid.Id, (long)paid.Amount, paid.TicketCode, paidAt)));
+                    }
+                }
+
                 return await IdleAsync(false);
+            }
 
             string ticketCode = await db.Tickets
                 .Where(t => t.Id == pending.TicketId).Select(t => t.Code).FirstAsync(ct);
@@ -127,7 +156,8 @@ public static class PollCustomerDisplayState
                 Modes.Qr, display.Id, display.Name, display.PosTerminalId, counterName, null,
                 new QrInfo(
                     pending.Id, (long)pending.Amount, qr.ReferenceCode, qr.QrImageUrl,
-                    qr.AccountNumber, qr.BankCode, qr.AccountName, ticketCode, pending.ExpiresAt)));
+                    qr.AccountNumber, qr.BankCode, qr.AccountName, ticketCode, pending.ExpiresAt),
+                null));
         }
     }
 }
