@@ -135,11 +135,12 @@ public static class CreateQrPayment
             int? posTerminalId = null;
             if (currentTerminal.TerminalToken is { } termToken)
             {
-                posTerminalId = await dbContext.PosTerminals
-                    .Where(t => t.DeviceToken == termToken && t.IsActive)
-                    .Select(t => (int?)t.Id).FirstOrDefaultAsync(ct);
-                if (posTerminalId is null)
+                PosTerminal? terminal = await dbContext.PosTerminals
+                    .FirstOrDefaultAsync(t => t.DeviceToken == termToken && t.IsActive, ct);
+                if (terminal is null)
                     return Result.Failure<Response>(PosTerminalErrors.InvalidToken);
+                terminal.LastSeenAt = now; // heartbeat cho màn giám sát thiết bị
+                posTerminalId = terminal.Id;
             }
 
             var staffId = currentStaff.StaffAccountId;
