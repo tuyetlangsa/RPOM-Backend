@@ -11,13 +11,14 @@ internal sealed class ListPosTerminalsEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapGet("api/pos-terminals",
-                async ([FromQuery] int? counterId, ISender sender, CancellationToken ct) =>
+                async ([FromQuery] int? counterId, [FromQuery] string? search, [FromQuery] bool? isActive,
+                    ISender sender, CancellationToken ct) =>
                 {
-                    var result = await sender.Send(new ListPosTerminals.Query(counterId), ct);
+                    var result = await sender.Send(new ListPosTerminals.Query(counterId, search, isActive), ct);
                     return result.MatchOk();
                 })
             .RequireAuthorization(Permissions.MasterDataView)
-            .Produces<ApiResult<ListPosTerminals.Response>>(StatusCodes.Status200OK)
+            .Produces<ApiResult<IReadOnlyList<ListPosTerminals.Response>>>(StatusCodes.Status200OK)
             .WithTags("PosTerminals")
             .WithName("ListPosTerminals")
             .WithSummary("List of POS machines (without DeviceToken payment).");
