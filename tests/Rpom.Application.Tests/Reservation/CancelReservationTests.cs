@@ -89,6 +89,22 @@ public sealed class CancelReservationTests : IAsyncLifetime
         res.Error.Code.Should().Be("CancellationReason.NotFound");
     }
 
+    [Fact]
+    public async Task Cancel_ArrivedReservation_Fails()
+    {
+        // ARRIVED is a terminal status — cannot be cancelled (same guard as CANCELLED).
+        long rid = await CreateBooking(DateTime.UtcNow.AddDays(4), new[] { _tableA });
+
+        var r = await _ctx.Reservations.FirstAsync(x => x.Id == rid);
+        r.Status = ReservationStatus.Arrived;
+        await _ctx.SaveChangesAsync();
+
+        var res = await Cancel().Handle(
+            new CancelReservation.Command(rid, _reasonId, null), CancellationToken.None);
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("Reservation.NotBooked");
+    }
+
     private CancelReservation.Handler Cancel() => new(_ctx, Staff(), Clock(), Version());
 
     private async Task<long> CreateBooking(DateTime target, int[] tableIds) =>

@@ -64,6 +64,80 @@ public sealed class ReservationFloorPlanProjectionTests : IAsyncLifetime
         res.Value.OverlappingReservations.Should().ContainSingle();
     }
 
+    // ──────────────────────── new tests ────────────────────────
+
+    [Fact]
+    public async Task Projection_CounterNotFound_Fails()
+    {
+        var res = await new GetReservationFloorPlanProjection.Handler(_ctx, Config())
+            .Handle(new GetReservationFloorPlanProjection.Query(999999, Target), CancellationToken.None);
+
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("Counter.NotFound");
+    }
+
+    [Fact]
+    public async Task Projection_NoBookings_AllTablesFree()
+    {
+        // Query far in the future where no reservations exist → all tables free.
+        var res = await new GetReservationFloorPlanProjection.Handler(_ctx, Config())
+            .Handle(new GetReservationFloorPlanProjection.Query(_counter1, Target.AddDays(100)),
+                CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Tables.Should().AllSatisfy(t => t.IsReservedOverlap.Should().BeFalse());
+        res.Value.OverlappingReservations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Projection_CancelledReservation_NotFlagged()
+    {
+        // Book _tableA at Target+2 days then cancel it; only BOOKED matters for overlap.
+        var cancelTarget = Target.AddDays(2);
+        long rid = await BookAt(new[] { _tableA }, cancelTarget);
+
+        var r = await _ctx.Reservations.FirstAsync(x => x.Id == rid);
+        r.Status = ReservationStatus.Cancelled;
+        await _ctx.SaveChangesAsync();
+
+        var res = await new GetReservationFloorPlanProjection.Handler(_ctx, Config())
+            .Handle(new GetReservationFloorPlanProjection.Query(_counter1, cancelTarget.AddMinutes(45)),
+                CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Tables.Single(t => t.TableId == _tableA).IsReservedOverlap.Should().BeFalse();
+        res.Value.OverlappingReservations.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Projection_MultiTableReservation_FlagsAllItsTables()
+    {
+        // One booking covering two tables: both must be flagged.
+        var multiTarget = Target.AddDays(3);
+        await BookAt(new[] { _tableA, _tableB }, multiTarget);
+
+        var res = await new GetReservationFloorPlanProjection.Handler(_ctx, Config())
+            .Handle(new GetReservationFloorPlanProjection.Query(_counter1, multiTarget.AddMinutes(15)),
+                CancellationToken.None);
+
+        res.IsSuccess.Should().BeTrue();
+        res.Value.Tables.Single(t => t.TableId == _tableA).IsReservedOverlap.Should().BeTrue();
+        res.Value.Tables.Single(t => t.TableId == _tableB).IsReservedOverlap.Should().BeTrue();
+        res.Value.OverlappingReservations.Should().ContainSingle();
+    }
+
+    // ──────────────────────── helpers ────────────────────────
+
+    private async Task<long> BookAt(int[] tableIds, DateTime target)
+    {
+        var result = await new Rpom.Application.Reservation.CreateReservation.CreateReservation.Handler(
+                _ctx, Staff(), Clock(), Config(), Substitute.For<IVersionService>())
+            .Handle(new Rpom.Application.Reservation.CreateReservation.CreateReservation.Command(
+                _counter1, target, "Long", "0901", 4, null, tableIds), CancellationToken.None);
+        result.IsSuccess.Should().BeTrue($"BookAt failed: target={target}");
+        return result.Value.ReservationId;
+    }
+
     // GetIntAsync is an extension method — mock the underlying GetAsync returning null
     // so the extension method falls back to the default value passed in by the handler.
     private static IConfigValueService Config()
