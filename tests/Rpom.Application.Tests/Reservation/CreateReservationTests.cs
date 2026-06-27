@@ -80,6 +80,109 @@ public sealed class CreateReservationTests : IAsyncLifetime
         res.Error.Code.Should().Be("Reservation.TableOverlap");
     }
 
+    [Fact]
+    public async Task NonexistentTable_Fails()
+    {
+        var res = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target, "Long", "0901", 2, null,
+                new[] { 999999 }), CancellationToken.None);
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("Table.NotFound");
+    }
+
+    [Fact]
+    public async Task InactiveTable_Fails()
+    {
+        var table = await _ctx.Tables.FindAsync(_tableB);
+        table!.IsActive = false;
+        await _ctx.SaveChangesAsync();
+
+        var res = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target, "Long", "0901", 2, null,
+                new[] { _tableB }), CancellationToken.None);
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("Table.NotFound");
+    }
+
+    [Fact]
+    public async Task NonOverlappingSameTable_BothSucceed()
+    {
+        // Window for Target: [17:30,18:30]. Window for Target+3h: [20:30,21:30]. No overlap.
+        var r1 = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target, "A", "1", 2, null,
+                new[] { _tableA }), CancellationToken.None);
+        r1.IsSuccess.Should().BeTrue();
+
+        var r2 = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target.AddHours(3), "B", "2", 2, null,
+                new[] { _tableA }), CancellationToken.None);
+        r2.IsSuccess.Should().BeTrue();
+
+        var rows = await _ctx.ReservationTables.AsNoTracking()
+            .Where(rt => rt.TableId == _tableA)
+            .ToListAsync();
+        rows.Count.Should().Be(2);
+    }
+
+    [Fact]
+    public async Task OverlapDifferentTable_Succeeds()
+    {
+        // Both windows overlap in time, but different tables — no conflict.
+        var r1 = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target, "A", "1", 2, null,
+                new[] { _tableA }), CancellationToken.None);
+        r1.IsSuccess.Should().BeTrue();
+
+        var r2 = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target.AddMinutes(10), "B", "2", 2, null,
+                new[] { _tableB }), CancellationToken.None);
+        r2.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task DuplicateTableIdsInRequest_Deduped()
+    {
+        var res = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target, "Long", "0901", 2, null,
+                new[] { _tableA, _tableA }), CancellationToken.None);
+        res.IsSuccess.Should().BeTrue();
+
+        var rows = await _ctx.ReservationTables.AsNoTracking()
+            .Where(rt => rt.ReservationId == res.Value.ReservationId)
+            .ToListAsync();
+        rows.Count.Should().Be(1);
+        rows[0].TableId.Should().Be(_tableA);
+    }
+
+    [Fact]
+    public async Task CancelledReservationDoesNotBlockOverlap()
+    {
+        var first = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target, "A", "1", 2, null,
+                new[] { _tableA }), CancellationToken.None);
+        first.IsSuccess.Should().BeTrue();
+
+        var reservation = await _ctx.Reservations.FindAsync(first.Value.ReservationId);
+        reservation!.Status = ReservationStatus.Cancelled;
+        await _ctx.SaveChangesAsync();
+
+        // Same window, same table, but prior reservation is Cancelled — should not block.
+        var second = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target, "B", "2", 2, null,
+                new[] { _tableA }), CancellationToken.None);
+        second.IsSuccess.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task EmptyTableIds_Fails()
+    {
+        var res = await Handler().Handle(
+            new CreateReservation.Command(_counter1, Target, "Long", "0901", 2, null,
+                Array.Empty<int>()), CancellationToken.None);
+        res.IsFailure.Should().BeTrue();
+        res.Error.Code.Should().Be("Reservation.NoTables");
+    }
+
     private CreateReservation.Handler Handler() => new(_ctx, Staff(), Clock(), Config(), Version());
 
     private static IVersionService Version() => Substitute.For<IVersionService>();
