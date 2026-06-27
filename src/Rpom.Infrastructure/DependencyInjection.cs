@@ -18,6 +18,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Inventory;
 using Rpom.Application.Abstraction.Pricing;
 using Rpom.Application.Abstraction.Tables;
+using Rpom.Application.Abstraction.Export;
 using Rpom.Application.Abstraction.User;
 using Rpom.Application.Abstraction.Versioning;
 using Rpom.Domain.Common;
@@ -29,6 +30,7 @@ using Rpom.Infrastructure.Database;
 using Rpom.Infrastructure.Database.Seeding;
 using Rpom.Infrastructure.Outbox;
 using Rpom.Infrastructure.Pricing;
+using Rpom.Infrastructure.Export;
 using Rpom.Infrastructure.Tables;
 using Rpom.Infrastructure.Versioning;
 using Rpom.Infrastructure.Inventory;
@@ -110,6 +112,7 @@ public static class DependencyInjection
         services.AddScoped<ITableOperationGuard, TableOperationGuard>();
         services.AddScoped<IStockMovementService, StockMovementService>();
         services.AddScoped<IUomConverter, UomConverter>();
+        services.AddScoped<IReportExportService, SyncfusionReportExportService>();
 
         services.AddQuartz(configurator =>
         {
