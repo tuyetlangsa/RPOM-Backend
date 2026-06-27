@@ -1,6 +1,6 @@
 # Rpom Backend — Changelog
 
-Branch: `feature/cashier-pricing`
+Branch: `feature/reservation`
 
 ---
 
@@ -365,3 +365,23 @@ Tất cả handler trong `src/Rpom.Application/Cashier/{Action}OrderItem/`, endp
 - **Catalog/Errors mới**: `RolePermissionDefaults.cs` (template permission theo role); `AccessErrors.UsernameDuplicate` / `RoleNotFound` / `UnknownPermissionCode`.
 - **AuditLog append-only**: `CreateStaffAccount` save account trước (lấy id) rồi mới insert AuditLog (không UPDATE), 2 save trong cùng transaction.
 - **Tests**: +21 integration (`AccountManagementTests`). Full suite **208 pass** (Application). Route smoke: 3 endpoint mới trả 401 (đã register + auth).
+
+---
+
+## 22. Reservation Redesign (2026-06-27)
+
+- **Spec**: `~/CapstoneProject/docs/superpowers/specs/2026-06-27-reservation-redesign-design.md`. **Plan**: `docs/superpowers/plans/2026-06-27-reservation-redesign.md`.
+- Phone booking feature for Cashier + Order Staff, counter-scoped. Multi-table reservations via new `ReservationTable` junction table.
+- **Schema changes**:
+  - **Migration**: `AddReservationRedesign` — drops legacy `Reservation.TableId` + `Reservation.LinkedTicketId` columns; adds `Reservation.CounterId` (FK, scoped), `Reservation.Version` (optimistic concurrency), new junction `ReservationTable` (FK pair → Reservation + Table), new nullable FK `Ticket.ReservationId`.
+- **New status**: `NOT_ARRIVED` (set lazily on list read — no background cron). Hold window is non-blocking (walk-ins permitted).
+- **5 endpoints** under `POST/GET /api/reservations/...`:
+  - `CreateReservation` (UC-R1) — creates phone booking.
+  - `ListReservations` (UC-R2) — list counter-scoped, auto-mark late NOT_ARRIVED.
+  - `GetReservationDetails` (UC-R3) — projection; read-only, no mutation.
+  - `SeatReservation` (UC-R4) — link tables + open seated ticket (one-shot; tables become OCCUPIED).
+  - `CancelReservation` (UC-R5) — mark CANCELLED; release table locks.
+- **Use cases** in `src/Rpom.Application/Reservations/<UseCase>/<UseCase>.cs` (per-file pattern per CLAUDE.md §2).
+- **Permissions** (4 new): `reservation:view`, `reservation:create`, `reservation:seat`, `reservation:cancel` (seeded in `AccessSeeder`).
+- **AuditLog**: `CREATE` (UC-R1), `SEAT` (UC-R4), `CANCEL` (UC-R5). Bump `FLOOR_PLAN` (tables, tickets).
+- **⚠️ Doc Reconciliation Pending**: Canonical docs (`RPOM_Glossary.md` §4.8/§6.7/§7.5, `RPOM_Business_Flows.md` F6, `RPOM_Features_and_Screens.md`, `RPOM_Requirements.md`, Logical ERD) still describe pre-redesign single-table model. Reconciliation deferred post-merge.

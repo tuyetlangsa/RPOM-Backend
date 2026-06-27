@@ -80,10 +80,13 @@ public interface IDbContext
     DbSet<TicketPaymentDetail> TicketPaymentDetails { get; }
     DbSet<PaymentTransaction> PaymentTransactions { get; }
     DbSet<TicketItemSum> TicketItemSums { get; }
+    DbSet<TicketInvoice> TicketInvoices { get; }
+    DbSet<TicketInvoiceLine> TicketInvoiceLines { get; }
     DbSet<EInvoice> EInvoices { get; }
 
     // --- Area F: Reservation ---
-    DbSet<Reservation> Reservations { get; }
+    DbSet<Domain.Reservation.Reservation> Reservations { get; }
+    DbSet<ReservationTable> ReservationTables { get; }
 
     // --- Area H: Inventory & Recipe ---
     DbSet<ItemUomConversion> ItemUomConversions { get; }

@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using Rpom.Domain.Access;
 using Rpom.Domain.Common;
 using Rpom.Domain.Restaurant;
@@ -7,61 +8,52 @@ namespace Rpom.Domain.Reservation;
 
 /// <summary>
 ///     Phone-booking record. Customer is anonymous (no Customer master — Glossary §9).
-///     Hold derivation: table_is_held(T, now) iff EXISTS BOOKED Reservation on T
-///     where now ∈ [TargetTime − pre_buffer, TargetTime + grace_period].
+///     Books one or more tables (<see cref="ReservationTables" />), all in one counter.
+///     Hold is derived at read time: a table is held iff a BOOKED reservation covers it and
+///     now ∈ [TargetTime − pre_buffer, TargetTime + grace_period]. No placeholder ticket.
 /// </summary>
 public class Reservation : Entity
 {
     public long Id { get; set; }
 
-    /// <summary>Owner-defined or auto-generated business code (e.g. "R-2026-001").</summary>
+    /// <summary>Auto-generated business code, e.g. "R-2026-123".</summary>
     public string Code { get; set; } = null!;
 
-    /// <summary>Specific table booked (Area B). Hold = derived from this row.</summary>
-    public int TableId { get; set; }
+    /// <summary>Denormalized owning counter — all booked tables share it. Mirrors Ticket.CounterId.</summary>
+    public int CounterId { get; set; }
 
     public string CustomerName { get; set; } = null!;
-
-    /// <summary>Plain text — no customer DB lookup.</summary>
     public string CustomerPhone { get; set; } = null!;
-
     public short GuestCount { get; set; } = 1;
-
-    /// <summary>Optional context: "birthday, need high chair", "vegetarian", ...</summary>
     public string? Note { get; set; }
 
-    /// <summary>
-    ///     When customer is expected to arrive. Hold window =
-    ///     [TargetTime − pre_buffer, TargetTime + grace_period] from Reservation Config.
-    /// </summary>
+    /// <summary>When the customer is expected. Drives the hold window.</summary>
     public DateTime TargetTime { get; set; }
 
-    /// <summary>BOOKED | ARRIVED | CANCELLED (see <see cref="ReservationStatus" />).</summary>
+    /// <summary>BOOKED | ARRIVED | CANCELLED | NOT_ARRIVED (see <see cref="ReservationStatus" />).</summary>
     public string Status { get; set; } = ReservationStatus.Booked;
 
-    /// <summary>Set when customer arrives and ticket opened (BOOKED → ARRIVED).</summary>
     public DateTime? ArrivedAt { get; set; }
-
     public DateTime? CancelledAt { get; set; }
-
-    /// <summary>Required when CancelledAt set (BR-CR1).</summary>
     public int? CancellationReasonId { get; set; }
-
     public string? CancellationNote { get; set; }
-
-    /// <summary>Set when reservation becomes SEATED — the real Ticket opened. NULL while BOOKED.</summary>
-    public long? LinkedTicketId { get; set; }
 
     /// <summary>Staff who took the booking call.</summary>
     public int CreatedByStaffId { get; set; }
 
+    /// <summary>Optimistic concurrency token (Cancel/Seat races). EF IsConcurrencyToken.</summary>
+    public int Version { get; set; }
+
     public DateTime CreatedAt { get; set; }
 
-    /// <summary>Poll cursor — Reservation list + Floor Plan projection refresh.</summary>
+    /// <summary>Poll cursor — reservation list + floor-plan projection refresh.</summary>
     public DateTime UpdatedAt { get; set; }
 
-    public virtual Table Table { get; set; } = null!;
+    public virtual Counter Counter { get; set; } = null!;
     public virtual CancellationReason? CancellationReason { get; set; }
-    public virtual Ticket? LinkedTicket { get; set; }
     public virtual StaffAccount CreatedByStaff { get; set; } = null!;
+
+    /// <summary>The tables this reservation books (booking intent — overlap/projection/hold).</summary>
+    public virtual ICollection<ReservationTable> ReservationTables { get; set; } =
+        new Collection<ReservationTable>();
 }

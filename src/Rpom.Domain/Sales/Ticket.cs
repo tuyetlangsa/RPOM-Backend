@@ -104,6 +104,9 @@ public class Ticket : Entity
     /// <summary>Cash change given back (only relevant when overpaid in cash).</summary>
     public decimal ChangeAmount { get; set; }
 
+    /// <summary>Set when this ticket was opened by seating a reservation (UC-R3). NULL for walk-ins.</summary>
+    public long? ReservationId { get; set; }
+
     /// <summary>Opaque 20-char token for QR self-order. NULL when not enabled. Unique when set.</summary>
     public string? GuestQrToken { get; set; }
 
