@@ -1,5 +1,6 @@
 using Rpom.Domain.Common;
 using Rpom.Domain.Menu;
+using Rpom.Domain.Operations;
 
 namespace Rpom.Domain.Sales;
 
@@ -7,6 +8,13 @@ namespace Rpom.Domain.Sales;
 ///     Sub-detail of OrderItem for SET_MENU breakdown. Mirrors CartItemDetail but
 ///     for SENT state (immutable once parent sent). Created from CartItemDetail on
 ///     Order DRAFT → SENT.
+///     <para>
+///     Component-level kitchen lifecycle (Option B): a set component that is kitchen-routed
+///     (<see cref="KitchenStationId"/> != null) is cooked INDEPENDENTLY at its station —
+///     StartCook/MarkReady/MarkDone act on the component; the parent OrderItem's status is DERIVED
+///     (READY/DONE when all its kitchen components reach READY/DONE). Components without a station
+///     do not appear on the KDS and do not gate the parent.
+///     </para>
 /// </summary>
 public class OrderItemDetail : Entity
 {
@@ -27,7 +35,19 @@ public class OrderItemDetail : Entity
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
 
+    /// <summary>
+    ///     Snapshot of the component item's KitchenStationId at SEND time. NULL = not kitchen-routed
+    ///     (no KDS lifecycle). Only components with a station are cooked independently.
+    /// </summary>
+    public int? KitchenStationId { get; set; }
+    public string Status { get; set; } = OrderItemStatus.Pending;
+    public DateTime? StartCookAt { get; set; }
+    public DateTime? ReadyAt { get; set; }
+    public DateTime? DoneAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
+
     public virtual OrderItem OrderItem { get; set; } = null!;
     public virtual ChoiceCategory? ChoiceCategory { get; set; }
     public virtual Item Item { get; set; } = null!;
+    public virtual KitchenStation? KitchenStation { get; set; }
 }
