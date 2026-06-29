@@ -118,6 +118,66 @@ public static class CloseTicket
             string tableStatus = tableRow.Status;
 
             StaffAccount staff = await db.StaffAccounts.FirstAsync(s => s.Id == staffId, ct);
+
+            // Create immutable invoice snapshot
+            var itemSums = await db.TicketItemSums
+                .Where(ts => ts.TicketId == ticket.Id)
+                .OrderBy(ts => ts.DisplayOrder)
+                .ToListAsync(ct);
+
+            var invoice = new TicketInvoice
+            {
+                TicketId = ticket.Id,
+                TicketCode = ticket.Code,
+                CounterId = ticket.CounterId,
+                AreaId = ticket.AreaId,
+                ShiftId = ticket.ShiftId,
+                TableId = ticket.TableId,
+                TableCode = tableRow.Code,
+                GuestCount = ticket.GuestCount,
+                WaiterStaffId = ticket.WaiterStaffId,
+                WaiterName = ticket.WaiterStaff?.FullName,
+                ClosedByStaffId = staffId,
+                ClosedByName = staff.FullName,
+                Subtotal = ticket.Subtotal,
+                DiscountAmount = ticket.DiscountAmount,
+                DiscountPercent = ticket.DiscountPercent,
+                ServiceChargeAmount = ticket.ServiceChargeAmount,
+                ServiceChargePercent = ticket.ServiceChargePercent,
+                VatAmount = ticket.VatAmount,
+                TotalAmount = ticket.TotalAmount,
+                RoundingAdjustment = ticket.RoundingAdjustment,
+                PaidAmount = ticket.PaidAmount,
+                RefundAmount = ticket.RefundAmount,
+                ChangeAmount = ticket.ChangeAmount,
+                OpenedAt = ticket.OpenedAt,
+                ClosedAt = now,
+                CreatedAt = now,
+                Lines = itemSums.Select(ts => new TicketInvoiceLine
+                {
+                    ItemId = ts.ItemId,
+                    ItemCode = ts.ItemCode,
+                    ItemName = ts.ItemName,
+                    UomCode = ts.UomCode,
+                    UomName = ts.UomName,
+                    UnitPrice = ts.UnitPrice,
+                    ChoicePricePerUnit = ts.ChoicePricePerUnit,
+                    Quantity = ts.TotalQuantity,
+                    VatPercent = ts.VatPercent,
+                    ServiceChargePercent = ts.ServiceChargePercent,
+                    ServiceChargeVatPercent = ts.ServiceChargeVatPercent,
+                    LineDiscountPercent = ts.LineDiscountPercent,
+                    TicketDiscountPercent = ts.TicketDiscountPercent,
+                    LineSubtotal = ts.TotalLineSubtotal,
+                    TotalDiscount = ts.TotalDiscount,
+                    ServiceChargeAmount = ts.TotalServiceCharge,
+                    VatAmount = ts.TotalVat,
+                    TotalAmount = ts.TotalAmount,
+                    DisplayOrder = ts.DisplayOrder,
+                    CreatedAt = now
+                }).ToList()
+            };
+            db.TicketInvoices.Add(invoice);
             db.AuditLogs.Add(new AuditLog
             {
                 EntityType = nameof(Ticket),

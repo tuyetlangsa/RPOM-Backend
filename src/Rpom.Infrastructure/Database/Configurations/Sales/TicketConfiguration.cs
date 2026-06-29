@@ -99,5 +99,12 @@ internal sealed class TicketConfiguration : IEntityTypeConfiguration<Ticket>
             .WithMany()
             .HasForeignKey(x => x.DiscountPolicyId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasIndex(x => x.ReservationId).HasDatabaseName("ix_ticket_reservation_id");
+
+        builder.HasOne<Rpom.Domain.Reservation.Reservation>()
+            .WithMany()
+            .HasForeignKey(x => x.ReservationId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

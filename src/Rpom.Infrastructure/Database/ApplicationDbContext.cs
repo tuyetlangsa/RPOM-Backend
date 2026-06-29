@@ -76,10 +76,13 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<TicketPaymentDetail> TicketPaymentDetails => Set<TicketPaymentDetail>();
     public DbSet<PaymentTransaction> PaymentTransactions => Set<PaymentTransaction>();
     public DbSet<TicketItemSum> TicketItemSums => Set<TicketItemSum>();
+    public DbSet<TicketInvoice> TicketInvoices => Set<TicketInvoice>();
+    public DbSet<TicketInvoiceLine> TicketInvoiceLines => Set<TicketInvoiceLine>();
     public DbSet<EInvoice> EInvoices => Set<EInvoice>();
 
     // --- Area F: Reservation ---
     public DbSet<Reservation> Reservations => Set<Reservation>();
+    public DbSet<ReservationTable> ReservationTables => Set<ReservationTable>();
 
     // --- Area H: Inventory & Recipe ---
     public DbSet<ItemUomConversion> ItemUomConversions => Set<ItemUomConversion>();

@@ -197,7 +197,8 @@ public sealed class PageAccessTests : IAsyncLifetime
         result.IsSuccess.Should().BeTrue();
         result.Value.PageCodes.Should().BeEquivalentTo(new[]
         {
-            Pages.CashierFloorPlan, Pages.CashierTickets, Pages.CashierPayment, Pages.CashierCashDrawer
+            Pages.CashierFloorPlan, Pages.CashierTickets, Pages.CashierMenu,
+            Pages.CashierPayment, Pages.CashierCashDrawer
         });
     }
 

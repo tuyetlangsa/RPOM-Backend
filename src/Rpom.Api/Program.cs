@@ -48,6 +48,9 @@ await using (AsyncServiceScope scope = app.Services.CreateAsyncScope())
 
     CashierDemoSeeder cashierDemoSeeder = scope.ServiceProvider.GetRequiredService<CashierDemoSeeder>();
     await cashierDemoSeeder.SeedAsync();
+
+    ReportDemoSeeder reportDemoSeeder = scope.ServiceProvider.GetRequiredService<ReportDemoSeeder>();
+    await reportDemoSeeder.SeedAsync();
 }
 
 app.UseCors();

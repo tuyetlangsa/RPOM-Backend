@@ -40,6 +40,8 @@
     <PackageReference Include="Quartz.Extensions.DependencyInjection"/>
     <PackageReference Include="Quartz.Extensions.Hosting"/>
     <PackageReference Include="Quartz.Serialization.SystemTextJson"/>
+    <PackageReference Include="Syncfusion.Pdf.Net.Core"/>
+    <PackageReference Include="Syncfusion.XlsIO.Net.Core"/>
     <PackageReference Include="Scrutor"/>
     <PackageReference Include="System.IdentityModel.Tokens.Jwt"/>
   </ItemGroup>
