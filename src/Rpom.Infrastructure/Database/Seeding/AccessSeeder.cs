@@ -244,7 +244,7 @@ public sealed class AccessSeeder(
             // (Pages.NextErpServiceCharge, "Phí phục vụ", Modules.NextErp),
             // (Pages.NextErpSchedule, "Lịch làm việc", Modules.NextErp),
             // (Pages.NextErpConfig, "Cấu hình nhà hàng", Modules.NextErp),
-            // (Pages.NextErpReports, "Báo cáo & Phân tích", Modules.NextErp),
+            (Pages.NextErpReports, "Báo cáo & Phân tích", Modules.NextErp),
             // (Pages.NextErpAi, "AI Conversational", Modules.NextErp),
 
             (Pages.CashierFloorPlan, "Floor Plan", Modules.Cashier),

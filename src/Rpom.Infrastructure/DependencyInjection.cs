@@ -70,6 +70,7 @@ public static class DependencyInjection
         services.AddSingleton<AccessSeeder>();
         services.AddSingleton<LookupSeeder>();
         services.AddSingleton<CashierDemoSeeder>();
+        services.AddSingleton<ReportDemoSeeder>();
         services.AddSingleton<ConfigValueSeeder>();
         services.AddSingleton<RoundingConfigSeeder>();
         return services;

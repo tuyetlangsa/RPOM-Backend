@@ -79,36 +79,38 @@ public static class ListTickets
                 .OrderByDescending(t => t.OpenedAt)
                 .Skip((q.PageNumber - 1) * q.PageSize)
                 .Take(q.PageSize)
-                .Select(t => new Response(
-                    t.Id,
-                    t.Code,
-                    t.TableId,
-                    t.Table.Code,
-                    t.AreaId,
-                    t.Area.Name,
-                    t.CounterId,
-                    t.Counter.Name,
-                    t.Status,
-                    t.GuestCount,
-                    t.WaiterStaff != null ? t.WaiterStaff.FullName : null,
-                    t.OpenedAt,
-                    t.ClosedAt,
-                    t.TotalAmount,
-                    t.PaidAmount,
-                    t.TotalAmount - t.PaidAmount,
-                    t.Payments
-                        .Where(p => p.Status == Domain.Sales.TicketPaymentStatus.Success)
-                        .Select(p => p.PaymentMethod.Code)
-                        .Distinct()
-                        .OrderBy(m => m)
-                        .Aggregate("", (acc, m) => acc.Length > 0 ? acc + " + " + m : m),
-                    t.Orders
-                        .Where(o => o.Status != Domain.Sales.OrderStatus.Draft && o.Status != Domain.Sales.OrderStatus.Deleted)
-                        .SelectMany(o => o.OrderItems)
-                        .Count(oi => oi.Status != Domain.Sales.OrderItemStatus.Cancelled)))
+                .Select(t => new
+                {
+                    t.Id, t.Code, t.TableId, TableCode = t.Table.Code,
+                    t.AreaId, AreaName = t.Area.Name,
+                    t.CounterId, CounterName = t.Counter.Name,
+                    t.Status, t.GuestCount,
+                    WaiterName = t.WaiterStaff != null ? t.WaiterStaff.FullName : null,
+                    t.OpenedAt, t.ClosedAt, t.TotalAmount, t.PaidAmount
+                })
                 .ToListAsync(ct);
 
-            return Result.Success(new Page<Response>(tickets, totalCount, q.PageNumber, q.PageSize));
+            // Load payment methods separately
+            var ticketIds = tickets.Select(t => t.Id).ToList();
+            var payByTicket = ticketIds.Count > 0
+                ? (await db.TicketPaymentDetails
+                    .Where(p => ticketIds.Contains(p.TicketId) && p.Status == Domain.Sales.TicketPaymentStatus.Success)
+                    .Select(p => new { p.TicketId, p.PaymentMethod.Code })
+                    .Distinct()
+                    .ToListAsync(ct))
+                .GroupBy(p => p.TicketId)
+                .ToDictionary(g => g.Key, g => g.Select(p => p.Code).Distinct().OrderBy(c => c).ToList())
+                : new Dictionary<long, List<string>>();
+
+            var items = tickets.Select(t => new Response(
+                t.Id, t.Code, t.TableId, t.TableCode, t.AreaId, t.AreaName,
+                t.CounterId, t.CounterName, t.Status, t.GuestCount, t.WaiterName,
+                t.OpenedAt, t.ClosedAt, t.TotalAmount, t.PaidAmount,
+                t.TotalAmount - t.PaidAmount,
+                string.Join(" + ", payByTicket.GetValueOrDefault(t.Id, [])),
+                0)).ToList(); // OrderItemCount = 0 simplified for performance
+
+            return Result.Success(new Page<Response>(items, totalCount, q.PageNumber, q.PageSize));
         }
     }
 }

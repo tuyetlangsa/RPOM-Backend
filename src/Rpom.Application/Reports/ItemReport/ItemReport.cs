@@ -23,27 +23,31 @@ public static class ItemReport
             var from = q.Filter.FromDate ?? DateTime.UtcNow.Date.AddDays(-30);
             var to = q.Filter.ToDate ?? DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
 
-            var lineQuery = db.TicketInvoiceLines
-                .Where(l => l.TicketInvoice.ClosedAt >= from && l.TicketInvoice.ClosedAt <= to);
+            var query = db.TicketInvoiceLines
+                .Join(db.TicketInvoices,
+                    l => l.TicketInvoiceId, i => i.Id,
+                    (l, i) => new { l, i.ClosedAt, i.CounterId, i.AreaId })
+                .Where(x => x.ClosedAt >= from && x.ClosedAt <= to);
 
             if (q.Filter.CounterId.HasValue)
-                lineQuery = lineQuery.Where(l => l.TicketInvoice.CounterId == q.Filter.CounterId.Value);
+                query = query.Where(x => x.CounterId == q.Filter.CounterId.Value);
             if (q.Filter.AreaId.HasValue)
-                lineQuery = lineQuery.Where(l => l.TicketInvoice.AreaId == q.Filter.AreaId.Value);
-            if (q.Filter.CategoryId.HasValue)
-                lineQuery = lineQuery.Where(l =>
-                    l.TicketInvoice.Lines.Any(li => li.ItemId == l.ItemId)); // simplified
+                query = query.Where(x => x.AreaId == q.Filter.AreaId.Value);
 
-            var items = await lineQuery
-                .GroupBy(l => new { l.ItemId, l.ItemCode, l.ItemName, l.UomCode })
+            var raw = await query
+                .Select(x => new { x.l.ItemId, x.l.ItemCode, x.l.ItemName, x.l.UomCode, x.l.Quantity, x.l.TotalAmount, x.l.TotalDiscount, x.l.TicketInvoiceId })
+                .ToListAsync(ct);
+
+            var items = raw
+                .GroupBy(x => new { x.ItemId, x.ItemCode, x.ItemName, x.UomCode })
                 .Select(g => new Response(
                     g.Key.ItemId, g.Key.ItemCode, g.Key.ItemName, g.Key.UomCode,
-                    g.Sum(l => l.Quantity),
-                    g.Sum(l => l.TotalAmount),
-                    g.Sum(l => l.TotalDiscount),
-                    g.Select(l => l.TicketInvoiceId).Distinct().Count()))
+                    g.Sum(x => x.Quantity),
+                    g.Sum(x => x.TotalAmount),
+                    g.Sum(x => x.TotalDiscount),
+                    g.Select(x => x.TicketInvoiceId).Distinct().Count()))
                 .OrderByDescending(r => r.TotalRevenue)
-                .ToListAsync(ct);
+                .ToList();
 
             return Result.Success<IReadOnlyList<Response>>(items);
         }
