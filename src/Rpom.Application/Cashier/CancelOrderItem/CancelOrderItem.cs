@@ -71,6 +71,7 @@ public static class CancelOrderItem
 
             DateTime now = clock.UtcNow;
             int updatedCount = 0;
+            var fullyCancelledIds = new List<long>();
 
             foreach (var oi in items)
             {
@@ -80,6 +81,7 @@ public static class CancelOrderItem
                     // Full-line cancel: mark the whole row CANCELLED.
                     oi.Status = OrderItemStatus.Cancelled;
                     oi.UpdatedAt = now;
+                    fullyCancelledIds.Add(oi.Id);
                     updatedCount++;
                 }
                 else
@@ -112,6 +114,22 @@ public static class CancelOrderItem
                         UpdatedAt = now
                     });
                     updatedCount++;
+                }
+            }
+
+            // Huỷ nguyên 1 set parent ==> huỷ luôn các order item detail (rời KDS).
+            if (fullyCancelledIds.Count > 0)
+            {
+                var comps = await db.OrderItemDetails
+                    .Where(d => fullyCancelledIds.Contains(d.OrderItemId)
+                                && d.KitchenStationId != null
+                                && d.Status != OrderItemStatus.Cancelled
+                                && d.Status != OrderItemStatus.Done)
+                    .ToListAsync(ct);
+                foreach (var d in comps)
+                {
+                    d.Status = OrderItemStatus.Cancelled;
+                    d.UpdatedAt = now;
                 }
             }
 
