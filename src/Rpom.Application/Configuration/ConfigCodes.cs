@@ -26,6 +26,7 @@ public static class ConfigCodes
     public const string CustomerDisplayIdleMediaUrl = "customer_display.idle_media_url";
     public const string PaymentQrTtlSeconds = "payment.qr_ttl_seconds";
     public const string CustomerDisplayPaidSplashSeconds = "customer_display.paid_splash_seconds";
+    public const string DeviceOnlineThresholdSeconds = "device.online_threshold_seconds";
 
     // ============ Printing ============
     public const string KdsPrintCopiesDefault = "printer.copies_default";

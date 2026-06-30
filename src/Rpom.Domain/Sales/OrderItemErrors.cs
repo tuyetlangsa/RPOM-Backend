@@ -47,4 +47,8 @@ public static class OrderItemErrors
     public static readonly Error ReturnNotActionable = Error.Conflict(
         "OrderItem.ReturnNotActionable",
         "Dòng trả hàng đã được xử lý hoặc không ở trạng thái có thể xử lý.");
+
+    public static readonly Error SetUseComponent = Error.Conflict(
+        "OrderItem.SetUseComponent",
+        "Đây là set menu — hãy thao tác theo từng thành phần (component) thay vì cả set.");
 }

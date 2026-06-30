@@ -3980,6 +3980,10 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnName("created_at")
                         .HasDefaultValueSql("now()");
 
+                    b.Property<DateTime?>("DoneAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("done_at");
+
                     b.Property<decimal>("ExtraPrice")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
@@ -3997,6 +4001,10 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(200)")
                         .HasColumnName("item_name");
 
+                    b.Property<int?>("KitchenStationId")
+                        .HasColumnType("integer")
+                        .HasColumnName("kitchen_station_id");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(300)
                         .HasColumnType("character varying(300)")
@@ -4013,6 +4021,28 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue(1m)
                         .HasColumnName("quantity");
 
+                    b.Property<DateTime?>("ReadyAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("ready_at");
+
+                    b.Property<DateTime?>("StartCookAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("start_cook_at");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("PENDING")
+                        .HasColumnName("status");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("updated_at")
+                        .HasDefaultValueSql("now()");
+
                     b.HasKey("Id")
                         .HasName("pk_order_item_details");
 
@@ -4025,9 +4055,14 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.HasIndex("OrderItemId")
                         .HasDatabaseName("ix_order_item_details_order_item_id");
 
+                    b.HasIndex("KitchenStationId", "Status")
+                        .HasDatabaseName("ix_order_item_detail_station_status");
+
                     b.ToTable("order_item_details", "public", t =>
                         {
                             t.HasCheckConstraint("ck_order_item_detail_component_type", "component_type IN ('MAIN_COMPONENT', 'MODIFIER')");
+
+                            t.HasCheckConstraint("ck_order_item_detail_status", "status IN ('PENDING', 'PROCESSING', 'READY', 'DONE', 'CANCELLED')");
                         });
                 });
 
@@ -5950,6 +5985,12 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_order_item_details_items_item_id");
 
+                    b.HasOne("Rpom.Domain.Operations.KitchenStation", "KitchenStation")
+                        .WithMany()
+                        .HasForeignKey("KitchenStationId")
+                        .OnDelete(DeleteBehavior.SetNull)
+                        .HasConstraintName("fk_order_item_details_kitchen_stations_kitchen_station_id");
+
                     b.HasOne("Rpom.Domain.Sales.OrderItem", "OrderItem")
                         .WithMany("Details")
                         .HasForeignKey("OrderItemId")
@@ -5960,6 +6001,8 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("ChoiceCategory");
 
                     b.Navigation("Item");
+
+                    b.Navigation("KitchenStation");
 
                     b.Navigation("OrderItem");
                 });

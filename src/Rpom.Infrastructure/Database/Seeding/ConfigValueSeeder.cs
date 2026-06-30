@@ -47,6 +47,8 @@ public sealed class ConfigValueSeeder(
                 "TTL (giây) của QR PENDING; quá hạn màn khách ngừng hiển thị + tự huỷ. 0 = không hết hạn."),
             (ConfigCodes.CustomerDisplayPaidSplashSeconds, "10", ConfigValueType.Number,
                 "Số giây màn khách hiện 'Thanh toán thành công' sau khi QR SUCCESS. 0 = tắt splash."),
+            (ConfigCodes.DeviceOnlineThresholdSeconds, "120", ConfigValueType.Number,
+                "Ngưỡng (giây) coi thiết bị (terminal/display) là ONLINE tính từ LastSeenAt."),
 
             // ----- Printing -----
             (ConfigCodes.KdsPrintCopiesDefault, "1", ConfigValueType.Number, "Số bản in mặc định cho printer"),

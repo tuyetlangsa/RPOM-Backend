@@ -151,8 +151,11 @@ public static class SendOrder
             var detailsByCart = cartDetails.GroupBy(d => d.CartItemId)
                 .ToDictionary(g => g.Key, g => g.ToList());
 
-            // Snapshot each sent item's kitchen station at send time.
-            var itemIds = selected.Select(c => c.ItemId).Distinct().ToList();
+            // Snapshot each sent item's kitchen station at send time — line items AND set components,
+            // so set components get their own per-station kitchen lifecycle.
+            var itemIds = selected.Select(c => c.ItemId)
+                .Concat(cartDetails.Select(d => d.ItemId))
+                .Distinct().ToList();
             var kitchenByItem = await db.Items
                 .Where(i => itemIds.Contains(i.Id))
                 .Select(i => new { i.Id, i.KitchenStationId })
@@ -202,7 +205,10 @@ public static class SendOrder
                         Quantity = d.Quantity,
                         ExtraPrice = d.ExtraPrice,
                         Notes = d.Notes,
-                        CreatedAt = now
+                        KitchenStationId = stationByItem.GetValueOrDefault(d.ItemId),
+                        Status = OrderItemStatus.Pending,
+                        CreatedAt = now,
+                        UpdatedAt = now
                     });
                 }
             }

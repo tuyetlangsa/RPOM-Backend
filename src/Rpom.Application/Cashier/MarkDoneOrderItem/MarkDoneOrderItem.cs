@@ -55,6 +55,12 @@ public static class MarkDoneOrderItem
                 .ToListAsync(ct);
 
             if (items.Count != ids.Count) return Result.Failure<Response>(OrderItemErrors.WrongTicket);
+
+            // Set menu có thành phần bếp → phải done theo từng component, không done cả set trực tiếp.
+            bool anySetParent = await db.OrderItemDetails
+                .AnyAsync(d => ids.Contains(d.OrderItemId) && d.KitchenStationId != null, ct);
+            if (anySetParent) return Result.Failure<Response>(OrderItemErrors.SetUseComponent);
+
             if (items.Any(oi => oi.Status != OrderItemStatus.Ready))
                 return Result.Failure<Response>(OrderItemErrors.NotReady);
 
