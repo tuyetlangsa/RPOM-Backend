@@ -23,4 +23,12 @@ public static class OrderItemDetailErrors
     public static readonly Error NotProcessing = Error.Conflict(
         "OrderItemDetail.NotProcessing",
         "Chỉ đánh sẵn sàng thành phần đang ở trạng thái PROCESSING.");
+
+    public static readonly Error NotReady = Error.Conflict(
+        "OrderItemDetail.NotReady",
+        "Chỉ đánh hoàn tất (DONE) thành phần đang ở trạng thái READY.");
+
+    public static readonly Error WrongTicket = Error.BadRequest(
+        "OrderItemDetail.WrongTicket",
+        "Một hoặc nhiều thành phần không thuộc phiếu này.");
 }
