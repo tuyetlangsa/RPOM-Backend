@@ -125,6 +125,86 @@ internal sealed class StockMovementService(
         await dbContext.SaveChangesAsync(ct);
     }
 
+    public async Task DeductComponentAsync(int orderItemDetailId, int staffId, CancellationToken ct)
+    {
+        var detail = await dbContext.OrderItemDetails
+            .Include(d => d.Item)
+            .Include(d => d.OrderItem)
+            .FirstOrDefaultAsync(d => d.Id == orderItemDetailId, ct);
+        if (detail is null) return;
+
+        var item = detail.Item;
+        if (item is null || (!item.IsStockable && !item.HasRecipe)) return;
+
+        decimal totalQty = detail.OrderItem.Quantity * detail.Quantity;
+        if (totalQty <= 0) return;
+
+        DateTime now = clock.UtcNow;
+        long parentOrderItemId = detail.OrderItemId;
+
+        if (item.HasRecipe)
+        {
+            var bomLines = await dbContext.BomLines
+                .Where(bl => bl.SellableItemId == item.Id && bl.IsActive)
+                .Select(bl => new
+                {
+                    bl.MaterialItemId,
+                    bl.Quantity,
+                    bl.UomId,
+                    MaterialBaseUomId = bl.MaterialItem.BaseUomId
+                })
+                .ToListAsync(ct);
+
+            foreach (var bl in bomLines)
+            {
+                decimal perUnitBase = await uomConverter.ToBaseAsync(
+                    bl.MaterialItemId, bl.MaterialBaseUomId, bl.UomId, bl.Quantity, ct)
+                    ?? bl.Quantity;
+                decimal signedQty = -(perUnitBase * totalQty);
+                decimal lastBalance = await GetLastBalanceAsync(bl.MaterialItemId, ct);
+                decimal newBalance = lastBalance + signedQty;
+
+                dbContext.StockMovements.Add(new StockMovement
+                {
+                    ItemId = bl.MaterialItemId,
+                    MovementType = StockMovementType.Deduct,
+                    QtyInBase = signedQty,
+                    BalanceAfter = newBalance,
+                    ReferenceType = StockMovementReferenceType.OrderDish,
+                    ReferenceId = parentOrderItemId,
+                    Reason = $"Set component BOM: {item.Code} x{totalQty}",
+                    CreatedByStaffId = staffId,
+                    CreatedAt = now
+                });
+
+                await UpsertItemStockAsync(bl.MaterialItemId, newBalance, now, ct);
+            }
+        }
+        else
+        {
+            decimal signedQty = -totalQty;
+            decimal lastBalance = await GetLastBalanceAsync(item.Id, ct);
+            decimal newBalance = lastBalance + signedQty;
+
+            dbContext.StockMovements.Add(new StockMovement
+            {
+                ItemId = item.Id,
+                MovementType = StockMovementType.Deduct,
+                QtyInBase = signedQty,
+                BalanceAfter = newBalance,
+                ReferenceType = StockMovementReferenceType.OrderDish,
+                ReferenceId = parentOrderItemId,
+                Reason = $"Set component: {item.Code} x{totalQty}",
+                CreatedByStaffId = staffId,
+                CreatedAt = now
+            });
+
+            await UpsertItemStockAsync(item.Id, newBalance, now, ct);
+        }
+
+        await dbContext.SaveChangesAsync(ct);
+    }
+
     public async Task RestockReturnAsync(long refundOrderItemId, int staffId, CancellationToken ct)
     {
         // Idempotency: already restocked for this refund line → no-op.

@@ -22,6 +22,13 @@ public interface IStockMovementService
     Task DeductAsync(long orderItemId, int staffId, CancellationToken ct);
 
     /// <summary>
+    ///     Auto-DEDUCT for a SET-MENU component (OrderItemDetail) entering PROCESSING. Mirrors
+    ///     <see cref="DeductAsync"/> for the component's own item; total qty = parent
+    ///     OrderItem.Quantity × component Quantity. ReferenceId = parent OrderItem.Id.
+    /// </summary>
+    Task DeductComponentAsync(int orderItemDetailId, int staffId, CancellationToken ct);
+
+    /// <summary>
     ///     Reverse a deduction back into stock for a kitchen-processed RETURN line
     ///     (negative-quantity refund OrderItem). Mirrors <see cref="DeductAsync"/> but ADDS:
     ///     HasRecipe → adds each BOM material back; IsStockable &amp;&amp; !HasRecipe → adds the
