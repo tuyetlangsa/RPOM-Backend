@@ -4,6 +4,10 @@ namespace Rpom.Domain.Sales;
 
 public static class OrderErrors
 {
+    public static readonly Error NotFound = Error.NotFound(
+        "Order.NotFound",
+        "Không tìm thấy đợt gọi món.");
+
     public static readonly Error EmptyCart = Error.Conflict(
         "Order.EmptyCart",
         "Giỏ hàng trống, không có gì để gửi bếp.");

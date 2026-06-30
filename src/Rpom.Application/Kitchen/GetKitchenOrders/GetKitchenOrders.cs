@@ -33,6 +33,8 @@ public static class GetKitchenOrders
         string TicketCode,
         int TableId,
         string TableCode,
+        bool IsPinned,
+        DateTime? PinnedAt,
         IReadOnlyList<KitchenItem> Items);
 
     public sealed record KitchenItem(
@@ -108,6 +110,11 @@ public static class GetKitchenOrders
 
             var all = lineRows.Concat(compRows).ToList();
 
+            // Pin của station này: orderId → PinnedAt. Pin nổi lên đầu area, ghim sau (PinnedAt lớn) trên ghim trước.
+            var pins = await db.KitchenOrderPins
+                .Where(p => p.KitchenStationId == stationId.Value)
+                .ToDictionaryAsync(p => p.OrderId, p => p.PinnedAt, ct);
+
             var areas = all
                 .GroupBy(r => new { r.AreaId, r.AreaName })
                 .OrderBy(ga => ga.Key.AreaName)
@@ -118,10 +125,14 @@ public static class GetKitchenOrders
                         r.OrderId, r.OrderNo, r.OrderStatus, r.OrderSentAt,
                         r.TicketId, r.TicketCode, r.TableId, r.TableCode
                     })
-                        .OrderBy(go => go.Key.OrderSentAt).ThenBy(go => go.Key.OrderId)
+                        .OrderByDescending(go => pins.ContainsKey(go.Key.OrderId))
+                        .ThenByDescending(go => pins.TryGetValue(go.Key.OrderId, out var pinnedAt) ? pinnedAt : DateTime.MinValue)
+                        .ThenBy(go => go.Key.OrderSentAt).ThenBy(go => go.Key.OrderId)
                         .Select(go => new KitchenOrder(
                             go.Key.OrderId, go.Key.OrderNo, go.Key.OrderStatus, go.Key.OrderSentAt,
                             go.Key.TicketId, go.Key.TicketCode, go.Key.TableId, go.Key.TableCode,
+                            pins.ContainsKey(go.Key.OrderId),
+                            pins.TryGetValue(go.Key.OrderId, out var pa) ? pa : null,
                             go.OrderBy(x => x.ItemSentAt).ThenBy(x => x.IsSetComponent).ThenBy(x => x.Id)
                                 .Select(x => new KitchenItem(
                                     x.IsSetComponent, x.Id, x.ParentOrderItemId, x.ParentSetName,

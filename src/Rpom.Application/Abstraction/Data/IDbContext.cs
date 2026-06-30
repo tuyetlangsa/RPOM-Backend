@@ -62,6 +62,7 @@ public interface IDbContext
     DbSet<ItemAreaLock> ItemAreaLocks { get; }
     DbSet<PosTerminal> PosTerminals { get; }
     DbSet<CustomerDisplay> CustomerDisplays { get; }
+    DbSet<KitchenOrderPin> KitchenOrderPins { get; }
     DbSet<DiscountPolicy> DiscountPolicies { get; }
     DbSet<DiscountPolicyCondition> DiscountPolicyConditions { get; }
 
