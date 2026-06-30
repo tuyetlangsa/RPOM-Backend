@@ -4,78 +4,115 @@ using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.User;
 using Rpom.Domain.Common;
 using Rpom.Domain.Operations;
+using Rpom.Domain.Sales;
 
 namespace Rpom.Application.Kitchen.GetIngredients;
 
 /// <summary>
-///     Nguyên vật liệu của một khu bếp (kitchen station) cho màn hình bếp/kho.
+///     Tồn kho của MỘT khu bếp (kitchen station) cho màn hình bếp/kho — gồm 2 loại stockable item:
+///     <list type="bullet">
+///         <item><b>MATERIAL</b>: nguyên vật liệu được tiêu thụ (qua BOM active) bởi bất kỳ món bán nào
+///         thuộc station này.</item>
+///         <item><b>MENU_ITEM</b>: chính món bán <c>IsStockable=true</c> thuộc station (trừ trực tiếp bản thân,
+///         không qua recipe).</item>
+///     </list>
+///     Mỗi dòng kèm tồn hiện tại (<c>CurrentQty</c>) + ngưỡng cảnh báo (<c>LowStockThreshold</c>).
 ///     <para>
-///     Ingredient = Item thuộc nhánh category gốc <c>NGUYEN_VAT_LIEU</c> (gốc + con).
-///     Lọc theo station: chỉ lấy nguyên vật liệu được tiêu thụ bởi các món thuộc
-///     station đó — tức có <see cref="Rpom.Domain.Inventory.BomLine"/> active nối tới
-///     một món bán (SellableItem) có <c>KitchenStationId</c> = station đang xem.
-///     Kèm tồn kho hiện tại (ItemStock.CurrentQty).
+///     Mở rộng: truyền <c>orderItemId</c> (thuộc station này) → tách riêng các stockable item liên quan tới
+///     đúng món đó (nguyên liệu theo BOM, hoặc chính nó nếu là stockable không recipe) vào
+///     <see cref="Response.OrderItemStocks"/>; phần còn lại nằm ở <see cref="Response.OtherStocks"/> (không
+///     trùng lặp). Không truyền → <c>OrderItemStocks</c> rỗng, tất cả nằm ở <c>OtherStocks</c>.
 ///     </para>
+///     Permission <c>kds:view</c>.
 /// </summary>
 public static class GetIngredients
 {
-    private const string MaterialRootCode = "NGUYEN_VAT_LIEU";
+    public const string KindMaterial = "MATERIAL";
+    public const string KindMenuItem = "MENU_ITEM";
 
-    public sealed record Query(string? Search, bool? IsActive)
-        : IQuery<IReadOnlyList<Ingredient>>;
+    public sealed record Query(long? OrderItemId, string? Search, bool? IsActive)
+        : IQuery<Response>;
 
-    public sealed record Ingredient(
+    public sealed record Response(
+        IReadOnlyList<StockItem> OrderItemStocks,
+        IReadOnlyList<StockItem> OtherStocks);
+
+    public sealed record StockItem(
         int Id,
         string Code,
         string Name,
         string BaseUomCode,
+        string Kind,
         bool IsStockable,
         bool HasRecipe,
         bool IsActive,
         decimal CurrentQty,
+        decimal? LowStockThreshold,
         int? PrimaryCategoryId,
         string? PrimaryCategoryName);
 
     internal sealed class Handler(IDbContext dbContext, ICurrentStaff currentStaff)
-        : IQueryHandler<Query, IReadOnlyList<Ingredient>>
+        : IQueryHandler<Query, Response>
     {
-        public async Task<Result<IReadOnlyList<Ingredient>>> Handle(Query request, CancellationToken ct)
+        public async Task<Result<Response>> Handle(Query request, CancellationToken ct)
         {
             int? stationId = currentStaff.KitchenStationId;
             if (stationId is null)
-                return Result.Failure<IReadOnlyList<Ingredient>>(KitchenStationErrors.NotSelected);
+                return Result.Failure<Response>(KitchenStationErrors.NotSelected);
+            int station = stationId.Value;
 
-            // Station must exist and be active
             bool stationOk = await dbContext.KitchenStations
                 .AsNoTracking()
-                .AnyAsync(s => s.Id == stationId.Value && s.IsActive, ct);
+                .AnyAsync(s => s.Id == station && s.IsActive, ct);
             if (!stationOk)
-                return Result.Failure<IReadOnlyList<Ingredient>>(KitchenStationErrors.NotFound);
+                return Result.Failure<Response>(KitchenStationErrors.NotFound);
 
-            // Category gốc nguyên vật liệu.
-            var root = await dbContext.Categories
-                .AsNoTracking()
-                .Where(c => c.Code == MaterialRootCode)
-                .Select(c => new { c.Id, c.Path })
-                .FirstOrDefaultAsync(ct);
-            if (root is null)
-                return Result.Success<IReadOnlyList<Ingredient>>([]);
+            // Nếu truyền orderItemId → xác định tập stockable item liên quan để tách riêng.
+            HashSet<int> relatedIds = [];
+            if (request.OrderItemId is long oiId)
+            {
+                var oi = await dbContext.OrderItems
+                    .AsNoTracking()
+                    .Where(o => o.Id == oiId)
+                    .Select(o => new
+                    {
+                        o.ItemId,
+                        o.KitchenStationId,
+                        o.Item.HasRecipe,
+                        o.Item.IsStockable
+                    })
+                    .FirstOrDefaultAsync(ct);
 
-            // Gốc + toàn bộ category con.
-            var subtreeIds = await dbContext.Categories
-                .AsNoTracking()
-                .Where(c => c.Id == root.Id || EF.Functions.Like(c.Path, root.Path + "%"))
-                .Select(c => c.Id)
-                .ToListAsync(ct);
+                if (oi is null)
+                    return Result.Failure<Response>(OrderItemErrors.NotFound);
+                if (oi.KitchenStationId != station)
+                    return Result.Failure<Response>(OrderItemErrors.WrongStation);
 
-            // Nguyên vật liệu thuộc nhánh category VÀ được dùng bởi món của station này (qua BOM).
+                if (oi.HasRecipe)
+                {
+                    relatedIds = (await dbContext.BomLines
+                        .AsNoTracking()
+                        .Where(bl => bl.SellableItemId == oi.ItemId && bl.IsActive)
+                        .Select(bl => bl.MaterialItemId)
+                        .Distinct()
+                        .ToListAsync(ct)).ToHashSet();
+                }
+                else if (oi.IsStockable)
+                {
+                    relatedIds = [oi.ItemId];
+                }
+            }
+
+            // Tập stockable item của station: (A) nguyên liệu tiêu thụ qua BOM bởi món của station,
+            // (B) chính món bán stockable thuộc station.
             var q = dbContext.Items
                 .AsNoTracking()
-                .Where(x => x.ItemCategories.Any(ic => subtreeIds.Contains(ic.CategoryId))
-                            && dbContext.BomLines.Any(bl =>
-                                bl.MaterialItemId == x.Id
-                                && bl.IsActive
-                                && bl.SellableItem.KitchenStationId == stationId.Value));
+                .Where(x => x.IsStockable
+                            && (x.KitchenStationId == station
+                                || dbContext.BomLines.Any(bl =>
+                                    bl.MaterialItemId == x.Id
+                                    && bl.IsActive
+                                    && bl.SellableItem.KitchenStationId == station)));
 
             if (request.IsActive.HasValue)
                 q = q.Where(x => x.IsActive == request.IsActive.Value);
@@ -88,11 +125,12 @@ public static class GetIngredients
 
             var rows = await q
                 .OrderBy(x => x.Name)
-                .Select(x => new Ingredient(
+                .Select(x => new StockItem(
                     x.Id,
                     x.Code,
                     x.Name,
                     x.BaseUom.Code,
+                    x.KitchenStationId == station ? KindMenuItem : KindMaterial,
                     x.IsStockable,
                     x.HasRecipe,
                     x.IsActive,
@@ -100,11 +138,19 @@ public static class GetIngredients
                         .Where(st => st.ItemId == x.Id)
                         .Select(st => (decimal?)st.CurrentQty)
                         .FirstOrDefault() ?? 0m,
+                    x.LowStockThreshold,
                     x.ItemCategories.Where(ic => ic.IsMain).Select(ic => (int?)ic.CategoryId).FirstOrDefault(),
                     x.ItemCategories.Where(ic => ic.IsMain).Select(ic => ic.Category.Name).FirstOrDefault()))
                 .ToListAsync(ct);
 
-            return Result.Success<IReadOnlyList<Ingredient>>(rows);
+            var orderItemStocks = relatedIds.Count == 0
+                ? []
+                : rows.Where(r => relatedIds.Contains(r.Id)).ToList();
+            var otherStocks = relatedIds.Count == 0
+                ? rows
+                : rows.Where(r => !relatedIds.Contains(r.Id)).ToList();
+
+            return Result.Success(new Response(orderItemStocks, otherStocks));
         }
     }
 }

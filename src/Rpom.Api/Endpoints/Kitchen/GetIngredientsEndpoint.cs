@@ -11,17 +11,17 @@ internal sealed class GetIngredientsEndpoint : IEndpoint
     public void MapEndpoint(IEndpointRouteBuilder app)
     {
         app.MapGet("api/kitchen/ingredients",
-                async ([FromQuery] string? search, [FromQuery] bool? isActive,
+                async ([FromQuery] long? orderItemId, [FromQuery] string? search, [FromQuery] bool? isActive,
                        ISender sender, CancellationToken ct) =>
                 {
-                    var result = await sender.Send(new GetIngredients.Query(search, isActive), ct);
+                    var result = await sender.Send(new GetIngredients.Query(orderItemId, search, isActive), ct);
                     return result.MatchOk();
                 })
             .RequireAuthorization(Permissions.KdsView)
-            .Produces<ApiResult<IReadOnlyList<GetIngredients.Ingredient>>>(StatusCodes.Status200OK)
+            .Produces<ApiResult<GetIngredients.Response>>(StatusCodes.Status200OK)
             .ProducesProblem(StatusCodes.Status404NotFound)
             .WithTags("Kitchen")
             .WithName("GetKitchenIngredients")
-            .WithSummary("Kitchen materials (via the BOM for each station item) + current inventory.");
+            .WithSummary("Station stock: materials (via BOM) + stockable menu items, with qty + threshold. Pass orderItemId to split out that item's related stock.");
     }
 }
