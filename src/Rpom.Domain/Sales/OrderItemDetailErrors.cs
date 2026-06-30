@@ -19,4 +19,8 @@ public static class OrderItemDetailErrors
     public static readonly Error NotPending = Error.Conflict(
         "OrderItemDetail.NotPending",
         "Chỉ bắt đầu chế biến thành phần đang ở trạng thái PENDING.");
+
+    public static readonly Error NotProcessing = Error.Conflict(
+        "OrderItemDetail.NotProcessing",
+        "Chỉ đánh sẵn sàng thành phần đang ở trạng thái PROCESSING.");
 }
