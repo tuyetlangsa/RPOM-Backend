@@ -15,10 +15,13 @@ public static class RolePermissionDefaults
                 Permissions.MasterDataView, Permissions.MasterDataManage,
                 Permissions.TicketOpen, Permissions.TicketViewDetail, Permissions.TicketTransfer,
                 Permissions.TicketMerge, Permissions.TicketSplit, Permissions.TicketCancel,
+                Permissions.TicketList, Permissions.TicketAuditLog,
                 Permissions.TicketApplyDiscount, Permissions.TicketClose,
                 Permissions.OrderAddItems, Permissions.OrderSendKitchen,
                 Permissions.CashDrawerOpen, Permissions.CashDrawerClose,
                 Permissions.PaymentCash, Permissions.PaymentQr, Permissions.PaymentCancelPending,
+                Permissions.ReservationView, Permissions.ReservationCreate,
+                Permissions.ReservationSeat, Permissions.ReservationCancel,
                 Permissions.CashierFloorPlan, Permissions.CashierViewTicket, Permissions.CashierViewMenu,
                 Permissions.ReportRevenue, Permissions.ReportShift, Permissions.ReportItemConsumption,
                 Permissions.ReportExportExcel, Permissions.ConfigView, Permissions.NotificationView
@@ -30,6 +33,8 @@ public static class RolePermissionDefaults
                 Permissions.TicketOpen, Permissions.TicketViewDetail, Permissions.CashierViewTicket,
                 Permissions.TicketApplyDiscount, Permissions.TicketClose, Permissions.EInvoiceIssue,
                 Permissions.OrderAddItems, Permissions.OrderSendKitchen,
+                Permissions.ReservationView, Permissions.ReservationCreate,
+                Permissions.ReservationSeat, Permissions.ReservationCancel,
                 Permissions.CashierFloorPlan, Permissions.CashierViewMenu, Permissions.NotificationView
             },
             [Roles.OrderStaff] = new[]
@@ -37,7 +42,8 @@ public static class RolePermissionDefaults
                 Permissions.TicketOpen, Permissions.TicketViewDetail,
                 Permissions.OrderAddItems, Permissions.OrderSendKitchen,
                 Permissions.OrderItemCancelPending, Permissions.OrderItemMarkDone,
-                Permissions.ReservationCreate, Permissions.ReservationCancel,
+                Permissions.ReservationView, Permissions.ReservationCreate,
+                Permissions.ReservationSeat, Permissions.ReservationCancel,
                 Permissions.NotificationView
             },
             [Roles.KitchenStaff] = new[]

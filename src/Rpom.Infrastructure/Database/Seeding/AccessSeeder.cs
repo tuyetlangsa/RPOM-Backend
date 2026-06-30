@@ -106,8 +106,12 @@ public sealed class AccessSeeder(
             (Permissions.OrderSendKitchen, "Send order to kitchen", PermissionGroups.Pos),
             (Permissions.OrderItemCancelPending, "Cancel pending dish (out-of-stock)", PermissionGroups.Pos),
             (Permissions.OrderItemRefundLine, "Refund a damaged dish", PermissionGroups.Pos),
+            (Permissions.ReservationView, "View reservation list", PermissionGroups.Pos),
             (Permissions.ReservationCreate, "Create reservation", PermissionGroups.Pos),
+            (Permissions.ReservationSeat, "Seat a reservation (open tickets)", PermissionGroups.Pos),
             (Permissions.ReservationCancel, "Cancel reservation", PermissionGroups.Pos),
+            (Permissions.TicketList, "List all tickets across statuses", PermissionGroups.Pos),
+            (Permissions.TicketAuditLog, "View ticket audit/history log", PermissionGroups.Pos),
 
             (Permissions.KdsView, "View kitchen display", PermissionGroups.Kds),
             (Permissions.OrderItemStartCooking, "Mark dish PROCESSING", PermissionGroups.Kds),
@@ -240,7 +244,7 @@ public sealed class AccessSeeder(
             // (Pages.NextErpServiceCharge, "Phí phục vụ", Modules.NextErp),
             // (Pages.NextErpSchedule, "Lịch làm việc", Modules.NextErp),
             // (Pages.NextErpConfig, "Cấu hình nhà hàng", Modules.NextErp),
-            // (Pages.NextErpReports, "Báo cáo & Phân tích", Modules.NextErp),
+            (Pages.NextErpReports, "Báo cáo & Phân tích", Modules.NextErp),
             // (Pages.NextErpAi, "AI Conversational", Modules.NextErp),
 
             (Pages.CashierFloorPlan, "Floor Plan", Modules.Cashier),

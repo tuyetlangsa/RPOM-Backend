@@ -16,26 +16,27 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
         builder.Property(x => x.CustomerPhone).IsRequired().HasMaxLength(20);
         builder.Property(x => x.GuestCount).HasDefaultValue((short)1);
         builder.Property(x => x.Note).HasMaxLength(500);
-        builder.Property(x => x.Status).IsRequired().HasMaxLength(20).HasDefaultValue(ReservationStatus.Booked);
+        builder.Property(x => x.Status).IsRequired().HasMaxLength(20)
+            .HasDefaultValue(ReservationStatus.Booked);
         builder.Property(x => x.CancellationNote).HasMaxLength(500);
+        builder.Property(x => x.Version).IsConcurrencyToken().HasDefaultValue(0);
         builder.Property(x => x.CreatedAt).HasDefaultValueSql("now()");
         builder.Property(x => x.UpdatedAt).HasDefaultValueSql("now()");
 
         builder.ToTable(t => t.HasCheckConstraint(
             "ck_reservation_status",
-            "status IN ('BOOKED', 'ARRIVED', 'CANCELLED')"));
+            "status IN ('BOOKED', 'ARRIVED', 'CANCELLED', 'NOT_ARRIVED')"));
 
         builder.HasIndex(x => x.Code).IsUnique();
-        builder.HasIndex(x => x.TableId);
-        builder.HasIndex(x => new { x.TableId, x.Status, x.TargetTime }).HasDatabaseName("ix_reservation_table_active");
-        builder.HasIndex(x => new { x.Status, x.TargetTime }).HasDatabaseName("ix_reservation_status_target_time");
-        builder.HasIndex(x => x.LinkedTicketId);
+        builder.HasIndex(x => new { x.CounterId, x.Status, x.TargetTime })
+            .HasDatabaseName("ix_reservation_counter_status_target_time");
+        builder.HasIndex(x => x.UpdatedAt).HasDatabaseName("ix_reservation_updated_at");
         builder.HasIndex(x => x.CreatedByStaffId);
         builder.HasIndex(x => x.CustomerPhone).HasDatabaseName("ix_reservation_phone");
 
-        builder.HasOne(x => x.Table)
+        builder.HasOne(x => x.Counter)
             .WithMany()
-            .HasForeignKey(x => x.TableId)
+            .HasForeignKey(x => x.CounterId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.CancellationReason)
@@ -43,14 +44,14 @@ internal sealed class ReservationConfiguration : IEntityTypeConfiguration<Reserv
             .HasForeignKey(x => x.CancellationReasonId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        builder.HasOne(x => x.LinkedTicket)
-            .WithMany()
-            .HasForeignKey(x => x.LinkedTicketId)
-            .OnDelete(DeleteBehavior.Restrict);
-
         builder.HasOne(x => x.CreatedByStaff)
             .WithMany()
             .HasForeignKey(x => x.CreatedByStaffId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(x => x.ReservationTables)
+            .WithOne(rt => rt.Reservation)
+            .HasForeignKey(rt => rt.ReservationId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

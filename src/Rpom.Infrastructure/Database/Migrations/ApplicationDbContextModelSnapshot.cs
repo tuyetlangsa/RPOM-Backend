@@ -2643,6 +2643,10 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("character varying(30)")
                         .HasColumnName("code");
 
+                    b.Property<int>("CounterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("counter_id");
+
                     b.Property<DateTime>("CreatedAt")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("timestamp with time zone")
@@ -2671,10 +2675,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue((short)1)
                         .HasColumnName("guest_count");
 
-                    b.Property<long?>("LinkedTicketId")
-                        .HasColumnType("bigint")
-                        .HasColumnName("linked_ticket_id");
-
                     b.Property<string>("Note")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)")
@@ -2688,10 +2688,6 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue("BOOKED")
                         .HasColumnName("status");
 
-                    b.Property<int>("TableId")
-                        .HasColumnType("integer")
-                        .HasColumnName("table_id");
-
                     b.Property<DateTime>("TargetTime")
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("target_time");
@@ -2701,6 +2697,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasColumnType("timestamp with time zone")
                         .HasColumnName("updated_at")
                         .HasDefaultValueSql("now()");
+
+                    b.Property<int>("Version")
+                        .IsConcurrencyToken()
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("version");
 
                     b.HasKey("Id")
                         .HasName("pk_reservations");
@@ -2718,22 +2721,41 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.HasIndex("CustomerPhone")
                         .HasDatabaseName("ix_reservation_phone");
 
-                    b.HasIndex("LinkedTicketId")
-                        .HasDatabaseName("ix_reservations_linked_ticket_id");
+                    b.HasIndex("UpdatedAt")
+                        .HasDatabaseName("ix_reservation_updated_at");
 
-                    b.HasIndex("TableId")
-                        .HasDatabaseName("ix_reservations_table_id");
-
-                    b.HasIndex("Status", "TargetTime")
-                        .HasDatabaseName("ix_reservation_status_target_time");
-
-                    b.HasIndex("TableId", "Status", "TargetTime")
-                        .HasDatabaseName("ix_reservation_table_active");
+                    b.HasIndex("CounterId", "Status", "TargetTime")
+                        .HasDatabaseName("ix_reservation_counter_status_target_time");
 
                     b.ToTable("reservations", "public", t =>
                         {
-                            t.HasCheckConstraint("ck_reservation_status", "status IN ('BOOKED', 'ARRIVED', 'CANCELLED')");
+                            t.HasCheckConstraint("ck_reservation_status", "status IN ('BOOKED', 'ARRIVED', 'CANCELLED', 'NOT_ARRIVED')");
                         });
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Reservation.ReservationTable", b =>
+                {
+                    b.Property<long>("ReservationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reservation_id");
+
+                    b.Property<int>("TableId")
+                        .HasColumnType("integer")
+                        .HasColumnName("table_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.HasKey("ReservationId", "TableId")
+                        .HasName("pk_reservation_tables");
+
+                    b.HasIndex("TableId")
+                        .HasDatabaseName("ix_reservation_table_table_id");
+
+                    b.ToTable("reservation_tables", "public");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Restaurant.Area", b =>
@@ -4360,6 +4382,10 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .HasDefaultValue(0m)
                         .HasColumnName("refund_amount");
 
+                    b.Property<long?>("ReservationId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("reservation_id");
+
                     b.Property<decimal>("RoundingAdjustment")
                         .ValueGeneratedOnAdd()
                         .HasPrecision(18, 2)
@@ -4480,6 +4506,9 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.HasIndex("ManagerStaffId")
                         .HasDatabaseName("ix_tickets_manager_staff_id");
 
+                    b.HasIndex("ReservationId")
+                        .HasDatabaseName("ix_ticket_reservation_id");
+
                     b.HasIndex("ShiftId")
                         .HasDatabaseName("ix_tickets_shift_id");
 
@@ -4502,6 +4531,320 @@ namespace Rpom.Infrastructure.Database.Migrations
                         {
                             t.HasCheckConstraint("ck_ticket_status", "status IN ('OPEN', 'CLOSED', 'CANCELLED')");
                         });
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Sales.TicketInvoice", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<int>("AreaId")
+                        .HasColumnType("integer")
+                        .HasColumnName("area_id");
+
+                    b.Property<decimal>("ChangeAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("change_amount");
+
+                    b.Property<DateTime>("ClosedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("closed_at");
+
+                    b.Property<string>("ClosedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("closed_by_name");
+
+                    b.Property<int?>("ClosedByStaffId")
+                        .HasColumnType("integer")
+                        .HasColumnName("closed_by_staff_id");
+
+                    b.Property<int>("CounterId")
+                        .HasColumnType("integer")
+                        .HasColumnName("counter_id");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("discount_amount");
+
+                    b.Property<decimal>("DiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("discount_percent");
+
+                    b.Property<short>("GuestCount")
+                        .HasColumnType("smallint")
+                        .HasColumnName("guest_count");
+
+                    b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("opened_at");
+
+                    b.Property<decimal>("PaidAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("paid_amount");
+
+                    b.Property<decimal>("RefundAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("refund_amount");
+
+                    b.Property<decimal>("RoundingAdjustment")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("rounding_adjustment");
+
+                    b.Property<decimal>("ServiceChargeAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_amount");
+
+                    b.Property<decimal>("ServiceChargePercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_percent");
+
+                    b.Property<int>("ShiftId")
+                        .HasColumnType("integer")
+                        .HasColumnName("shift_id");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("subtotal");
+
+                    b.Property<string>("TableCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("table_code");
+
+                    b.Property<int>("TableId")
+                        .HasColumnType("integer")
+                        .HasColumnName("table_id");
+
+                    b.Property<string>("TicketCode")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("character varying(30)")
+                        .HasColumnName("ticket_code");
+
+                    b.Property<long>("TicketId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ticket_id");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<decimal>("VatAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_amount");
+
+                    b.Property<string>("WaiterName")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasColumnName("waiter_name");
+
+                    b.Property<int?>("WaiterStaffId")
+                        .HasColumnType("integer")
+                        .HasColumnName("waiter_staff_id");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ticket_invoices");
+
+                    b.HasIndex("ClosedAt")
+                        .HasDatabaseName("ix_ticket_invoices_closed_at");
+
+                    b.HasIndex("TicketId")
+                        .IsUnique()
+                        .HasDatabaseName("ix_ticket_invoices_ticket_id");
+
+                    b.HasIndex("CounterId", "ClosedAt")
+                        .HasDatabaseName("ix_ticket_invoices_counter_id_closed_at");
+
+                    b.HasIndex("ShiftId", "ClosedAt")
+                        .HasDatabaseName("ix_ticket_invoices_shift_id_closed_at");
+
+                    b.ToTable("ticket_invoices", "public");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Sales.TicketInvoiceLine", b =>
+                {
+                    b.Property<long>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bigint")
+                        .HasColumnName("id");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<long>("Id"));
+
+                    b.Property<decimal>("ChoicePricePerUnit")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("choice_price_per_unit");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("created_at")
+                        .HasDefaultValueSql("now()");
+
+                    b.Property<int>("DisplayOrder")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0)
+                        .HasColumnName("display_order");
+
+                    b.Property<string>("ItemCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("item_code");
+
+                    b.Property<int>("ItemId")
+                        .HasColumnType("integer")
+                        .HasColumnName("item_id");
+
+                    b.Property<string>("ItemName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)")
+                        .HasColumnName("item_name");
+
+                    b.Property<decimal>("LineDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("line_discount_percent");
+
+                    b.Property<decimal>("LineSubtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("line_subtotal");
+
+                    b.Property<decimal>("Quantity")
+                        .HasPrecision(18, 4)
+                        .HasColumnType("numeric(18,4)")
+                        .HasColumnName("quantity");
+
+                    b.Property<decimal>("ServiceChargeAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_amount");
+
+                    b.Property<decimal>("ServiceChargePercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_percent");
+
+                    b.Property<decimal>("ServiceChargeVatPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("service_charge_vat_percent");
+
+                    b.Property<decimal>("TicketDiscountPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(9, 6)
+                        .HasColumnType("numeric(9,6)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("ticket_discount_percent");
+
+                    b.Property<long>("TicketInvoiceId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("ticket_invoice_id");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("total_amount");
+
+                    b.Property<decimal>("TotalDiscount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("total_discount");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasColumnName("unit_price");
+
+                    b.Property<string>("UomCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasColumnName("uom_code");
+
+                    b.Property<string>("UomName")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)")
+                        .HasColumnName("uom_name");
+
+                    b.Property<decimal>("VatAmount")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(18, 2)
+                        .HasColumnType("numeric(18,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_amount");
+
+                    b.Property<decimal>("VatPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasPrecision(5, 2)
+                        .HasColumnType("numeric(5,2)")
+                        .HasDefaultValue(0m)
+                        .HasColumnName("vat_percent");
+
+                    b.HasKey("Id")
+                        .HasName("pk_ticket_invoice_lines");
+
+                    b.HasIndex("TicketInvoiceId")
+                        .HasDatabaseName("ix_ticket_invoice_lines_ticket_invoice_id");
+
+                    b.ToTable("ticket_invoice_lines", "public");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Sales.TicketItemSum", b =>
@@ -5328,6 +5671,13 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_reservations_cancellation_reasons_cancellation_reason_id");
 
+                    b.HasOne("Rpom.Domain.Restaurant.Counter", "Counter")
+                        .WithMany()
+                        .HasForeignKey("CounterId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_reservations_counters_counter_id");
+
                     b.HasOne("Rpom.Domain.Access.StaffAccount", "CreatedByStaff")
                         .WithMany()
                         .HasForeignKey("CreatedByStaffId")
@@ -5335,24 +5685,30 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .IsRequired()
                         .HasConstraintName("fk_reservations_staff_accounts_created_by_staff_id");
 
-                    b.HasOne("Rpom.Domain.Sales.Ticket", "LinkedTicket")
-                        .WithMany()
-                        .HasForeignKey("LinkedTicketId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .HasConstraintName("fk_reservations_tickets_linked_ticket_id");
+                    b.Navigation("CancellationReason");
+
+                    b.Navigation("Counter");
+
+                    b.Navigation("CreatedByStaff");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Reservation.ReservationTable", b =>
+                {
+                    b.HasOne("Rpom.Domain.Reservation.Reservation", "Reservation")
+                        .WithMany("ReservationTables")
+                        .HasForeignKey("ReservationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_reservation_tables_reservations_reservation_id");
 
                     b.HasOne("Rpom.Domain.Restaurant.Table", "Table")
                         .WithMany()
                         .HasForeignKey("TableId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired()
-                        .HasConstraintName("fk_reservations_tables_table_id");
+                        .HasConstraintName("fk_reservation_tables_tables_table_id");
 
-                    b.Navigation("CancellationReason");
-
-                    b.Navigation("CreatedByStaff");
-
-                    b.Navigation("LinkedTicket");
+                    b.Navigation("Reservation");
 
                     b.Navigation("Table");
                 });
@@ -5703,6 +6059,12 @@ namespace Rpom.Infrastructure.Database.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .HasConstraintName("fk_tickets_staff_accounts_manager_staff_id");
 
+                    b.HasOne("Rpom.Domain.Reservation.Reservation", null)
+                        .WithMany()
+                        .HasForeignKey("ReservationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .HasConstraintName("fk_tickets_reservations_reservation_id");
+
                     b.HasOne("Rpom.Domain.Operations.Shift", "Shift")
                         .WithMany()
                         .HasForeignKey("ShiftId")
@@ -5740,6 +6102,30 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Table");
 
                     b.Navigation("WaiterStaff");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Sales.TicketInvoice", b =>
+                {
+                    b.HasOne("Rpom.Domain.Sales.Ticket", "Ticket")
+                        .WithOne()
+                        .HasForeignKey("Rpom.Domain.Sales.TicketInvoice", "TicketId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired()
+                        .HasConstraintName("fk_ticket_invoices_tickets_ticket_id");
+
+                    b.Navigation("Ticket");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Sales.TicketInvoiceLine", b =>
+                {
+                    b.HasOne("Rpom.Domain.Sales.TicketInvoice", "TicketInvoice")
+                        .WithMany("Lines")
+                        .HasForeignKey("TicketInvoiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired()
+                        .HasConstraintName("fk_ticket_invoice_lines_ticket_invoices_ticket_invoice_id");
+
+                    b.Navigation("TicketInvoice");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Sales.TicketItemSum", b =>
@@ -5915,6 +6301,11 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Printers");
                 });
 
+            modelBuilder.Entity("Rpom.Domain.Reservation.Reservation", b =>
+                {
+                    b.Navigation("ReservationTables");
+                });
+
             modelBuilder.Entity("Rpom.Domain.Restaurant.Area", b =>
                 {
                     b.Navigation("Tables");
@@ -5960,6 +6351,11 @@ namespace Rpom.Infrastructure.Database.Migrations
                     b.Navigation("Orders");
 
                     b.Navigation("Payments");
+                });
+
+            modelBuilder.Entity("Rpom.Domain.Sales.TicketInvoice", b =>
+                {
+                    b.Navigation("Lines");
                 });
 
             modelBuilder.Entity("Rpom.Domain.Sales.TicketPaymentDetail", b =>

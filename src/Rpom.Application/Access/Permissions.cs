@@ -32,9 +32,15 @@ public static class Permissions
     public const string OrderSendKitchen = "order:send_kitchen";
     public const string OrderItemCancelPending = "order_item:cancel_pending";
     public const string OrderItemRefundLine = "order_item:refund_line";
+    public const string ReservationView = "reservation:view";
     public const string ReservationCreate = "reservation:create";
+    public const string ReservationSeat = "reservation:seat";
     public const string ReservationCancel = "reservation:cancel";
     public const string NotificationView = "notification:view";
+
+    // ============ POS — Ticket Management ============
+    public const string TicketList = "ticket:list";
+    public const string TicketAuditLog = "ticket:audit_log";
 
     // ============ KDS — Kitchen Staff ============
     public const string KdsView = "kds:view";

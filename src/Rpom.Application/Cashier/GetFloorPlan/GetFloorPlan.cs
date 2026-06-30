@@ -5,6 +5,7 @@ using Rpom.Application.Abstraction.Data;
 using Rpom.Application.Abstraction.Messaging;
 using Rpom.Application.Abstraction.Tables;
 using Rpom.Application.Configuration;
+using Rpom.Application.Reservation;
 using Rpom.Domain.Common;
 using Rpom.Domain.Reservation;
 using Rpom.Domain.Restaurant;
@@ -128,18 +129,19 @@ public static class GetFloorPlan
                 .ToListAsync(ct);
             var unsentTicketIds = ticketsWithUnsentItems.ToHashSet();
 
-            // Upcoming reservations for these tables.
-            var reservations = await db.Reservations
-                .Where(r => tableIds.Contains(r.TableId) && r.Status == ReservationStatus.Booked)
-                .Select(r => new
+            // Upcoming reservations for these tables (booked tables via the junction).
+            var reservations = await db.ReservationTables
+                .Where(rt => tableIds.Contains(rt.TableId)
+                             && rt.Reservation.Status == ReservationStatus.Booked)
+                .Select(rt => new
                 {
-                    r.Id,
-                    r.TableId,
-                    r.CustomerName,
-                    r.CustomerPhone,
-                    r.GuestCount,
-                    r.TargetTime,
-                    r.Status
+                    rt.Reservation.Id,
+                    rt.TableId,
+                    rt.Reservation.CustomerName,
+                    rt.Reservation.CustomerPhone,
+                    rt.Reservation.GuestCount,
+                    rt.Reservation.TargetTime,
+                    rt.Reservation.Status
                 })
                 .ToListAsync(ct);
 
@@ -162,8 +164,7 @@ public static class GetFloorPlan
                         var latest = ts.FirstOrDefault();
                         var upcoming = reservations
                             .Where(r => r.TableId == t.Id
-                                        && r.TargetTime.AddMinutes(-preBuffer) <= now
-                                        && now <= r.TargetTime.AddMinutes(grace))
+                                        && ReservationWindow.IsHeld(r.TargetTime, preBuffer, grace, now))
                             .OrderBy(r => r.TargetTime)
                             .FirstOrDefault();
 
