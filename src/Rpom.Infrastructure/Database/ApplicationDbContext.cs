@@ -58,6 +58,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ItemAreaLock> ItemAreaLocks => Set<ItemAreaLock>();
     public DbSet<PosTerminal> PosTerminals => Set<PosTerminal>();
     public DbSet<CustomerDisplay> CustomerDisplays => Set<CustomerDisplay>();
+    public DbSet<KitchenOrderPin> KitchenOrderPins => Set<KitchenOrderPin>();
     public DbSet<DiscountPolicy> DiscountPolicies => Set<DiscountPolicy>();
     public DbSet<DiscountPolicyCondition> DiscountPolicyConditions => Set<DiscountPolicyCondition>();
 
